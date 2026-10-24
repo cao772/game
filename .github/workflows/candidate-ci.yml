@@ -1,0 +1,123 @@
+
+name: Game Candidate CI
+
+on:
+  push:
+    branches:
+      - 'codex/**'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-tests:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.12', '3.14']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Check save candidate structure
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          path = Path("prototypes/save_candidate.py")
+          source = path.read_text(encoding="utf-8")
+          physical_lines = len(source.splitlines())
+
+          if physical_lines > 180:
+              raise SystemExit(
+                  f"FAIL: {physical_lines} lines exceeds 180"
+              )
+
+          tree = ast.parse(source, filename=str(path))
+          functions = {
+              node.name: node
+              for node in tree.body
+              if isinstance(node, ast.FunctionDef)
+          }
+
+          required = {
+              "test_clock_isolation",
+              "test_roundtrip",
+              "test_invalid_version",
+          }
+
+          missing = required - functions.keys()
+          if missing:
+              raise SystemExit(
+                  f"FAIL: missing tests: {sorted(missing)}"
+              )
+
+          assert_count = sum(
+              isinstance(node, ast.Assert)
+              for name in required
+              for node in ast.walk(functions[name])
+          )
+
+          if assert_count < 12:
+              raise SystemExit(
+                  f"FAIL: {assert_count} asserts; minimum 12"
+              )
+
+          print(
+              f"PASS: {physical_lines} physical lines, "
+              f"3 test functions, {assert_count} asserts"
+          )
+          PY
+
+      - name: Test save candidate
+        run: python prototypes/save_candidate.py
+
+      - name: Test performance analyzer
+        run: python tools/perf_analyze_candidate.py --self-test
+
+  windows-memory-smoke:
+    name: Windows explicit-PID memory smoke
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.14'
+      - name: Test memory observer pure logic
+        run: python tools/windows_process_memory_candidate.py --self-test
+      - name: Read this runner Python process through Windows APIs
+        shell: python
+        run: |
+          import json, os, pathlib, subprocess, sys, tempfile
+          with tempfile.TemporaryDirectory() as folder:
+              prefix = str(pathlib.Path(folder) / 'memory_self')
+              subprocess.run([sys.executable, 'tools/windows_process_memory_candidate.py',
+                  '--pid', str(os.getpid()), '--seconds', '1', '--interval', '0.2',
+                  '--expected-exe', os.path.basename(sys.executable),
+                  '--include-cpu', '--out-prefix', prefix], check=True)
+              result = json.loads(pathlib.Path(prefix + '.json').read_text(encoding='utf-8'))
+              assert result['status'] == 'complete'
+              assert result['samples'] >= 4
+              assert result['expected_exe_matched'] is True
+              assert result['working_set_peak_observed_gib'] > 0
+              assert result['full_scene_pass'] is False
+              print('PASS: actual Windows API memory smoke; not a game benchmark')
