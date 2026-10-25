@@ -1,0 +1,10 @@
+__pycache__/
+ops/tasks.json
+ops/sync-state.json
+ops/browser-state.json
+ops/dispatch.lock
+ops/logs/
+ops/checkpoints/
+ops/STATUS.md
+ops/tmp/
+ops/cache/
