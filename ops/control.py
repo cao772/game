@@ -147,6 +147,8 @@ def plan(ledger, resource, browser, now):
         if task.get("status") != "queued":
             continue
         reasons = list(blockers)
+        if task.get("owner_gate"):
+            reasons.append("owner_decision_required")
         key = conversation(task.get("url"))
         obs = observations.get(key, {})
         if not key:
