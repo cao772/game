@@ -101,6 +101,17 @@ class DispatchTests(unittest.TestCase):
         self.ledger['tasks'].append(dict(id='REVIEW',status='review',url=self.task['url'][:-1]+'2'))
         self.assertIn('review_backlog',self.result()['global_blockers'])
 
+    def test_capacity_full(self):
+        self.ledger['target_active']=1
+        self.ledger['tasks'].append(dict(id='BUSY',status='running',write_paths=['other/']))
+        self.assertFalse(self.result()['ready'])
+        self.assertIn('capacity_full',self.result()['blocked'][0]['reasons'])
+
+    def test_candidate_owner_gate(self):
+        self.task['owner_gate']=True
+        self.assertFalse(self.result()['ready'])
+        self.assertIn('owner_decision_required',self.result()['blocked'][0]['reasons'])
+
     def test_paths_reject_escapes(self):
         for value in [['../escape'],['C:/outside'],['/absolute'],['.'],['']]:
             self.task['write_paths']=value
