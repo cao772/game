@@ -124,8 +124,12 @@ def plan(ledger, resource, browser, now):
         key = conversation(task.get("url"))
         if key:
             current[key] = task
+    mode = ledger.get("schedule_mode", "weekend")
+    if mode not in {"weekend", "continuous"}:
+        raise ValueError("invalid schedule mode")
+    allowed = mode == "continuous" or now.astimezone(SHANGHAI).weekday() >= 5
     blockers = []
-    if now.astimezone(SHANGHAI).weekday() < 5:
+    if not allowed:
         blockers.append("outside_weekend")
     gate = resource_gate(resource, now)
     if gate:
@@ -193,7 +197,7 @@ def plan(ledger, resource, browser, now):
             reserved_chats.add(key)
             slots_left -= 1
     return {
-        "generated_at": now.isoformat(), "time_gate": "work" if now.astimezone(SHANGHAI).weekday() >= 5 else "rest",
+        "generated_at": now.isoformat(), "time_gate": "work" if allowed else "rest", "schedule_mode": mode,
         "target_chats": target, "registered_chats": len(current), "historical_task_count": len(tasks),
         "currently_generating": (sum(o.get("state") == "generating" for o in observations.values())
             if browser.get("available") is True and len(observations) == len(current)
