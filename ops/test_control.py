@@ -33,6 +33,23 @@ class DispatchTests(unittest.TestCase):
                                ('2026-10-25T15:59:59+00:00','work'), ('2026-10-25T16:00:00+00:00','rest')]:
             self.assertEqual(plan(self.ledger, self.resource, self.browser, datetime.fromisoformat(date))['time_gate'], expected)
 
+    def test_continuous_schedule_allows_weekday_with_all_other_gates(self):
+        self.now = datetime(2026, 10, 26, 5, tzinfo=timezone.utc)
+        self.ledger['schedule_mode'] = 'continuous'
+        self.resource['utc'] = self.now.isoformat()
+        self.browser['checked_at'] = self.now.isoformat()
+        self.browser['chats'][self.chat]['observed_at'] = self.now.isoformat()
+        self.assertEqual(self.result()['time_gate'], 'work')
+        self.assertEqual(self.result()['ready'], ['T1'])
+        self.browser['available'] = False
+        self.assertFalse(self.result()['ready'])
+        self.assertIn('browser_unavailable_or_stale', self.result()['global_blockers'])
+
+    def test_invalid_schedule_mode_rejected(self):
+        self.ledger['schedule_mode'] = 'daily_typo'
+        with self.assertRaises(ValueError):
+            self.result()
+
     def test_unknown_stale_future_and_bool_resource(self):
         for value in [None, float('nan'), float('inf'), -1, True]:
             self.resource['cpuAverage'] = value
