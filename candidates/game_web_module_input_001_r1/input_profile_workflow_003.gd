@@ -55,11 +55,11 @@ func preview_conflict(action_id: StringName, new_keycode: Variant) -> Dictionary
     var next_steps: Array[String] = []
     match str(preview["code"]):
         "CONFLICT":
-            var owners: Array[String] = []
+            var owners := PackedStringArray()
             for collision in preview["conflicts"]:
                 for owner in collision["owners"]:
                     var name := str(owner["action_id"])
-                    if not owners.has(name):
+                    if name != String(action_id) and not owners.has(name):
                         owners.append(name)
             explanation = "Key already assigned to: " + ", ".join(owners)
             next_steps = [
