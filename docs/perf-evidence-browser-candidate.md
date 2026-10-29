@@ -115,3 +115,88 @@ delta_percent = delta / 基线有效观测 × 100%
 `task_id=GAME-WEB-FLOW-PERF-004`，`version=r1`，`input_version=PR#12 HEAD f04726c7 (PR#2 PERF-002/r1)`，`scope=独立离线证据浏览器`，`deliverable=HTML/CSS/JS模型/JS交互/未来测试/设计文档`，`acceptance=FB01..FB23 + 未来浏览器人工验收`，`status=NOT_RUN / OWNER_REVIEW_PENDING`。
 
 不得修改main、PR #12原文件、游戏源码或小说原稿。不得上传私密设定、聊天证据或真实本机采样。只发布经允许公开的技术候选；不批准正史、共享接口或性能预算。
+
+---
+
+# GAME-WEB-PLAY-PERF-005｜多结果横向对比与缺测解释增量 r1
+
+> **最终验收前状态：NOT_RUN。** 本节是对原 Draft PR #22 的代码级增量，不更改PR #12的Python工具/报告格式，不执行任何代码、测试、浏览器预览或跑分，不合并main。本任务只提供可公开技术候选，且不批准共享接口、性能预算、剧情正史。
+
+## 10. 本轮真实代码基线与分工
+
+本轮首先读取 [Draft PR #22](https://github.com/cao772/game/pull/22) 当前 HEAD `37bbe8d65b98f6a8c187a92046fe19f952dc1516`，核对：
+`tools/perf_evidence_browser/model.js`、`app.js`、`index.html`、`style.css`，
+`tests/test_perf_evidence_browser_candidate.js`、
+`docs/perf-evidence-browser-candidate.md`。PR #22 的上游仍为PR #12 `codex/perf-report-module-r1`，包含PERF-002分析器、离线单次及多次汇总候选。无须额外现实场景/真实用户证据即可编写**结构验证与离线浏览**功能；但缺少实际场景CSV、采样原始哈希、GPU计数器、CPU脚本分离证据，**不能完成真实性证明或整体验收**。
+
+本轮新增 `tools/perf_evidence_browser/cohort.js`（只读纯JS多报告对照模型），直接升级原 `index.html`、`app.js`、`style.css`、`model.js`，继续沿用其浏览器本地File API和现有单次/两份显示方式。没有改动游戏代码、上传设定或其他窗口PR文件。
+
+## 11. 常规设计取舍及原因
+
+- **多文件选择采用「左侧勾选2–12份 + 指定其中一份为基准」**，不自动按文件名、时间顺序或导入顺序断言哪份更早。允许最多40份进入浏览库，但单次横向对照限制12份，使离线页面、表格列和内存占用可控。
+- **坚持只读来自现有JSON的数值**：沿用`model.normalize`先统一判定，增加任务ID/版本/预算状态校验，以及重复指标键、组级覆盖自相矛盾的保守降级。报告外的输入缺少可信字段时明示缺测/不完整，不调用Godot或Python进行“自动补全”。
+- **多文件不接纳已聚合series当作独立run**：原series摘要已经是多个run级统计量，若与单份报告再求中位数会出现二次聚合、重复计数和样本独立性不明。多轮series仍单独在详情页展示run级min/median/max及各run来源，不参加跨文件逐帧对照。
+- **不同报告的逐指标数值表优先**，不是光凭折线漂亮就宣称趋势：每个单元格同时显示导入值、是否可核对、相对基准delta；并展示每份来源的引擎、渲染器、场景哈希、原声明子集状态和警告数量。实际真实性一律`UNVERIFIED`。
+- **完整覆盖才汇总各报告中位数**：对某指标若12份中有任一缺测、不合法或失配，则显示有效数量与逐份缺测原因，整项的跨报告中位数、min/max置`null`；避免仅用少量有效样本掩盖缺失。有上下文冲突时，统计汇总和delta亦置`null`，但保留每份原始声明数值供追溯。
+- **支持合成样本的数学对照，却绝不把合成显示为真实跑分**。同一组全为`SYNTHETIC`时可计算纯数学差异；合成与非合成混合、headless/dummy、已声明的引擎/渲染器/场景哈希不一致时标记`CONFLICT`并抑制delta。即使无已知冲突，未知设备、VSync、分辨率和真实源文件绑定仍为`UNVERIFIED`，结果只标`NUMERIC_ONLY`。
+- **明确原因而非猜测0**：来源没有合法的`script_p95_ms`、`vram_delta_peak_gib`、`ram_peak_gib`、绘制数或其他指标时，以`NOT_MEASURED`或`INCOMPLETE`显示数值缺口、run/文件名和原因。不能由相邻帧时间推GPU/脚本CPU，也不能拿Windows `working_set_gib`、`private_bytes_gib`替代逐帧RAM。此策略避免用“0”使任何提案预算看似通过。
+- **不持久化也不上传**：保留本地File API、无网络/CSP、纯DOM文本渲染；会话勾选和多个报告只保存在当前页面的JS对象中；不引入CDN、统计服务、后端共享接口或自动运行。
+- **不计算统计显著性**：多个原报告只给run/文件级等权中位数（且覆盖完整时），不合并逐帧样本、不推断置信区间、不说性能提升。未来如要正式对照需单独取得相同负载与环境的完整原始采样、授权审查和可验证证据关联。
+
+## 12. 新增的浏览器交互
+
+1. 从本地选择或拖入多份 `.json`。同一页面支持PERF-002 `analyzer`、PR #12 `single` 和 `series` 三类既有结构；**本轮不发明第四类外部数据来源接口**。
+2. 详情页新增「缺测与口径说明」。显示八项指标中未测/异常的明确原因，并单列脚本CPU、GPU执行时长、VRAM、Windows工作集/private commit与整个场景未测事项的区别。
+3. 系列摘要详情继续显示每个run的帧数、来源声明、版本、渲染器、场景哈希及各指标`missing_runs`。系列报告既可以导入浏览，又不能冒充单次逐帧观测。
+4. 在报告清单勾选**2–12份非series报告**，选择基准，点击「比较已勾选报告」；生成一张横向指标数值矩阵，以及逐文件来源元数据、有效覆盖总数与各文件缺测原因。输出仅在页面显示，没有导出/上传动作。
+5. 旧两份数值对照保留。点击「取消勾选」只清空横向比较选择，不删除任何已导入报告；「清空会话」才清除整个页面证据引用。已声明来源冲突时对照显示不可比较。
+
+这里的“有效覆盖”只代表**报告内的数值结构和预算对照可读取**，绝不能被解释成有多少次真实游戏测试已验证；来源类别和预算身份单独列出。多个报告可能指向同一原始CSV，本工具没有源文件哈希与审计信息，因此**不证明它们是独立重复实验**。
+
+## 13. 集成说明（未来执行，当前禁止运行）
+
+全部文件位于当前PR独立分支 `codex/perf-evidence-browser-r1`：
+
+```text
+tools/perf_evidence_browser/
+  index.html              浏览器入口
+  style.css               既有样式及新多报告布局
+  model.js                已知JSON格式规范化和缺测判别
+  cohort.js               新增跨2–12份报告纯计算模型
+  app.js                  既有导入/详情 + 多报告勾选/对照交互
+tests/
+  test_perf_evidence_browser_candidate.js         原有未来契约测试，扩展边界
+  test_perf_evidence_browser_cohort_candidate.js  新增未来横向比较验收
+docs/
+  perf-evidence-browser-candidate.md              本说明
+```
+
+页面`index.html`按`model.js`→`cohort.js`→`app.js`加载；所有路径相对浏览器入口。不得复制或覆盖上游PR #12的Python源码、真实证据目录或游戏原稿。任何未来本地预览都须保持CSP和无外部请求约束。若 `file://` 模式的浏览器安全策略阻止脚本加载，应在授权后单独确认只监听回环地址的离线静态文件服务，不允许改成公网站点或上传真实证据。
+
+预留的未来纯逻辑验收命令（**本任务没有执行**）：
+
+```text
+node --test tests/test_perf_evidence_browser_candidate.js
+node --test tests/test_perf_evidence_browser_cohort_candidate.js
+```
+
+浏览器人工验收后续须覆盖：多选／取消、单份详情和两份旧模式不回归、2/12/13份边界、重复ID、单个缺测/全部缺测、含合成与非合成、headless/dummy、来源引擎和场景哈希冲突、移动端宽表横向滚动、无网络请求、无内容注入、未知版本保守处理。现在**只提交未来测试源码，不执行**，状态`NOT_RUN`。
+
+## 14. 新增未来验收用例（全部NOT_RUN）
+
+`tests/test_perf_evidence_browser_cohort_candidate.js` 中的 PB01–PB17：三份run级中位数与覆盖；非默认基准delta；单项缺测与全缺测；混合来源抑制差值；合成保留声明；非GPU后端禁止GPU对照；场景哈希冲突；预算不匹配；分母为0百分比null；拒绝把系列摘要当独立run；报告数量2至12边界；重复ID、基准非法；逐份来源元信息；不可用指标零差值禁止；CSP与本地只读约束；无副作用的纯计算。
+
+原 `tests/test_perf_evidence_browser_candidate.js` 新增 FB25–FB28：单次报告任务ID/版本/预算声明异常；同指标重复；series契约异常；series覆盖声明与实际次数冲突。原有FB01–FB24为之前任务未来测试定义，仍未执行。
+
+**限制及已知缺输入**：没有本轮真实Windows/Godot实测，缺少可核验的原始CSV SHA256绑定、真实GPU时间、脚本CPU分离、VRAM增量、完整场景动作与最低目标机数据。因此任何`WITHIN_PROPOSAL`仅是导入结构所声明数值与**未经批准预算**的比较，不是官方通过；任何`NUMERIC_ONLY`仅是描述性差值，不是性能优化结论。既有分析器代码与共享接口未获批准，本模块不将其偷偷升级为正式标准。
+
+## 15. 记录包
+
+`task_id=GAME-WEB-PLAY-PERF-005`；`version=r1`；
+`input_version=Draft PR #22 HEAD 37bbe8d / Draft PR #12 依赖`；
+`scope=仅改PR#22独立浏览器及自有未来测试、文档`；
+`deliverable=cohort.js + 既有模块升级 + PB01..PB17 + FB25..FB28 + 集成说明`；
+`acceptance=全部NOT_RUN，交作者最终验收`；
+`status=NOT_RUN`。
+
+不改main；不上传小说正史、私密设定、聊天证据；不合并Draft PR；不批准性能预算、共享接口或任何游戏正史。
