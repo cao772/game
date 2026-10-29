@@ -64,6 +64,26 @@ Expected (not observed): `PASS GAME-WEB-CONTINUE-SHELL-003 r1` and
 exit 0 if every assertion succeeds; otherwise FAIL and nonzero exit.
 This command must not be run without a subsequent author authorization.
 
+## Legacy r1 inventory retained — manual/negative S13–S24
+
+These IDs existed in the original PR #17 acceptance inventory. They are
+not automated by the authored verifier and all remain **NOT_RUN**.
+
+| Case | Original r1 expectation retained | Status |
+|---|---|---|
+| S13 | Each slot mock request stays local, with no game/snapshot changes | NOT_RUN |
+| S14 | Tab/Shift+Tab, Space/Enter navigation has usable focus | NOT_RUN |
+| S15 | Escape does not cause unapproved gameplay cancellation | NOT_RUN |
+| S16 | Paused root blocks simulation requests | NOT_RUN |
+| S17 | Native unfocused window blocks, regain focus safely | NOT_RUN |
+| S18 | 1024x640, 960x680 and narrow sizes remain usable | NOT_RUN |
+| S19 | Invalid mock preview falls back visibly, no write | NOT_RUN |
+| S20 | Git diff restricted to the shell candidate path | NOT_RUN |
+| S21 | No resource references to other Drafts or external assets | NOT_RUN |
+| S22 | No automatic input-priority integration with #6/#10/#15 | NOT_RUN |
+| S23 | No InputMap or user:// persistent mutation | NOT_RUN |
+| S24 | No original manuscript or real character text in source/UI | NOT_RUN |
+
 ## B. Separate manual/native acceptance (not covered by headless source)
 
 | Case | Reviewer action | Expected evidence | Status |
