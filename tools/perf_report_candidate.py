@@ -146,6 +146,13 @@ def build_report(analysis, memory=None, capture=None):
     clean_input = type(error_count) is int and error_count == 0
     if not clean_input:
         warnings.append("分析器缺少有效 error_count=0；所有预算判定降级为不完整")
+    samples = analysis.get("sample_count")
+    if type(samples) is not int or samples <= 0:
+        clean_input = False
+        warnings.append("没有正数逐帧样本数；不接受任何PASS")
+    if analysis.get("status") != "incomplete" or analysis.get("full_scene_pass") is not False:
+        clean_input = False
+        warnings.append("分析器整体场景状态缺失或非incomplete；不接受任何PASS")
     if analysis.get("task_id") != "GAME-WEB-PERF-002":
         clean_input = False
         warnings.append("不是已知 PERF-002 分析器输出：不接受PASS")
