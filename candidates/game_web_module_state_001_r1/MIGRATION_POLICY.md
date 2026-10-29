@@ -92,3 +92,30 @@ No defaults are silently selected in this task.
   shared package; rereview on upstream change.
 - Test scripts may create synthetic files **only when Codex later runs them**;
   this source-development phase has not executed tests.
+
+---
+
+## CONTINUE-STATE-003 safe preview boundary
+
+This continuation introduces `preview_migration_safe` as the preferred
+report-only API. It does not remove the 002 detailed preview. Design
+decision: **fail closed without a version mapping**, even if a reviewer
+supplies what looks like a valid v1 target. Unknown source fields do not
+have approved meanings. Therefore 003 returns `mapping_required`,
+rather than the historical `manual_unverified_preview` field diff,
+for unsupported numeric source versions.
+
+For a fully validated v1 source, comparison to an explicitly supplied
+complete v1 target is permitted as a read-only **proposal** only:
+- version, mode, round_id and clock_seconds field changes:
+  `protected_field_review_blocked`; values never exposed.
+- phase / door_open changes: `same_version_review_only`;
+  **not** approval of any state transition.
+- unchanged fields: `no_changes`; no target: `no_migration_needed`.
+- any invalid/missing/foreign/corrupt/oversized source: `blocked`
+  without a diff regardless of proposed target.
+
+Numeric order reported by `report_version_delta` or
+`compare_snapshot_versions` is solely diagnostic. No forward/backward
+conversion, time adjustment, repair, clock rule or canonical interface
+is implied. See [VERSION_DIFF_POLICY.md](VERSION_DIFF_POLICY.md).
