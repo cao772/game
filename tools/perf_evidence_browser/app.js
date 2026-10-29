@@ -8,7 +8,7 @@
   const model = window.PerfEvidenceModel;
   const cohort = window.PerfEvidenceCohort;
   const byId = id => document.getElementById(id);
-  const state = { reports: [], selected: null, sequence: 0, errors: [], multiSelected: new Set() };
+  const state = { reports: [], selected: null, sequence: 0, errors: [], multiSelected: new Set(), seenFiles: new Set(), busy: false };
   const els = {
     files: byId("files"), drop: byId("drop"), count: byId("count"),
     total: byId("total"), synthetic: byId("synthetic-count"),
@@ -449,13 +449,23 @@
   }
 
   async function importFiles(files) {
+    if (!model || !cohort) {
+      els.status.textContent = "依赖模块未加载完整，拒绝导入和任何伪数据显示。";
+      return;
+    }
+    if (state.busy) {
+      els.status.textContent = "上一批本地文件仍在读取，请勿并行导入以免混淆证据。";
+      return;
+    }
     const selected = Array.from(files || []);
     if (!selected.length) return;
     if (selected.length + state.reports.length > model.MAX_FILES) {
       els.status.textContent = "超过最多40份报告的限制；本次未导入。";
       return;
     }
+    state.busy = true;
     let added = 0;
+    try {
     for (const f of selected) {
       const safeName = typeof f.name === "string" ? f.name.slice(0, 100) : "未命名文件";
       if (!f || typeof f.size !== "number" || f.size > model.MAX_FILE_BYTES) {
@@ -466,17 +476,28 @@
         state.errors.push(safeName + "：只接受 .json");
         continue;
       }
+      // Collision-resistant identity is NOT proven here: this is only a UX
+      // guard against accidental repeat-selection of the same local file.
+      const signature = safeName + "|" + String(f.size) + "|" + String(f.lastModified);
+      if (state.seenFiles.has(signature)) {
+        state.errors.push(safeName + "：疑似重复选择（文件名/大小/修改时间相同），未再次计数");
+        continue;
+      }
       try {
         const text = await f.text();
         if (text.length > model.MAX_FILE_BYTES) throw new Error("解码后超出字符上限");
         const record = model.normalize(safeName, text);
         record.browserId = ++state.sequence;
         state.reports.push(record);
+        state.seenFiles.add(signature);
         if (state.selected === null) state.selected = record.browserId;
         added += 1;
       } catch (err) {
         state.errors.push(safeName + "：" + (err && err.message ? String(err.message).slice(0, 180) : "读取失败"));
       }
+    }
+    } finally {
+      state.busy = false;
     }
     els.status.textContent = "已导入 " + added + " 份；错误 " + Math.min(state.errors.length, 12) + " 条（仅当前会话）。";
     overview();
@@ -487,7 +508,12 @@
     renderDetail();
   }
   function reset() {
-    state.reports = []; state.selected = null; state.errors = []; state.multiSelected.clear();
+    if (state.busy) {
+      els.status.textContent = "本地文件读取尚未结束；本次暂不清空。";
+      return;
+    }
+    state.reports = []; state.selected = null; state.errors = [];
+    state.multiSelected.clear(); state.seenFiles.clear();
     els.files.value = "";
     els.baseline.value = ""; els.current.value = "";
     clear(els.result);
