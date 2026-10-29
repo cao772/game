@@ -140,3 +140,50 @@ See [ACCEPTANCE.md](ACCEPTANCE.md).
 
 **Project status: SOURCE_WRITTEN / NOT_RUN / NOT_VERIFIED.**
 Do not merge or mark Ready based on source submission.
+
+---
+
+## Continuation 003: safe version difference and guarded migration preview
+
+Source-only implementation: **GAME-WEB-CONTINUE-STATE-003 r1**, NOT_RUN.
+See [VERSION_DIFF_POLICY.md](VERSION_DIFF_POLICY.md) for detailed
+design choices, error boundaries, and reasoning.
+
+Three new RefCounted methods in the same `snapshot_inspector_candidate.gd`:
+
+```gdscript
+# Known-v1-only format baseline, NOT a migration decision:
+var delta = inspector.report_version_delta(
+    "user://isolated/story.round_snapshot.json", "story", 1
+)
+# Two independent reads; payload fields compared ONLY for valid v1/v1:
+var diff = inspector.compare_snapshot_versions(
+    "user://a/story.round_snapshot.json",
+    "user://b/story.round_snapshot.json",
+    "story"
+)
+# Prefer this to the old detailed preview when reporting:
+var guarded = inspector.preview_migration_safe(
+    "user://a/story.round_snapshot.json", "story",
+    proposed_complete_v1_target
+)
+```
+
+- Numeric version relative to v1: lower/same/higher/unknown. It describes
+  **number order only**, not a known transformation or gameplay compatibility.
+- Compare reports include per-side redacted statuses. Known v1/v1 pairs can
+  report field names and change kinds, never values; unsupported versions
+  produce `unmapped_versions` with **no payload comparison**.
+- Guarded preview demands fully valid v1 source and v1 target for field
+  comparison. Unsupported versions always return `mapping_required`
+  (even if a target is provided); invalid sources cannot be repaired.
+- Changes to version, mode, round_id or clock_seconds are marked
+  `protected_field_review_blocked`; *all* outcomes remain unappliable,
+  unapproved and read-only. No new clock semantics or migration rules.
+- Existing `preview_migration` remains a **detailed local candidate API**.
+  It may expose a decoded-text fingerprint. The safer 003 API excludes it.
+- New [verify_version_diff_003.gd](verify_version_diff_003.gd) contains 42
+  synthetic future checks. **Never interpret script contents as a PASS.**
+
+No existing writing, event runtime, Python save, unrelated candidate, or
+main branch is modified by this continuation.
