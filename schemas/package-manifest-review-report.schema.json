@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/cao772/game/blob/codex/module-package-manifest-check-r1/schemas/package-manifest-review-report.schema.json",
+  "title": "GAME-WEB-CONTINUE-PACK-003 r1 offline manifest review report",
+  "description": "Reference schema for NOT_RUN candidate; no runtime validator dependency.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "validation_status",
+    "release_approved",
+    "evidence_scope",
+    "source",
+    "checker",
+    "counts",
+    "diagnostics",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "GAME-WEB-CONTINUE-PACK-003-report-v1"
+    },
+    "validation_status": {
+      "enum": [
+        "PASS",
+        "FAIL"
+      ]
+    },
+    "release_approved": {
+      "const": false
+    },
+    "evidence_scope": {
+      "const": "offline_zip_internal_consistency_only"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "archive_filename",
+        "archive_size_bytes",
+        "archive_sha256",
+        "sha256_algorithm"
+      ],
+      "properties": {
+        "archive_filename": {
+          "type": "string"
+        },
+        "archive_size_bytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "archive_sha256": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sha256_algorithm": {
+          "const": "sha256"
+        }
+      }
+    },
+    "checker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_pr",
+        "packager_pr",
+        "expected_manifest_format"
+      ],
+      "properties": {
+        "source_pr": {
+          "const": "cao772/game#11"
+        },
+        "packager_pr": {
+          "const": "cao772/game#4"
+        },
+        "expected_manifest_format": {
+          "const": "GAME-WEB-PACK-001-r2"
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checked_files",
+        "manifest_files",
+        "total_diagnostics",
+        "by_category"
+      ],
+      "properties": {
+        "checked_files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "manifest_files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_diagnostics": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "by_category": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "severity",
+          "category",
+          "code",
+          "path",
+          "index",
+          "rule",
+          "related_path",
+          "detail",
+          "remediation"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^D[0-9]{4,}$"
+          },
+          "severity": {
+            "const": "ERROR"
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z_0-9]*$"
+          },
+          "path": {
+            "type": "string"
+          },
+          "index": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "rule": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "related_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          },
+          "remediation": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
