@@ -35,7 +35,7 @@ theme_override_constants/margin_bottom = 26
 
 [node name="Layout" type="VBoxContainer" parent="Frame"]
 layout_mode = 2
-theme_override_constants/separation = 18
+theme_override_constants/separation = 14
 
 [node name="Header" type="VBoxContainer" parent="Frame/Layout"]
 layout_mode = 2
@@ -43,12 +43,12 @@ theme_override_constants/separation = 6
 
 [node name="Title" type="Label" parent="Frame/Layout/Header"]
 layout_mode = 2
-text = "独立演示入口 · 候选"
+text = "独立演示入口 · 候选装配"
 theme_override_font_sizes/font_size = 27
 
 [node name="Subtitle" type="Label" parent="Frame/Layout/Header"]
 layout_mode = 2
-text = "GAME-WEB-MODULE-SHELL-001 r1  |  仅合成占位  |  DRAFT / NOT_RUN"
+text = "GAME-WEB-CONTINUE-SHELL-003 r1 | 合成模块 | DRAFT / NOT_RUN"
 theme_override_font_sizes/font_size = 13
 
 [node name="Divider" type="HSeparator" parent="Frame/Layout"]
@@ -62,7 +62,7 @@ theme_override_constants/separation = 18
 [node name="Sidebar" type="VBoxContainer" parent="Frame/Layout/Body"]
 custom_minimum_size = Vector2(210, 0)
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 9
 
 [node name="HomeButton" type="Button" parent="Frame/Layout/Body/Sidebar"]
 layout_mode = 2
@@ -78,11 +78,19 @@ text = "交互提示"
 
 [node name="ProfileButton" type="Button" parent="Frame/Layout/Body/Sidebar"]
 layout_mode = 2
-text = "角色信息占位"
+text = "资料面板占位"
 
 [node name="BindingsButton" type="Button" parent="Frame/Layout/Body/Sidebar"]
 layout_mode = 2
 text = "输入配置占位"
+
+[node name="ModulesButton" type="Button" parent="Frame/Layout/Body/Sidebar"]
+layout_mode = 2
+text = "模块装配 / 降级"
+
+[node name="BackButton" type="Button" parent="Frame/Layout/Body/Sidebar"]
+layout_mode = 2
+text = "返回上一页"
 
 [node name="View" type="PanelContainer" parent="Frame/Layout/Body"]
 layout_mode = 2
@@ -97,7 +105,7 @@ theme_override_constants/margin_bottom = 22
 
 [node name="Page" type="VBoxContainer" parent="Frame/Layout/Body/View/Inner"]
 layout_mode = 2
-theme_override_constants/separation = 18
+theme_override_constants/separation = 12
 
 [node name="PageTitle" type="Label" parent="Frame/Layout/Body/View/Inner/Page"]
 layout_mode = 2
@@ -110,9 +118,41 @@ size_flags_vertical = 3
 autowrap_mode = 3
 text = "仅展示合成占位内容。"
 
+[node name="ModuleState" type="Label" parent="Frame/Layout/Body/View/Inner/Page"]
+layout_mode = 2
+autowrap_mode = 3
+text = "状态：候选"
+
 [node name="PreviewButton" type="Button" parent="Frame/Layout/Body/View/Inner/Page"]
 layout_mode = 2
-text = "发送模拟请求（不执行游戏动作）"
+text = "发送本地模拟请求（无游戏动作）"
+
+[node name="AssemblyControls" type="VBoxContainer" parent="Frame/Layout/Body/View/Inner/Page"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 7
+
+[node name="AssemblyHint" type="Label" parent="Frame/Layout/Body/View/Inner/Page/AssemblyControls"]
+layout_mode = 2
+text = "选择模块和本地模拟装配状态"
+
+[node name="SlotSelector" type="OptionButton" parent="Frame/Layout/Body/View/Inner/Page/AssemblyControls"]
+layout_mode = 2
+
+[node name="ModeSelector" type="OptionButton" parent="Frame/Layout/Body/View/Inner/Page/AssemblyControls"]
+layout_mode = 2
+
+[node name="ApplyButton" type="Button" parent="Frame/Layout/Body/View/Inner/Page/AssemblyControls"]
+layout_mode = 2
+text = "应用装配状态"
+
+[node name="RefreshButton" type="Button" parent="Frame/Layout/Body/View/Inner/Page/AssemblyControls"]
+layout_mode = 2
+text = "手动刷新选中模块"
+
+[node name="RestoreButton" type="Button" parent="Frame/Layout/Body/View/Inner/Page/AssemblyControls"]
+layout_mode = 2
+text = "恢复四个合成占位"
 
 [node name="Status" type="Label" parent="Frame/Layout/Body/View/Inner/Page"]
 layout_mode = 2
@@ -121,5 +161,5 @@ text = "适配器未连接至上游 Draft PR"
 
 [node name="Footer" type="Label" parent="Frame/Layout"]
 layout_mode = 2
-text = "独立项目 · 无真实场景、角色、存档、外部资源或自动集成"
+text = "独立候选 · 原稿与正史隔离 · 无外部组件执行、保存或配置写入"
 theme_override_font_sizes/font_size = 12
