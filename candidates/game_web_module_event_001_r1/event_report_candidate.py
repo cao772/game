@@ -52,11 +52,12 @@ def render_text_report(report: Mapping[str, Any]) -> str:
         for number, issue in enumerate(entries, start=1):
             pointer = issue.get("pointer", "") or "(root)"
             lines.append(
-                "  [%d] %s @ %s | %s"
+                "  [%d] %s:%s | %s @ %s"
                 % (
                     number,
-                    issue["code"],
+                    filename,
                     _where(issue.get("location")),
+                    issue["code"],
                     pointer,
                 )
             )
