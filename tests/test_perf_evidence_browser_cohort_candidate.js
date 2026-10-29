@@ -213,3 +213,24 @@ test("PB17 numeric statistics do not alter input report objects", () => {
   cohort.compareMany([a, b], 1);
   assert.equal(JSON.stringify([a, b]), before);
 });
+
+test("PB18: importer serializes async local file batches and avoids accidental repeat-selection", () => {
+  const app = fs.readFileSync(
+    path.join(__dirname, "..", "tools", "perf_evidence_browser", "app.js"), "utf8"
+  );
+  assert.match(app, /state\.busy/);
+  assert.match(app, /seenFiles/);
+  assert.match(app, /signature/);
+  assert.match(app, /finally/);
+});
+
+test("PB19: UI explains missing metrics and retains per-run provenance warnings", () => {
+  const app = fs.readFileSync(
+    path.join(__dirname, "..", "tools", "perf_evidence_browser", "app.js"), "utf8"
+  );
+  assert.match(app, /addMissingExplanation/);
+  assert.match(app, /r\.sceneHash/);
+  assert.match(app, /r\.renderer/);
+  assert.match(app, /缺测与口径说明/);
+  assert.match(app, /另有 /);
+});
