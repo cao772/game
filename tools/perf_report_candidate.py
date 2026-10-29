@@ -490,28 +490,44 @@ def save_pair(prefix, markup, summary):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--analysis", required=True, help="PERF-002 JSON result")
+    parser.add_argument("--analysis", help="Single-run PERF-002 JSON result")
+    parser.add_argument("--series-manifest", help="Multi-run local manifest (exclusive with single-run inputs)")
     parser.add_argument("--memory", help="Optional PERF-004 process JSON")
     parser.add_argument("--capture", help="Optional PERF-003 capture metadata JSON")
     parser.add_argument("--baseline-analysis", help="Optional earlier PERF-002 JSON (numeric comparison only)")
     parser.add_argument("--baseline-capture", help="Optional earlier capture metadata; requires --baseline-analysis")
     parser.add_argument("--out-prefix", required=True, help="New HTML and JSON output prefix")
     args = parser.parse_args(argv)
+    if args.series_manifest:
+        if any((args.analysis, args.memory, args.capture, args.baseline_analysis,
+                args.baseline_capture)):
+            parser.error("--series-manifest cannot be combined with single-run inputs")
+    elif not args.analysis:
+        parser.error("--analysis or --series-manifest is required")
     if args.baseline_capture and not args.baseline_analysis:
         parser.error("--baseline-capture requires --baseline-analysis")
     try:
-        analysis = read_object(args.analysis)
-        memory = read_object(args.memory) if args.memory else None
-        capture = read_object(args.capture) if args.capture else None
-        report = build_report(analysis, memory, capture)
-        if args.baseline_analysis:
-            baseline = read_object(args.baseline_analysis)
-            baseline_capture = (
-                read_object(args.baseline_capture) if args.baseline_capture else None
+        if args.series_manifest:
+            from perf_series_candidate import (
+                build_series_summary, html_series_report, read_series_manifest,
             )
-            baseline_report = build_report(baseline, capture=baseline_capture)
-            report["comparison"] = compare_reports(report, baseline_report)
-        html_path, json_path = save_pair(args.out_prefix, html_report(report), report)
+            groups = read_series_manifest(args.series_manifest, read_object, build_report)
+            report = build_series_summary(groups)
+            markup = html_series_report(report)
+        else:
+            analysis = read_object(args.analysis)
+            memory = read_object(args.memory) if args.memory else None
+            capture = read_object(args.capture) if args.capture else None
+            report = build_report(analysis, memory, capture)
+            if args.baseline_analysis:
+                baseline = read_object(args.baseline_analysis)
+                baseline_capture = (
+                    read_object(args.baseline_capture) if args.baseline_capture else None
+                )
+                baseline_report = build_report(baseline, capture=baseline_capture)
+                report["comparison"] = compare_reports(report, baseline_report)
+            markup = html_report(report)
+        html_path, json_path = save_pair(args.out_prefix, markup, report)
     except (ValueError, OSError, UnicodeError, TypeError, OverflowError) as exc:
         print("REPORT_ERROR: " + type(exc).__name__ + ": " + str(exc), file=sys.stderr)
         return 2
@@ -519,6 +535,8 @@ def main(argv=None):
     print("JSON=" + str(json_path))
     print("WHOLE_SCENE_STATUS=INCOMPLETE")
     print("TEST_STATUS=NOT_RUN")
+    if args.series_manifest:
+        print("AGGREGATION=DESCRIPTIVE_ONLY; NO_POOLED_FRAME_PERCENTILES")
     return 0
 
 
