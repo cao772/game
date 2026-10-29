@@ -287,7 +287,18 @@ func _safe_changes(source: Dictionary, target: Dictionary) -> Array:
 		elif from_exists and not to_exists:
 			kind = "remove"
 		elif from_exists and to_exists:
-			if typeof(source[field]) != typeof(target[field]) or source[field] != target[field]:
+			# Godot JSON decodes 1 as 1.0 on some paths. Preserve
+			# numeric equivalence for version/clock, not bool equivalence.
+			var same := false
+			var source_type := typeof(source[field])
+			var target_type := typeof(target[field])
+			var source_numeric := source_type == TYPE_INT or source_type == TYPE_FLOAT
+			var target_numeric := target_type == TYPE_INT or target_type == TYPE_FLOAT
+			if (field == "version" or field == "clock_seconds") and source_numeric and target_numeric:
+				same = float(source[field]) == float(target[field])
+			else:
+				same = source_type == target_type and source[field] == target[field]
+			if not same:
 				kind = "change"
 		if not kind.is_empty():
 			changes.append({"field": field, "kind": kind})
