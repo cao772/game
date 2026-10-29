@@ -140,7 +140,7 @@ func preview_candidate(
 		path, mode, target
 	)
 	var last: Dictionary = _inspector.inspect_snapshot(path, mode)
-	if not last["ok"] or not preview.get("source_status", "") == "valid":
+	if not last["ok"] or preview.get("source_status", "") != "valid":
 		return _stale_result()
 	if first["text_sha256"] != last["text_sha256"] \
 			or first["byte_length"] != last["byte_length"]:
