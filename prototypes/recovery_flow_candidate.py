@@ -85,7 +85,7 @@ def classify_save(save_path: str | Path) -> dict:
     except IsADirectoryError:
         return _fault("unsafe", "not_regular_file")
     except prior.RecoveryError:
-        return _fault("corrupt", "oversized_or_unsafe")
+        return _fault("corrupt", "oversized")
     except OSError:
         return _fault("inaccessible", "read_error")
 
@@ -198,7 +198,9 @@ def preview_non_overwrite(snapshot_dir: str | Path, original_save: str | Path,
     backup = classify_backup(source)
     current = classify_save(original)
     destination = _root_status(root)
-    permitted_current = current["status"] in ("valid", "corrupt", "missing")
+    permitted_current = (current["status"] in ("valid", "missing")
+                         or (current["status"] == "corrupt"
+                             and "sha256" in current))
     ready = (backup["status"] == "valid" and permitted_current
              and destination["status"] == "ready")
     messages = []
