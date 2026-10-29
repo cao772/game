@@ -187,6 +187,35 @@ def _extract_analyzer_claim(original: dict[str, Any]) -> tuple[Any, list[str]]:
     return doc, []
 
 
+def _explicit_qa_pass(doc: Any) -> bool:
+    """Minimal cross-check of PR5 recognized verdict paths and conflicts."""
+    if not isinstance(doc, dict):
+        return False
+    paths = (
+        ("overall_pass",), ("passed",), ("pass",), ("status",),
+        ("verdict",), ("result",), ("summary", "overall_pass"),
+        ("summary", "passed"), ("summary", "pass"),
+        ("summary", "status"), ("summary", "verdict"),
+        ("overall", "pass"), ("overall", "passed"),
+        ("overall", "status"),
+    )
+    verdicts = []
+    for path in paths:
+        current = doc
+        for name in path:
+            if not isinstance(current, dict) or name not in current:
+                current = None
+                break
+            current = current[name]
+        if type(current) is bool:
+            verdicts.append(current)
+        elif isinstance(current, str):
+            word = current.strip().upper()
+            if word in ("PASS", "PASSED", "FAIL", "FAILED"):
+                verdicts.append(word in ("PASS", "PASSED"))
+    return bool(verdicts) and all(verdicts)
+
+
 def _coverage_from_document(doc: Any) -> tuple[list[str], list[str]]:
     if not isinstance(doc, dict):
         return [], ["coverage_unknown"]
@@ -221,12 +250,14 @@ def _evaluate_case(source_type: str, case: Any) -> dict[str, Any]:
     expected_classes = QA_CLASSES if source_type == "qa_r2" else ADAPTER_CLASSES
     if case_id not in CASE_IDS:
         _append(issues, "unknown_case_id")
-    if classification not in expected_classes:
+    if not isinstance(classification, str) or classification not in expected_classes:
         _append(issues, "unknown_case_classification")
     if type(case.get("defect")) is not bool:
         _append(issues, "defect_flag_not_boolean")
     else:
-        if case["defect"] != (classification in DEFECT_CLASSES):
+        if case["defect"] != (
+            isinstance(classification, str) and classification in DEFECT_CLASSES
+        ):
             _append(issues, "defect_flag_vs_classification_conflict")
 
     original = case if source_type == "qa_r2" else case.get(
@@ -308,6 +339,15 @@ def _evaluate_case(source_type: str, case: Any) -> dict[str, Any]:
                 if (classification == "wrong_subset_pass"
                         and reported_subset != "PASS"):
                     _append(issues, "wrong_subset_pass_without_explicit_pass")
+        expected_subsets = {
+            "baseline_subset_pass": "PASS",
+            "subset_rejected": "FAIL",
+            "invalid_input_rejected": "INCOMPLETE",
+            "wrong_subset_pass": "PASS",
+        }
+        if (classification in expected_subsets
+                and reported_subset != expected_subsets[classification]):
+            _append(issues, "classification_vs_subset_conflict")
         if classification == "baseline_subset_pass" and case_id != "C01_baseline":
             _append(issues, "baseline_class_on_adversarial_case")
         if classification == "subset_rejected" and case_id in INVALID_INPUTS | {
@@ -324,10 +364,42 @@ def _evaluate_case(source_type: str, case: Any) -> dict[str, Any]:
             _append(issues, "qa_baseline_case_mismatch")
         if classification == "wrong_pass" and case_id == "C01_baseline":
             _append(issues, "qa_wrong_pass_on_baseline")
-        if classification == "wrong_pass" and case.get("verdict") is not True:
-            _append(issues, "wrong_pass_without_explicit_verdict")
+        if classification == "wrong_pass":
+            if case.get("verdict") is not True:
+                _append(issues, "wrong_pass_without_explicit_verdict")
+            if isinstance(original, dict):
+                stdout_doc, parse_issues = _extract_analyzer_claim(original)
+                if parse_issues:
+                    _append(issues, "wrong_pass_without_valid_json")
+                elif not _explicit_qa_pass(stdout_doc):
+                    _append(issues, "wrong_pass_without_recognized_json_pass")
         # The r2 "overall" verdict is a QA classification, not the
         # measured-subset schema or a full-scene certification.
+
+    if isinstance(original, dict) and isinstance(classification, str):
+        timeout_flag = original.get("timed_out")
+        if classification == "timeout" and timeout_flag is not True:
+            _append(issues, "timeout_class_without_timeout_evidence")
+        if classification != "timeout" and timeout_flag is True:
+            _append(issues, "unexpected_timeout_evidence")
+        if classification == "format_error":
+            doc_check, parse_check = _extract_analyzer_claim(original)
+            if not parse_check:
+                _append(issues, "format_error_but_valid_json")
+            if original.get("exit_code") != 0:
+                _append(issues, "format_error_exit_conflict")
+        if classification == "exception":
+            stderr = original.get("raw_stderr", "")
+            code = original.get("exit_code")
+            trace = (isinstance(stderr, str)
+                     and any(marker in stderr for marker in (
+                         "Traceback (most recent call last)",
+                         "Unhandled exception", "uncaught exception"
+                     )))
+            if not trace and not (
+                type(code) is int and code < 0
+            ):
+                _append(issues, "exception_without_trace_or_signal")
 
     if issues:
         evaluation = "inconclusive"
@@ -346,6 +418,14 @@ def _evaluate_case(source_type: str, case: Any) -> dict[str, Any]:
         "issues": sorted(set(issues)),
         "measured_subset": subset,
         "scene": scene,
+        "reported_full_scene_status": (
+            case.get("full_scene_status") if source_type == "schema_adapter_r1"
+            else None
+        ),
+        "reported_full_scene_pass": (
+            case.get("full_scene_pass") if source_type == "schema_adapter_r1"
+            else None
+        ),
         "data_quality": data_quality,
         "unmeasured_fields": unmeasured_fields,
         "evidence_integrity": integrity,
@@ -440,7 +520,7 @@ def _validate_report(document: Any, origin: str) -> dict[str, Any]:
         {"defects_found", "contract_mismatch", "inconclusive",
          "no_definitive_subset_defects"}
     )
-    if reported_status not in allowed_statuses:
+    if not isinstance(reported_status, str) or reported_status not in allowed_statuses:
         _append(issues, "unknown_report_status")
     if type(reported_exit) is not int or reported_exit not in (0, 1, 2, 4):
         _append(issues, "unknown_report_exit_code")
@@ -449,7 +529,9 @@ def _validate_report(document: Any, origin: str) -> dict[str, Any]:
         "schema_unrecognized": 4, "inconclusive": 4,
         "no_definitive_defects": 0, "no_definitive_subset_defects": 0,
     }
-    if reported_status in expected_exit and reported_exit != expected_exit[reported_status]:
+    if (isinstance(reported_status, str)
+            and reported_status in expected_exit
+            and reported_exit != expected_exit[reported_status]):
         _append(issues, "report_status_exit_conflict")
     if declared_flags and reported_status not in (
         "defects_found", "contract_mismatch"
