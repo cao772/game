@@ -111,6 +111,7 @@ actually change.
 | APPLIED / DEFAULTS_RESTORED | Changed in-memory profile | Yes, no disk |
 | SAVED / ALREADY_PERSISTED | Disk updated / already identical | No |
 | SAVED_AND_APPLIED | Disk succeeded then bindings changed | Yes, once |
+| SAVED_NO_CHANGE | Disk saved but bindings were already equal | No |
 | INVALID_PATH / MISSING_DIRECTORY / OCCUPIED_PATH | Unsafe or unavailable destination | No |
 | READ_FAILED / MALFORMED_JSON / INVALID_PROFILE | Can't read or validate | No |
 | INVALID_EXISTING | Existing destination fails schema validation | No |
