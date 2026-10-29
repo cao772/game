@@ -23,6 +23,27 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 8
 
+[node name="SectionNav" type="HBoxContainer" parent="Layout"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="SectionCaption" type="Label" parent="Layout/SectionNav"]
+layout_mode = 2
+text = "跳至章节"
+
+[node name="SectionChoice" type="OptionButton" parent="Layout/SectionNav"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 2
+fit_to_longest_item = false
+
+[node name="SectionJump" type="Button" parent="Layout/SectionNav"]
+layout_mode = 2
+focus_mode = 2
+text = "跳转"
+
 [node name="Scroll" type="ScrollContainer" parent="Layout"]
 layout_mode = 2
 size_flags_horizontal = 3

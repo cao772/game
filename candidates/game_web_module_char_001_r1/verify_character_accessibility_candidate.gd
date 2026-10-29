@@ -1,5 +1,5 @@
 extends SceneTree
-## GAME-WEB-MODULE-CHAR-002 r1: future-only additional tests. NOT_RUN.
+## GAME-WEB-MODULE-CHAR-002 r1: future-only checks adapted for 003 preview. NOT_RUN.
 ## All assertions are proposals; no executed acceptance is claimed.
 
 const PanelScene = preload("res://character_profile_panel.tscn")
@@ -120,7 +120,7 @@ func _run() -> void:
     var picker: OptionButton = preview.get_node("Layout/Toolbar/Choice")
     var clear_button: Button = preview.get_node("Layout/Toolbar/Clear")
     var reload_button: Button = preview.get_node("Layout/Toolbar/Reload")
-    _check("preview initial data available", picker.item_count, 2)
+    _check("preview initial data available", picker.item_count, 3)
     _check("picker enabled for valid fixture", picker.disabled, false)
     _check("clear enabled for selected profile", clear_button.disabled, false)
     _check("reload available", reload_button.disabled, false)
@@ -134,12 +134,12 @@ func _run() -> void:
 
     preview._on_clear()
     _check("clear disables clear button", clear_button.disabled, true)
-    _check("clear removes current profile", preview.get_node("Layout/Panel").profile_copy(), {})
+    _check("clear removes current profile", preview.preview_profile_copy(), {})
     preview._on_chosen(-1)
-    _check("bad selection does not repopulate", preview.get_node("Layout/Panel").profile_copy(), {})
+    _check("bad selection does not repopulate", preview.preview_profile_copy(), {})
     preview._on_reload()
-    _check("explicit reload restores picker choices", picker.item_count, 2)
-    _check("explicit reload restores placeholder", preview.get_node("Layout/Panel").profile_copy()["profile_id"], "placeholder-a")
+    _check("explicit reload restores picker choices", picker.item_count, 3)
+    _check("explicit reload restores placeholder", preview.preview_profile_copy()["profile_id"], "placeholder-a")
 
     preview.free()
     panel.free()

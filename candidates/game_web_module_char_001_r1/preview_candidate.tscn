@@ -1,7 +1,6 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://preview_candidate.gd" id="1_preview"]
-[ext_resource type="PackedScene" path="res://character_profile_panel.tscn" id="2_panel"]
 
 [node name="PlaceholderPreview" type="MarginContainer"]
 anchors_preset = 15
@@ -51,7 +50,15 @@ layout_mode = 2
 text = "加载占位数据中"
 autowrap_mode = 3
 
-[node name="Panel" parent="Layout" instance=ExtResource("2_panel")]
+[node name="PanelHost" type="MarginContainer" parent="Layout"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+
+[node name="Fallback" type="Label" parent="Layout/PanelHost"]
+visible = false
+layout_mode = 2
+text = "资料组件不可用，请尝试重载。"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3

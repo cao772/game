@@ -1,38 +1,59 @@
 extends ScrollContainer
-## Local keyboard reading only when this scroll area itself owns focus.
-## No shortcuts, InputMap mutations or gameplay input dispatch.
+## Focus-local keyboard reading, not a global shortcut or game input handler.
+## A key at a scroll boundary is not consumed, avoiding keyboard traps.
 
 @export_range(24, 240, 8) var line_step_px: int = 64
 
 
-func _gui_input(event: InputEvent) -> void:
-    if not event is InputEventKey:
-        return
-    var key := event as InputEventKey
-    if not key.pressed or key.echo or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
-        return
-    if not has_focus():
-        return
-    var bar := get_v_scroll_bar()
-    var maximum := maxi(0, int(ceil(bar.max_value - bar.page)))
+static func scroll_decision(
+    key: InputEventKey,
+    focused: bool,
+    start_value: int,
+    maximum: int,
+    visible_height: int,
+    line_step: int = 64
+) -> Dictionary:
+    var reject := {"handled": false, "position": start_value}
+    if key == null or not focused or not key.pressed or key.echo:
+        return reject
+    if key.ctrl_pressed or key.alt_pressed or key.meta_pressed or key.shift_pressed:
+        return reject
     if maximum <= 0:
-        return
-    var page := maxi(64, int(size.y * 0.8))
-    var next_value := scroll_vertical
+        return reject
+
+    var page := maxi(64, int(float(visible_height) * 0.8))
+    var target := start_value
     match key.keycode:
         KEY_UP:
-            next_value -= line_step_px
+            target -= line_step
         KEY_DOWN:
-            next_value += line_step_px
+            target += line_step
         KEY_PAGEUP:
-            next_value -= page
+            target -= page
         KEY_PAGEDOWN:
-            next_value += page
+            target += page
         KEY_HOME:
-            next_value = 0
+            target = 0
         KEY_END:
-            next_value = maximum
+            target = maximum
         _:
-            return
-    scroll_vertical = clampi(next_value, 0, maximum)
+            return reject
+
+    target = clampi(target, 0, maximum)
+    return {"handled": target != start_value, "position": target}
+
+
+func _gui_input(event: InputEvent) -> void:
+    if not event is InputEventKey or not has_focus():
+        return
+    var key := event as InputEventKey
+    var bar := get_v_scroll_bar()
+    var maximum := maxi(0, int(floor(bar.max_value - bar.page)))
+    var decided := scroll_decision(
+        key, has_focus(), scroll_vertical, maximum,
+        int(size.y), line_step_px
+    )
+    if not decided["handled"]:
+        return
+    scroll_vertical = decided["position"]
     accept_event()

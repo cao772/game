@@ -135,3 +135,22 @@ Future independent verification (not run in this submission):
 
 **002 status: SOURCE_SUBMITTED / NOT_RUN.** No source execution, Godot
 launch, tests, CI runs or manual UI verification requested or claimed.
+
+
+---
+
+## Third increment: GAME-WEB-CONTINUE-CHAR-003 r1 (NOT_RUN)
+
+The same Draft PR #14 now includes third-revision code for dynamic, error-tolerant fixed-path PackedScene loading in the preview; explicit resource fallback and retry; bounded 64 KiB UTF-8 fixture reads and atomic rejection of invalid/duplicate/partial data; nontruncated long-text rendering with paragraph-preserving line endings and long-token wrapping; keyboard-focusable section selection/jump; and focus-local, boundary-safe scroll keys.
+
+A third fully synthetic long-text fixture and a new future-only verifier were added. The 001/002 future verifier sources were maintained for compatibility.
+
+See [CHAR_003_DESIGN.md](CHAR_003_DESIGN.md) for the detailed file list, decision rationale, error cases, compatibility limits and future evidence plan. No novel role facts, real story content or private files are included. No shared interface, official Godot minor, screen-reader compliance or runtime performance has been approved.
+
+Future verification commands, **not executed in this task**:
+
+    godot --headless --path candidates/game_web_module_char_001_r1 --script res://verify_character_panel_candidate.gd
+    godot --headless --path candidates/game_web_module_char_001_r1 --script res://verify_character_accessibility_candidate.gd
+    godot --headless --path candidates/game_web_module_char_001_r1 --script res://verify_character_continue_candidate.gd
+
+**GAME-WEB-CONTINUE-CHAR-003 r1: SOURCE_SUBMITTED / NOT_RUN.**

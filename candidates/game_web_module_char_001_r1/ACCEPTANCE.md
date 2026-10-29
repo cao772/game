@@ -108,3 +108,52 @@ the new \`verify_character_accessibility_candidate.gd\` future-only suite.
 The requested authoring window performs no code/test execution. Expected
 outputs are not evidence of a PASS. Exact engine minor and accessibility
 toolchain are still owner inputs.
+
+
+---
+
+## GAME-WEB-CONTINUE-CHAR-003 r1 future acceptance extension
+
+**All cases NOT_RUN**. See [CHAR_003_DESIGN.md](CHAR_003_DESIGN.md),
+including the new future-only verify_character_continue_candidate.gd script.
+The previous 001 and 002 future scripts are not a substitute for executing
+and observing the new 003 tests.
+
+| ID | Planned check | Required observation | Status |
+| --- | --- | --- | --- |
+| A33 | Null or wrong PackedScene class | Panel factory rejects without exposing a node | NOT_RUN |
+| A34 | Panel scene missing or invalid | Preview fallback and reload remain visible | NOT_RUN |
+| A35 | Repair resource and explicit reload | Usable synthetic component appears | NOT_RUN |
+| A36 | Empty/unreadable/oversize fixture | Fail closed, disabled controls, bounded error | NOT_RUN |
+| A37 | Invalid UTF-8, BOM, incomplete read | Reject before JSON/schema parsing | NOT_RUN |
+| A38 | Bad JSON or wrong root | Atomic empty result | NOT_RUN |
+| A39 | Duplicate ID or later bad record | No partial picker entries | NOT_RUN |
+| A40 | Three valid synthetic records | Selectable and switchable, no duplicates | NOT_RUN |
+| A41 | CRLF/CR/tab rendering | Display-only normalized; raw profile copy unchanged | NOT_RUN |
+| A42 | Unbroken 40+ characters | Arbitrary-character wrapping, no truncation | NOT_RUN |
+| A43 | Ordinary text and multiple paragraphs | Smart-word wrapping and preserved line boundaries | NOT_RUN |
+| A44 | Large summary and section fields | All text accessible through one scroll region | NOT_RUN |
+| A45 | Two or more sections | Section chooser/jump enabled and keyboard reachable | NOT_RUN |
+| A46 | No section or stale selection | Jump disabled or no mutation | NOT_RUN |
+| A47 | Keys with modifiers/echo/release/unfocused | Never consumed by local scroll handler | NOT_RUN |
+| A48 | Arrow/Page/Home/End at boundaries | Bounded scroll; keys not trapped at limits | NOT_RUN |
+| A49 | Older 001/002 acceptance scripts | No regression observed with updated preview structure | NOT_RUN |
+| A50 | Public GitHub privacy and change-scope review | Only isolated directory, synthetic data, no canon | NOT_RUN |
+
+| ID | Manual acceptance procedure | Required outcome | Status |
+| --- | --- | --- | --- |
+| H21 | Remove panel scene in disposable copy | Preview stays open with fallback and retry | NOT_RUN |
+| H22 | Supply invalid scene in disposable copy | Clear error or recorded engine-level parse limitation | NOT_RUN |
+| H23 | Restore scene, click Reload | Valid panel and three placeholders return | NOT_RUN |
+| H24 | Bad/oversize/permission-denied fixture | Status visible; no stale selectable entries | NOT_RUN |
+| H25 | Restore fixture and reload | No residual error/duplicate options | NOT_RUN |
+| H26 | Long fixture on 320, 480, 960 px widths | No horizontal clip, every section reachable | NOT_RUN |
+| H27 | Tab/Shift+Tab, section jump, scroll keyboard | Keyboard-only navigation usable without trap | NOT_RUN |
+| H28 | Focus elsewhere / unrelated keys | No global gameplay action or unexpected scroll | NOT_RUN |
+| H29 | Platform screen-reader and accessibility tree | Actual names/announcements independently verified | NOT_RUN |
+| H30 | CJK glyphs, large font, focus contrast, frame cost | Screenshots/measurement recorded rather than inferred | NOT_RUN |
+
+If a later verifier executes any of these, require exact commit, Godot
+version, OS, command, UTC timestamp, stdout/stderr, exit code, per-case
+observations, failure reproduction and evidence path. Never call written
+checks PASS without execution. User expressly requested NOT_RUN here.
