@@ -44,7 +44,7 @@ missing/unsafe path; before/after byte identity; no temp files; cleanup.
 Diff assertions now verify **no before/after values in output**.
 Original suite remains isolated; it must not operate on a real game save.
 
-### Additional future report/boundary suite: R01–R43
+### Additional future report/boundary suite: R01–R48
 
 | Group | IDs | Expected outcome |
 |---|---|---|
@@ -61,6 +61,8 @@ Original suite remains isolated; it must not operate on a real game save.
 | Unsafe paths | R38–R39 | Traversal and non-user URI refused |
 | Oversize | R40–R41 | Inspection-size guard; preview refused |
 | No writes | R42–R43 | Original bytes identical; no temporary snapshot created |
+| Numeric normalization | R44–R47 | JSON version 1 versus 1.0 treated as identical v1; no phantom diff |
+| Invalid source recovery guard | R48 | Unexpected field in v1 source cannot be rescued by a valid target |
 
 **Additional manual review required after authorized testing:**
 - `version:1.0` accepted; `version:2` unsupported only if mode valid.
