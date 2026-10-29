@@ -139,3 +139,117 @@ python -m unittest discover -s tests -p "test_perf_report_candidate.py"
 `status=NOT_RUN / REVIEW_REQUIRED`。
 
 需Codex后续在批准的测试阶段独立核查实际报告效果、异常输入、两次采样对齐与完整链路；本轮不执行、不将CI状态充当验收，不公开私人场景或原稿，不合并main。
+
+---
+
+# GAME-WEB-CONTINUE-PERF-003｜多次采样分组与缺测报告 r1
+
+**开发状态：NOT_RUN；未运行任何程序、测试、视觉预览或基准采集。** 本增量只涉及 PR #12 的报告工具和技术说明，依赖 PR #2 PERF-002/r1 原有JSON。作者负责最终验收，技术取舍在此明确记录，**不批准共享接口**。
+
+## 一、选择的方案及原因
+
+**采用显式本地manifest，按每一次独立PERF-002结果做分组描述统计。** 这是独立候选协议，不修改PERF-002分析器，不重新计算每帧P99，不依赖Godot或第三方库。
+
+- 每次采样的 `frame_p50_ms`、`frame_p95_ms`、`frame_p99_ms` 等，来自原分析器的 `checks + stats` 一致校验。**先校验单次，再比较多次**。原始CSV需保留在Codex的私有证据位置，不进入本公开PR。
+- **不拼接**各次的逐帧值、不以单次帧数对各次统计量加权，因为没有可验证的相同采样窗口、设备、FPS限制和原始帧分布；不能将「多个P99的中位数」称作「总P99」。
+- 每组对每项指标展示 `min`、**各次结果的中位数**（unweighted median）、`max`、有有效数值次数 / 总次数。中位数选为默认中心趋势，避免把少数极高帧间隔值直接平均稀释；它是多次run级**统计量的中位数**，不是合并帧统计。
+- 空值、无效值、原分析器不一致、缺失列不参加有效数值聚合，但必须计入分母并单列具体 **run ID、状态、原因**。不填0、不把缺测忽略成全覆盖。
+- 组间比较定义 `delta_median = current_group_median - baseline_group_median`，比率以基线中位数为分母。**任一组存在不完整覆盖、预算不同、或已声明版本/后端/场景哈希冲突时不计算差值**；基线值为0时百分比保持null。即使都有效，也只叫 `NUMERIC_ONLY`，绝不推断「优化成功」「真实性能改善」。
+- 不同组数可能不同；组级中位数对比只为描述性对照，不构成配对试验、置信区间或显著性结论。真实设备、分辨率、采样流程和来源哈希尚无可核验输入，此时 `context_status=UNVERIFIED`。
+- 如果一份证据声明为合成而另一份声明为真实，标 `CONFLICT`；headless/dummy仅作为来源警告，不视为可验证GPU结果。没有完整真实性证明时，整个报告始终 `INCOMPLETE`。
+- 有独立 PERF-004 进程工作集证据时，仍只允许旧单次模式单列展示，不自动替代 `ram_gib`，不拿私有提交当物理内存，也不拿累计进程CPU当脚本CPU或推算VRAM。
+- 安全与隐私：manifest仅引用其所在目录及子目录的相对POSIX路径，拒绝绝对、父级穿越、符号链接逃逸、网络URL与重复输入文件；run ID限ASCII字母数字、下划线、连字符，最长32位。输出JSON/HTML不包含原始路径、小说设定、进程命令行或私有内容。HTML纯静态并HTML转义。
+- 为避免大型或恶意证据拖垮离线工具，每份输入JSON沿用2,000,000字节限制，最多12次/run组、最多2组和24次总采样；仅标准库。以上都是**试验提案**。
+
+## 二、输入manifest与调用示例（待未来执行）
+
+manifest位于私有证据目录，格式如下，文件内容为**结构示例而不是跑分**：
+
+```json
+{
+  "schema": "perf-report-series-v1",
+  "groups": [
+    {
+      "name": "baseline",
+      "runs": [
+        {"id": "A_01", "analysis": "baseline/a01_analyzer.json", "capture": "baseline/a01_capture.json"},
+        {"id": "A_02", "analysis": "baseline/a02_analyzer.json"}
+      ]
+    },
+    {
+      "name": "current",
+      "runs": [
+        {"id": "B_01", "analysis": "current/b01_analyzer.json", "capture": "current/b01_capture.json"},
+        {"id": "B_02", "analysis": "current/b02_analyzer.json"}
+      ]
+    }
+  ]
+}
+```
+
+- `groups` 允许单组 `current`（必须至少2次）或有序双组 `baseline`、`current`（每组1–12次）；总数不超过24。
+- `analysis` 必填，对应PERF-002 JSON；`capture` 可选，对应PERF-003元数据。缺输入文件不假造；在命令执行时明确报错。run ID全局唯一，文件不可跨run重复引用。
+- 输入路径均相对manifest所在目录，采用 `/` 分隔。manifest示例纯公开结构，不包含任何真实采样路径、场景名或个人资料。
+- `--series-manifest` **不可**与旧 `--analysis`、`--memory`、`--capture`、`--baseline-analysis`、`--baseline-capture` 同时使用；避免对齐不明数据混用。
+- 不要求编辑已有单次报告或原分析器；旧单次/两次命令行模式保留。
+
+仅供后续获批准的Codex本地执行，**本任务不执行以下任何命令**：
+
+```text
+python tools/perf_report_candidate.py --series-manifest private_evidence/series.json --out-prefix private_evidence/report_series_001
+python tools/perf_report_candidate.py --analysis private_evidence/a01_analyzer.json --out-prefix private_evidence/report_single_001
+python -m unittest discover -s tests -p "test_perf_series_candidate.py"
+```
+
+输出 `report_series_001.html` + `report_series_001.summary.json`，必须是新文件，拒绝覆盖已有证据；成功创建输出文件不意味着通过任何性能阈值。
+
+## 三、怎样读报告，特别是缺测
+
+| 字段 | 解释 | 不允许的推断 |
+|---|---|---|
+| `budget` | PERF-001/r1临时提案上限 | 不是实测、不是已批准预算 |
+| `min / median / max` | 各次**有效**PERF-002统计量的run级汇总 | 不等于合并逐帧数据后的P95/P99 |
+| `n_observed / n_total` | 有效数值次数 / 该组总采样次数 | 只看有效部分就说全量PASS |
+| `missing_runs` | 逐项缺失的run及原因 | null不得转换为0 |
+| `coverage=COMPLETE_NUMERIC` | 仅8指标之一的数字在每次采样都齐全 | 不代表场景或来源已验证 |
+| `coverage=PARTIAL` | 有部分有效数值，同时有明确缺测 | 不允许无条件跨组比较 |
+| `coverage=NOT_MEASURED` | 本指标没有有效可采信数值 | 不代表性能消耗为0 |
+| `group_comparison.status` | 始终 `DESCRIPTIVE_ONLY` | 不作真实性能进步结论 |
+| `NUMERIC_ONLY` | 两组完整且无已声明上下文冲突，仅计算数值差 | 不代表配置完全一致或性能达标 |
+| `context_status=UNVERIFIED` | 尚未完成来源/设备/条件证明 | 不视为等价环境 |
+| `whole_scene_status` | 一律 `INCOMPLETE` | 不批准整体性能验收 |
+
+**重点缺测**：脚本CPU、GPU实际执行、VRAM基线增量、灯光、NPC、冷启动、场景切换等凡未采集者全部不能从帧间隔或Windows进程内存数据反推。每次真实Godot测量前仍需单独记录渲染方式、硬件型号、帧率限制、VSync与采样动作并在私有证据系统关联原始CSV和哈希。
+
+## 四、未来验收矩阵（所有用例NOT_RUN）
+
+| ID | 条件 | 预期 |
+|---|---|---|
+| R20 | 同组3次run的P50数值9/12/10 | 中位数10，覆盖3/3，非合并帧P50 |
+| R21 | 一次run的脚本时间缺失 | 覆盖1/2，明确run ID与原因，不填0 |
+| R22 | 两次run的脚本时间都缺失 | min/median/max均为null，NOT_MEASURED |
+| R23 | baseline两次11/12、current两次9/10 | 组中位数11.5/9.5，delta -2，仅NUMERIC_ONLY |
+| R24 | 组中一项缺测 | 该项跨组delta=null、NOT_COMPARABLE |
+| R25 | 基线组中位数0 | 可有delta，但变化率null |
+| R26 | 声明的渲染器/场景哈希不一致 | CONFLICT且差值禁止计算 |
+| R27 | 合成与真实声明混合 | CONFLICT，不产生真实游戏跑分 |
+| R28 | HTML有恶意字符串 | HTML转义，无脚本/外链，仍标NOT_RUN |
+| R29 | 读取2个独立私有JSON路径 | 可汇总，输出不泄露实际输入目录 |
+| R30 | 重复run ID或重复input | 拒绝，不能伪造独立多轮样本 |
+| R31 | `../`、绝对路径、URL、Windows盘符 | 全部拒绝，不读取越权文件 |
+| R32 | 每组超12次、组为空 | 拒绝，资源上限生效 |
+| R33 | HTML/summary同名文件已存在 | 拒绝覆盖，旧结果字节不变 |
+| R34 | 现有单次/成对模式 | 参数仍兼容；未来应与上一阶段回归一起复核 |
+
+所有未来验收必须由作者批准后再由Codex执行，**本次未运行，绝不声称PASS**。如真实证据不齐，只呈现缺失清单与待复核信息。
+
+## 五、记录包
+
+`task_id=GAME-WEB-CONTINUE-PERF-003` / `version=r1`；
+`input_version=PR#12 当前 HEAD + PERF-002/r1 (PR#2)`；
+`scope=仅PR#12同一独立codex分支的报告模块、CLI、文档、验收候选`；
+`deliverable=多run分组汇总、组间数值比较、缺测来源表、离线HTML/JSON、R20..R34`；
+`acceptance=NOT_RUN; PENDING_AUTHOR_FINAL_REVIEW`；
+`status=NOT_RUN`。
+
+未经作者最终验收，不合并main、不批准性能预算或共享接口、不公开剧情或私密数据。
