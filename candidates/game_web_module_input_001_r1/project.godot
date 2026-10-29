@@ -1,0 +1,12 @@
+; GAME-WEB-MODULE-INPUT-001 r1 isolated Godot candidate.
+; No global InputMap changes, scene dependencies or autoloads.
+config_version=5
+
+[application]
+
+config/name="GAME-WEB-MODULE-INPUT-001 standalone candidate"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
