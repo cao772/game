@@ -106,7 +106,7 @@ delta_percent = delta / 基线有效观测 × 100%
 
 ## 8. 未来验收（全部NOT_RUN）
 
-`tests/test_perf_evidence_browser_candidate.js` 定义23个未来合成输入用例：FB01原分析器预算与观测分列；FB02缺失脚本时间；FB03错误计数；FB04统计字段矛盾；FB05合成声明；FB06仅声明真实仍未验证；FB07非GPU后端；FB08来源矛盾；FB09预算缺失；FB10非法/零/负/字符串观测；FB11无效JSON；FB12系列run级中位数；FB13全缺测；FB14覆盖与次序异常；FB15混合来源；FB16描述性delta；FB17来源冲突无delta；FB18缺测无delta；FB19分组/单次禁止直接对照；FB20 HTML离线安全边界；FB21输入大小；FB22来源整体PASS声明拒采信；FB23进程内存与逐帧RAM隔离。
+`tests/test_perf_evidence_browser_candidate.js` 定义24个未来合成输入用例：FB01原分析器预算与观测分列；FB02缺失脚本时间；FB03错误计数；FB04统计字段矛盾；FB05合成声明；FB06仅声明真实仍未验证；FB07非GPU后端；FB08来源矛盾；FB09预算缺失；FB10非法/零/负/字符串观测；FB11无效JSON；FB12系列run级中位数；FB13全缺测；FB14覆盖与次序异常；FB15混合来源；FB16描述性delta；FB17来源冲突无delta；FB18缺测无delta；FB19分组/单次禁止直接对照；FB20 HTML离线安全边界；FB21输入大小；FB22来源整体PASS声明拒采信；FB23进程内存与逐帧RAM隔离；FB24分组每个run的引擎版本、渲染后端、场景哈希和原始告警保留显示。
 
 后续获授权时还须由Codex进行**真实浏览器人工检查**：多文件选择、重复选择、拖入、键盘操作、窄屏、警告显示、CSP阻止远程请求、Chrome/Edge/Firefox本地文件兼容。当前**不运行、不显示PASS、不以CI成功当成本任务验收**。
 
