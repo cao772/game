@@ -9,6 +9,7 @@ from __future__ import annotations
 from bisect import bisect_right
 from collections import Counter, defaultdict
 import json
+import re
 from typing import Any, Mapping
 
 
@@ -199,7 +200,6 @@ def enhance_issues(
         for pointer, target in references:
             if type(target) is not str:
                 continue
-            import re
             if not re.fullmatch(r"[A-Z][A-Z0-9_]{0,63}", target):
                 continue
             references_checked += 1
