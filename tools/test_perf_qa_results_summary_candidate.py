@@ -326,5 +326,56 @@ class ResultsSummaryCandidateTests(unittest.TestCase):
         self.assertEqual(result["confirmed_defects_across_reports"], 0)
 
 
+    def test_21_timeout_is_defect_only_with_timeout_evidence(self):
+        row = qa_case(classification="timeout", defect=True, verdict=None)
+        row["timed_out"] = True
+        row["exit_code"] = None
+        result = summarize(qa_report([row]))
+        self.assertEqual(result["confirmed_defects_across_reports"], 1)
+        row["timed_out"] = False
+        row["exit_code"] = 0
+        result = summarize(qa_report([row]))
+        self.assertEqual(result["confirmed_defects_across_reports"], 0)
+        self.assertEqual(result["status"], "inconclusive")
+
+    def test_22_format_error_requires_non_json_stdout(self):
+        row = qa_case(classification="format_error", defect=True, verdict=None)
+        result = summarize(qa_report([row]))
+        self.assertEqual(result["status"], "inconclusive")
+        bad = b"not-json"
+        row["raw_stdout"] = bad.decode("utf-8")
+        row["stdout_base64"] = base64.b64encode(bad).decode("ascii")
+        result = summarize(qa_report([row]))
+        self.assertEqual(result["confirmed_defects_across_reports"], 1)
+
+    def test_23_exception_requires_trace_or_signal(self):
+        row = qa_case(classification="exception", defect=True, verdict=None,
+                      exit_code=1)
+        result = summarize(qa_report([row]))
+        self.assertEqual(result["status"], "inconclusive")
+        trace = b"Traceback (most recent call last)"
+        row["raw_stderr"] = trace.decode("utf-8")
+        row["stderr_base64"] = base64.b64encode(trace).decode("ascii")
+        result = summarize(qa_report([row]))
+        self.assertEqual(result["confirmed_defects_across_reports"], 1)
+
+    def test_24_cli_mismatch_not_invented_as_defect(self):
+        row = qa_case(classification="contract_mismatch", verdict=None,
+                      exit_code=2)
+        report = qa_report([row])
+        report["status"] = "contract_mismatch"
+        report["exit_code"] = 2
+        result = summarize(report)
+        self.assertEqual(result["status"], "inconclusive")
+        self.assertEqual(result["confirmed_defects_across_reports"], 0)
+
+    def test_25_malformed_classification_does_not_promote(self):
+        row = qa_case()
+        row["classification"] = {"unsupported": "PASS"}
+        result = summarize(qa_report([row]))
+        self.assertEqual(result["status"], "inconclusive")
+        self.assertEqual(result["confirmed_defects_across_reports"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()
