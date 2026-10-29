@@ -264,13 +264,7 @@ func _read_file(path: String) -> Dictionary:
             "message": "Could not read configuration"
         }
     var content := file.get_as_text()
-    var read_error := file.get_error()
     file.close()
-    if read_error != OK:
-        return {
-            "ok": false, "code": "READ_FAILED",
-            "message": "Configuration read failed"
-        }
     var parser := JSON.new()
     if parser.parse(content) != OK:
         return {
@@ -408,8 +402,10 @@ func _commit_profile(candidate: Dictionary, path: String,
             "Disk committed but in-memory apply failed; reload required",
             false, true, action_id, apply_result["conflicts"]))
     var changed: bool = previous != bindings.profile()
-    return _report(_feedback(true,
-        "SAVED_AND_APPLIED" if changed else "ALREADY_PERSISTED",
+    var outcome_code := "SAVED_AND_APPLIED"
+    if not changed:
+        outcome_code = "ALREADY_PERSISTED" if persisted["code"] == "ALREADY_PERSISTED" else "SAVED_NO_CHANGE"
+    return _report(_feedback(true, outcome_code,
         "Saved and applied" if changed else "No in-memory change",
         changed, true, action_id))
 
