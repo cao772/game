@@ -15,6 +15,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from event_source_diagnostics_candidate import (
+    SourceIndex, SourceIndexError, enhance_issues,
+)
+
 ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 MAX_BYTES_PER_FILE = 1024 * 1024
 MAX_FILES = 1024
@@ -280,6 +284,10 @@ def check_event_data(inputs: list[str]) -> dict[str, Any]:
     ids: dict[str, tuple[str, str]] = {}
     references: list[tuple[str, str, str]] = []
     parsed_count = 0
+    # Source indices and decoded objects belong solely to this in-memory run.
+    indexes: dict[str, SourceIndex] = {}
+    documents: dict[str, Any] = {}
+    syntax_locations: dict[str, dict[str, Any]] = {}
 
     for path in paths:
         name = path.as_posix()
@@ -303,21 +311,55 @@ def check_event_data(inputs: list[str]) -> dict[str, Any]:
             continue
 
         try:
-            document = json.loads(
-                raw.decode("utf-8"),
-                object_pairs_hook=_unique_pairs,
-                parse_constant=_reject_constant,
-            )
+            decoded = raw.decode("utf-8")
         except UnicodeError:
             _issue(issues, "INVALID_UTF8", name, "", "Strict UTF-8 required")
             continue
-        except DuplicateJSONKey as exc:
-            _issue(issues, "DUPLICATE_JSON_KEY", name, "", str(exc))
+
+        try:
+            document = json.loads(
+                decoded,
+                parse_constant=_reject_constant,
+            )
+        except json.JSONDecodeError as exc:
+            _issue(issues, "INVALID_JSON", name, "", exc.msg)
+            syntax_locations[name] = {
+                "line": exc.lineno,
+                "column": exc.colno,
+                "precision": "exact",
+                "column_unit": "unicode_character",
+            }
             continue
         except (ValueError, RecursionError) as exc:
             _issue(issues, "INVALID_JSON", name, "", str(exc))
             continue
 
+        try:
+            index = SourceIndex(decoded)
+        except (SourceIndexError, ValueError) as exc:
+            _issue(issues, "SOURCE_INDEX_ERROR", name, "", str(exc))
+            continue
+
+        indexes[name] = index
+        if index.duplicates:
+            # The JSON parser normally uses last-key-wins. Fail closed on
+            # ALL duplicated members, including deeply nested ones, and
+            # retain each repeated key's precise source coordinate.
+            for pointer, offset, first_offset in index.duplicates:
+                _issue(
+                    issues, "DUPLICATE_JSON_KEY", name, pointer,
+                    "Repeated JSON member; first at %s"
+                    % index.coordinate(first_offset),
+                )
+                issues[-1]["location"] = index.coordinate(offset)
+                issues[-1]["related"] = [{
+                    "file": name,
+                    "pointer": pointer,
+                    "location": index.coordinate(first_offset),
+                }]
+            continue
+
+        documents[name] = document
         if _validate_event(document, name, issues, ids, references):
             parsed_count += 1
 
@@ -328,17 +370,22 @@ def check_event_data(inputs: list[str]) -> dict[str, Any]:
                 "Reference target not present in selected inputs: " + target,
             )
 
-    issues.sort(key=lambda x: (
-        x["file"], x["pointer"], x["code"], x["detail"],
-    ))
+    issues, by_code, references_checked = enhance_issues(
+        issues, indexes, documents, syntax_locations,
+    )
     return {
         "task_id": "GAME-WEB-MODULE-EVENT-001",
         "version": "r1",
+        "enhancement_task_id": "GAME-WEB-MODULE-EVENT-002",
+        "enhancement_version": "r1",
+        "diagnostic_format": "2.0-candidate",
         "status": "FAIL" if issues else "PASS",
         "files_selected": len(paths),
         "event_objects_read": parsed_count,
         "unique_event_ids": len(ids),
+        "references_checked": references_checked,
         "issue_count": len(issues),
+        "issue_counts_by_code": by_code,
         "issues": issues,
     }
 
@@ -366,11 +413,16 @@ def main(argv: list[str] | None = None) -> int:
             )
         )
         for issue in report["issues"]:
+            where = issue.get("location")
+            coordinates = (
+                ":%d:%d" % (where["line"], where["column"])
+                if where is not None else ""
+            )
             print(
-                "%s %s%s: %s"
+                "%s %s%s%s: %s"
                 % (
-                    issue["code"], issue["file"],
-                    issue["pointer"], issue["detail"],
+                    issue["code"], issue["file"], coordinates,
+                    issue["pointer"] or "/", issue["detail"],
                 )
             )
     return 0 if report["status"] == "PASS" else 1
