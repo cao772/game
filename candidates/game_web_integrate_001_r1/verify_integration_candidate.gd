@@ -190,7 +190,10 @@ func _run_tests() -> void:
     _check("button route result received", button_results.size(), 1)
     _check("button routes to withdraw", controller.snapshot_copy()["phase"], "deferred")
     _check("button exactly one write", controller.save_attempt_count(), 5)
-    _check("button route reported changed", button_results[0]["changed"], true)
+    if button_results.size() == 1:
+        _check("button route reported changed", button_results[0]["changed"], true)
+    else:
+        _check("button route reported changed", false, true)
 
     # SceneTree pause wins even over false injected blocked flag.
     paused = true
