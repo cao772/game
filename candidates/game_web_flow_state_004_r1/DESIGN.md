@@ -147,3 +147,52 @@ The technical presentation choices were resolved above without requesting
 author decisions prematurely.
 
 For future acceptance and evidence see `ACCEPTANCE.md`.
+
+---
+
+## PLAY-STATE-005 r1 — design refinement and rationale
+
+This revision is a **source-only improvement** inside the same independent
+Draft PR #20. None of the following choices is author approval, a
+gameplay rule or a shared interface.
+
+1. **Human-readable reports instead of dumping JSON.** The prior UI
+   showed the entire sanitized result dictionary. While model outputs
+   were intended safe, later schema extensions could accidentally
+   leak added keys. A separate **allowlisted presenter** formats known
+   fields only. Its output remains deterministic and readable in Chinese.
+2. **A stable three-tab layout with scrollable controls.** Three report
+   purposes remain separated (validation/version, two-file comparison,
+   migration preview). Scrollability is chosen over designing
+   multiple game scenes, minimizing footprint and preserving
+   candidate independence. Visual suitability is **not yet tested**.
+3. **Clear statuses and stale-context invalidation.** Path/mode changes
+   invalidate all previous reports. Hypothetical phase/door changes
+   invalidate only the preview. This avoids presenting old results
+   under a newly selected mode or proposed target.
+4. **Basic path hygiene strengthened.** Reject ASCII control characters,
+   length overflow, traversal, backslash, repeated/trailing separators,
+   whitespace and non-`user://` paths. **Not a symlink sandbox**.
+5. **Best-effort consistency checks** for inspection and comparison
+   in addition to preview. A first/last detailed read is compared
+   using decoded-text hash and file length, with inner report statuses
+   checked. On detected changes, UI receives only a static
+   `source_unstable` response. This costs extra reads but makes
+   detected instability explicit; it cannot guarantee concurrency safety.
+6. **Never introduce a write or migration control.** The screen offers
+   inspection, comparison, a no-target migration-needs check and
+   only an ephemeral v1 phase/door hypothetical preview. No version,
+   mode, round-ID, clock editing or save/apply/restore control.
+7. **Keep pinned upstream inspector unchanged.** The dependency
+   originates from public PR #13 blob
+   `89369cb3f6b7f80a508a608865a80a79c3855032`.
+   The browser model wraps its existing APIs, and any upstream change
+   requires manual review instead of implicitly approving a shared API.
+8. **Avoid unrequested cross-project filesystem access.** In a separate
+   Godot project `user://` is not necessarily the original game's
+   user directory. This is documented instead of silently introducing
+   an unrestricted absolute-path reader. A future authorized import
+   or embedding design requires separate approval.
+
+See [INTEGRATION.md](INTEGRATION.md) and [SAFETY.md](SAFETY.md).
+No code/test execution or real-user-save access occurred. `NOT_RUN`.
