@@ -118,3 +118,41 @@ Original suite remains isolated; it must not operate on a real game save.
 ```
 
 Do not promote this Draft or mark PASS based on source inspection alone.
+
+---
+
+## CONTINUE-STATE-003 r1 — additional future test suite (NOT_RUN)
+
+New future SceneTree script: `verify_version_diff_003.gd`. It must
+**not be run during this authoring phase**. Later Codex may run:
+
+```sh
+godot --headless --path candidates/game_web_module_state_001_r1 --script res://verify_version_diff_003.gd
+echo "suite_003_exit=$?"
+```
+
+Planned `V001–V042` acceptance cases:
+
+| Coverage | IDs | Expected outcome (not observed) |
+|---|---|---|
+| Version baseline | V001–V007 | Known numeric v1 reference only; bool/2 rejected; path isolation; no migration claims |
+| v1-v1 comparison | V008–V014 | Only known field names/kinds and counts; no payload, hash or path; numeric version relation; non-atomic pair |
+| Unsupported versions | V015–V022 | Numeric 0/2 are synthetic only; order visible; no unknown-schema field diff or mapping; redacted summaries |
+| Corrupt file | V023–V024 | Pair comparison and safe preview blocked, empty changes |
+| Safe preview | V025–V030 | v1 default/noop, phase-only review, no apply/approval/write, redacted reports |
+| Protected identity/time | V031–V034 | Clock/round ID changes block approval, no private values |
+| Invalid target/source | V035–V040 | Cross-mode, bool clock, extra target, invalid source and foreign mode blocked |
+| Read-only integrity | V041–V042 | Bytes before/after equal; no temporary file created |
+
+Additional future reviewer checks: privacy of report metadata itself,
+strict JSON parser behavior, symlink path escape, concurrent snapshot
+modification, Godot 4.7.2 parse/typing, test fixture cleanup, and
+upstream PR #6 schema drift. These are **NOT_VERIFIED**.
+
+**Actual status**: all old and new scripts are source-only, no Godot
+execution or test result. Future evidence must include Git commit,
+Godot binary/version, OS, full command, exit code, redacted output and
+cleanup results. No production/private save is an allowed fixture.
+
+No source-version mapping was provided. Codex must not mark a migration
+as supported, or mark this PR ready/merge, on source-only evidence.
