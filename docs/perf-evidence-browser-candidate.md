@@ -186,7 +186,7 @@ node --test tests/test_perf_evidence_browser_cohort_candidate.js
 
 `tests/test_perf_evidence_browser_cohort_candidate.js` 中的 PB01–PB17：三份run级中位数与覆盖；非默认基准delta；单项缺测与全缺测；混合来源抑制差值；合成保留声明；非GPU后端禁止GPU对照；场景哈希冲突；预算不匹配；分母为0百分比null；拒绝把系列摘要当独立run；报告数量2至12边界；重复ID、基准非法；逐份来源元信息；不可用指标零差值禁止；CSP与本地只读约束；无副作用的纯计算。
 
-原 `tests/test_perf_evidence_browser_candidate.js` 新增 FB25–FB28：单次报告任务ID/版本/预算声明异常；同指标重复；series契约异常；series覆盖声明与实际次数冲突。原有FB01–FB24为之前任务未来测试定义，仍未执行。
+原 `tests/test_perf_evidence_browser_candidate.js` 新增 FB25–FB29：单次报告任务ID/版本/预算声明异常；同指标重复；series契约异常；series覆盖声明与实际次数冲突；来源声称子集PASS但个别指标缺测时整体降级INCOMPLETE。原有FB01–FB24为之前任务未来测试定义，仍未执行。
 
 **限制及已知缺输入**：没有本轮真实Windows/Godot实测，缺少可核验的原始CSV SHA256绑定、真实GPU时间、脚本CPU分离、VRAM增量、完整场景动作与最低目标机数据。因此任何`WITHIN_PROPOSAL`仅是导入结构所声明数值与**未经批准预算**的比较，不是官方通过；任何`NUMERIC_ONLY`仅是描述性差值，不是性能优化结论。既有分析器代码与共享接口未获批准，本模块不将其偷偷升级为正式标准。
 
@@ -195,7 +195,7 @@ node --test tests/test_perf_evidence_browser_cohort_candidate.js
 `task_id=GAME-WEB-PLAY-PERF-005`；`version=r1`；
 `input_version=Draft PR #22 HEAD 37bbe8d / Draft PR #12 依赖`；
 `scope=仅改PR#22独立浏览器及自有未来测试、文档`；
-`deliverable=cohort.js + 既有模块升级 + PB01..PB19 + FB25..FB28 + 集成说明`；
+`deliverable=cohort.js + 既有模块升级 + PB01..PB19 + FB25..FB29 + 集成说明`；
 `acceptance=全部NOT_RUN，交作者最终验收`；
 `status=NOT_RUN`。
 
