@@ -6,8 +6,9 @@
   "use strict";
 
   const model = window.PerfEvidenceModel;
+  const cohort = window.PerfEvidenceCohort;
   const byId = id => document.getElementById(id);
-  const state = { reports: [], selected: null, sequence: 0, errors: [] };
+  const state = { reports: [], selected: null, sequence: 0, errors: [], multiSelected: new Set() };
   const els = {
     files: byId("files"), drop: byId("drop"), count: byId("count"),
     total: byId("total"), synthetic: byId("synthetic-count"),
@@ -17,7 +18,10 @@
     status: byId("import-status"), errors: byId("errors"),
     clear: byId("clear"), detail: byId("detail"),
     baseline: byId("baseline"), current: byId("current"),
-    compare: byId("compare"), result: byId("compare-result")
+    compare: byId("compare"), result: byId("compare-result"),
+    multiBaseline: byId("multi-baseline"), multiCompare: byId("multi-compare"),
+    multiClear: byId("multi-clear"), multiCount: byId("multi-count"),
+    multiResult: byId("multi-result")
   };
 
   function node(tag, text, className) {
@@ -117,7 +121,28 @@
         renderList();
         renderDetail();
       });
-      li.appendChild(button);
+      if (item.kind !== "series") {
+        const wrapper = node("div", null, "library-line");
+        const toggle = node("input");
+        toggle.type = "checkbox";
+        toggle.className = "multi-check";
+        toggle.checked = state.multiSelected.has(item.browserId);
+        toggle.setAttribute("aria-label", "勾选横向对照：" + item.filename);
+        toggle.addEventListener("change", () => {
+          if (toggle.checked && state.multiSelected.size >= cohort.MAX_SELECTED) {
+            toggle.checked = false;
+            els.status.textContent = "最多勾选12份独立单次报告；系列摘要不能直接跨文件混合比较。";
+            return;
+          }
+          if (toggle.checked) state.multiSelected.add(item.browserId);
+          else state.multiSelected.delete(item.browserId);
+          rebuildMultiSelection();
+        });
+        put(wrapper, toggle, button);
+        li.appendChild(wrapper);
+      } else {
+        li.appendChild(button);
+      }
       els.list.appendChild(li);
     }
   }
@@ -213,8 +238,55 @@
       if (missing.length) addWarningPanel(box, missing);
       parent.appendChild(box);
     }
+    if (Array.isArray(report.missingByRun)) {
+      const details = [];
+      for (const run of report.missingByRun) {
+        for (const missing of run.missing) {
+          details.push(run.group + " / " + run.id + " / " + missing.metric +
+            "：" + missing.reason + " [" + missing.status + "]");
+        }
+      }
+      if (details.length) addWarningPanel(parent, details);
+    }
     put(parent, paragraph("本浏览器仅展示各次独立统计结果。多份P99的中位数不是合并帧P99；不据此认定性能优化。", "footnote"));
   }
+  function addMissingExplanation(parent, report) {
+    put(parent, heading("缺测与口径说明（不以0代替）"));
+    const reasons = [];
+    if (report.kind !== "series") {
+      for (const m of report.metrics) {
+        if (m.diagnostic === "NOT_MEASURED" || m.diagnostic === "INCOMPLETE") {
+          reasons.push([m.name, m.diagnostic === "NOT_MEASURED" ? "未测" : "输入不完整/不可采信",
+            m.reason || "来源无有效值，不能推断为0"]);
+        }
+      }
+    } else {
+      for (const group of report.groups) {
+        for (const m of group.metrics) {
+          if (m.coverage !== "COMPLETE_NUMERIC") {
+            reasons.push([group.name + " / " + m.name,
+              m.nObserved === null ? "覆盖不可信" : m.nObserved + "/" + m.nTotal,
+              "每次run缺失详情见上方；仅对已有独立数值做描述性统计"]);
+          }
+        }
+      }
+    }
+    if (reasons.length) {
+      put(parent, paragraph("以下是缺测或异常字段；即使有其他观测值，整体场景也不能判通过。", "footnote"),
+        table(["字段", "缺测状态/有效数", "原因与限制"], reasons));
+    } else {
+      put(parent, paragraph("八项统计字段的来源数值齐全，但仍缺少真实性与场景整体指标验证；不代表实测通过。", "footnote"));
+    }
+    const boundaries = [
+      "帧间隔是帧事件之间的墙钟时间，不等于游戏脚本CPU时间或GPU耗时",
+      "进程工作集含共享内存、私有提交不是驻留RAM；两者不能自动替代逐帧RAM",
+      "VRAM增量未可靠采集时保持缺测，不能猜测为0",
+      "headless/dummy不构成GPU跑分；声明非合成也不是独立验真",
+      "冷启动、切换、灯光和NPC等未测项目仍须单独验收"
+    ];
+    put(parent, paragraph(boundaries.join("；"), "footnote"));
+  }
+
   function addMemory(parent, m) {
     if (!m) return;
     put(parent, heading("单列展示：Windows进程级内存"));
@@ -245,6 +317,7 @@
     addMeta(els.detail, report);
     if (report.kind === "series") addSeriesMetrics(els.detail, report);
     else addSingleMetrics(els.detail, report);
+    addMissingExplanation(els.detail, report);
     addMemory(els.detail, report.processMemory);
     addWarningPanel(els.detail, report.warnings);
     put(els.detail, paragraph(
@@ -291,6 +364,90 @@
     els.result.appendChild(table(
       ["指标", "基线观测", "本次观测", "差值", "变化率", "比较状态"], rows));
   }
+  function multiSelection() {
+    return state.reports.filter(r => state.multiSelected.has(r.browserId) && r.kind !== "series");
+  }
+  function rebuildMultiSelection() {
+    const selection = multiSelection();
+    const previous = els.multiBaseline.value;
+    clear(els.multiBaseline);
+    els.multiBaseline.appendChild(selectOption("", "选择勾选项作为基准"));
+    for (const report of selection) {
+      els.multiBaseline.appendChild(selectOption(String(report.browserId), report.filename));
+    }
+    els.multiBaseline.value = selection.some(r => String(r.browserId) === previous) ? previous :
+      selection.length ? String(selection[0].browserId) : "";
+    els.multiCount.textContent = String(selection.length) + "/" + cohort.MAX_SELECTED;
+    els.multiCompare.disabled = selection.length < 2 || selection.length > cohort.MAX_SELECTED;
+    els.multiClear.disabled = selection.length === 0;
+    clear(els.multiResult);
+    els.multiResult.appendChild(paragraph("已勾选" + selection.length +
+      "份；选择基准后点击比较。对照仅用于展示各报告声明的数值，不是已核实性能。",
+      "empty"));
+  }
+  function resetMultiSelection() {
+    state.multiSelected.clear();
+    rebuildMultiSelection();
+    renderList();
+  }
+  function renderMultiClicked() {
+    clear(els.multiResult);
+    const selected = multiSelection();
+    try {
+      const result = cohort.compareMany(selected, Number(els.multiBaseline.value));
+      const c = result.context;
+      put(els.multiResult,
+        paragraph("对照状态：" + c.status + "；" + c.note, "summary"),
+        paragraph(c.evidenceNote + "。完整场景保持 INCOMPLETE，原始证据未独立校验。",
+          "footnote"),
+        paragraph("覆盖统计：" + (result.missingOverview.totalMetricCells -
+          result.missingOverview.untrustedOrMissing) + "/" +
+          result.missingOverview.totalMetricCells +
+          " 个数字字段具备报告内可对照状态；这不等于有这么多项真实实测。", "footnote"));
+      const sourceRows = result.records.map(item => [
+        item.id === result.baselineId ? item.name + "（基准）" : item.name,
+        ORIGINS[item.provenance] || item.provenance,
+        item.sampleCount === null ? "未提供" : String(item.sampleCount),
+        item.engineVersion, item.renderer, item.sceneHash,
+        "警告 " + item.warningCount + " 条"
+      ]);
+      put(els.multiResult, heading("各份报告的来源声明", "h3"),
+        table(["名称", "来源类别", "来源帧数", "引擎", "后端", "场景哈希", "告警"], sourceRows));
+      put(els.multiResult, paragraph("横向表中每个单元格显示“原文件数值／相对基准的数值变化”。" +
+        "没有通过来源检验时显示“不可比较”，绝不以预算值填补。", "footnote"));
+      const columns = ["指标", ...result.records.map(r => r.name),
+        "有效数/总数", "各报告中位数", "提案预算", "覆盖状态"];
+      const rows = result.rows.map(row => [
+        row.name,
+        ...row.cells.map(cell => {
+          const value = fmt(cell.reported, row.unit);
+          if (!cell.canUse) return value + "（不可采信）";
+          return value + (cell.delta === null ? " · 不可比较" :
+            " · Δ" + fmt(cell.delta, row.unit));
+        }),
+        row.nReportedUsable + "/" + row.total,
+        fmt(row.median, row.unit), fmt(row.budget, row.unit) + "（未批准）",
+        row.coverage
+      ]);
+      put(els.multiResult, heading("多份观测逐指标对照", "h3"), table(columns, rows));
+      const missing = [];
+      for (const record of result.missingOverview.missingByRecord) {
+        for (const item of record.items) {
+          missing.push(record.filename + " / " + item.label + "：" +
+            item.reason + " [" + item.diagnostic + "]");
+        }
+      }
+      if (missing.length) addWarningPanel(els.multiResult, missing);
+      else put(els.multiResult, paragraph("报告字段均可作数值对照，但仍无法证明真实运行条件一致。", "footnote"));
+      put(els.multiResult, paragraph("每份报告均只保留自己的帧分位数；跨次中位数不是合并帧P50/P95/P99。",
+        "footnote"));
+    } catch (err) {
+      els.multiResult.appendChild(paragraph("无法比较：" +
+        (err && err.message ? String(err.message).slice(0, 180) : "输入缺失或非法"),
+        "empty"));
+    }
+  }
+
   async function importFiles(files) {
     const selected = Array.from(files || []);
     if (!selected.length) return;
@@ -326,16 +483,17 @@
     renderErrors();
     renderList();
     rebuildComparators();
+    rebuildMultiSelection();
     renderDetail();
   }
   function reset() {
-    state.reports = []; state.selected = null; state.errors = [];
+    state.reports = []; state.selected = null; state.errors = []; state.multiSelected.clear();
     els.files.value = "";
     els.baseline.value = ""; els.current.value = "";
     clear(els.result);
     els.result.appendChild(paragraph("导入两份报告后选择基线与本次。", "empty"));
     els.status.textContent = "已清空当前会话的报告引用。";
-    overview(); renderErrors(); renderList(); rebuildComparators(); renderDetail();
+    overview(); renderErrors(); renderList(); rebuildComparators(); rebuildMultiSelection(); renderDetail();
   }
   els.files.addEventListener("change", async e => {
     await importFiles(e.currentTarget.files);
@@ -362,10 +520,12 @@
   els.filter.addEventListener("change", renderList);
   els.clear.addEventListener("click", reset);
   els.compare.addEventListener("click", compareClicked);
-  if (!model) {
+  els.multiCompare.addEventListener("click", renderMultiClicked);
+  els.multiClear.addEventListener("click", resetMultiSelection);
+  if (!model || !cohort) {
     els.status.textContent = "模型模块未载入；无法解析报告（不得展示伪结果）。";
     els.files.disabled = true;
   } else {
-    overview(); rebuildComparators(); renderList();
+    overview(); rebuildComparators(); rebuildMultiSelection(); renderList();
   }
 })();
