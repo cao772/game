@@ -186,7 +186,17 @@ def build_report(archive_path: str | Path) -> dict[str, Any]:
     checked: Result = check_archive(archive_path)
     second, second_error = _fingerprint_optional(archive_path)
 
-    issues = list(checked.issues)
+    # Keep machine-specific absolute paths and OS error strings out of
+    # the portable report. The command-line input remains local only.
+    issues = [
+        Issue(
+            item.code, item.path,
+            ("Input archive rejected or unreadable; inspect the local file."
+             if item.code == "ARCHIVE_ERROR" else item.detail),
+            item.rule, item.related_path, item.index,
+        )
+        for item in checked.issues
+    ]
     if first_error or second_error:
         _supplement(
             issues, "ARCHIVE_FINGERPRINT_ERROR",
