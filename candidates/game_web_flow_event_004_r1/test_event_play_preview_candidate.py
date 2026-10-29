@@ -288,7 +288,7 @@ class PlayOverlayCandidateFutureTests(unittest.TestCase):
         self.do(choose("ACTION_B"))
         self.do(choose("ACTION_BACK"))
         self.do({"op": "back", "steps": 1})
-        changed = self.do(observe("EVENT_ALPHA", "SIGNAL_OTHER"))
+        changed = self.do(observe("EVENT_BETA", "SIGNAL_OTHER"))
         self.assertTrue(changed["redo_cleared"])
         state = self.session.snapshot()
         self.assertEqual(state["cursor"], 1)
