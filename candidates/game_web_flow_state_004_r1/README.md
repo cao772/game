@@ -100,3 +100,47 @@ production UI writes no fixture or save file.
 
 Do **not** connect to a save core, runtime or event system, approve Canon,
 merge main, or submit private save data as evidence. User is final reviewer.
+
+---
+
+## PLAY-STATE-005 r1 continuation — readable, guarded browser
+
+**Source-only update, NOT_RUN / NOT_VERIFIED.** The same Draft PR #20 branch
+is updated. No `main`, upstream PR #13, game runtime or manuscript edit.
+
+### Additions
+
+- `snapshot_report_presenter_candidate.gd`: separate pure presentation
+  layer, with Chinese readable validation, compatibility, version-diff
+  and preview summaries. All displayed status and error codes are
+  **allowlisted**, and difference entries show only the six known field
+  names and change type. No raw JSON/digest, actual round ID, source
+  phase/door/clock values, path or arbitrary error text is rendered.
+- `snapshot_browser_candidate.gd`: reorganized three-tab view, scrollable
+  upper controls, explicit status feedback, manual-only inspection,
+  context invalidation after mode/folder change, and preview invalidation
+  after hypothetical field change. The UI no longer JSON-stringifies
+  raw model results into its output fields.
+- `snapshot_browser_model_candidate.gd`: control-character path rejection
+  and best-effort first/last read checks to identify changed/unreadable
+  sources. These checks do **not** establish an atomic snapshot.
+- `verify_report_presenter_005.gd`: 22 additional future tests for
+  redaction/allowlists, numeric-version summaries, blocked/invalid
+  statuses, migration messaging. The previous model and UI future suites
+  remain; UI cases U23–U26 add visibility/privacy assertions.
+
+### Standalone vs integration
+
+See [INTEGRATION.md](INTEGRATION.md) for separate-project startup,
+resource path adaptation needed before embedding, and the important
+Godot `user://` scope limitation: the standalone app cannot
+automatically inspect a different Godot game's own save directory.
+[SAFETY.md](SAFETY.md) documents private-data handling and known
+filesystem/concurrency limitations. [DESIGN.md](DESIGN.md) records
+tradeoffs without prompting for ordinary UI decisions.
+
+No real file was loaded or modified during authoring; no executable
+migration exists. Future verification commands and evidence templates
+are in [ACCEPTANCE.md](ACCEPTANCE.md).
+
+**All suites: NOT_RUN. Author is the final acceptor.**
