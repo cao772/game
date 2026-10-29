@@ -113,7 +113,7 @@ func _section(title: String, value: Dictionary) -> String:
 	var safe_status := "unknown"
 	if typeof(status_code) == TYPE_STRING and STATUSES.has(status_code):
 		safe_status = status_code
-	var lines: Array[String] = [
+	var lines: PackedStringArray = [
 		title,
 		"  状态：" + _status(status_code) + " [" + safe_status + "]"
 	]
@@ -126,7 +126,7 @@ func _section(title: String, value: Dictionary) -> String:
 func _changes(value: Variant) -> String:
 	if typeof(value) != TYPE_ARRAY:
 		return "  无可展示的差异"
-	var lines: Array[String] = []
+	var lines: PackedStringArray = []
 	for entry in value:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
@@ -151,7 +151,7 @@ func inspection(report: Dictionary) -> String:
 		return "检查未完成：返回结构缺失。"
 	var c: Dictionary = check
 	var v: Dictionary = version
-	var lines: Array[String] = [
+	var lines: PackedStringArray = [
 		_section("校验报告", c),
 		"  模式：" + _known_mode(c.get("expected_mode", "")),
 		"  版本：" + _label(c.get("version_label", "unknown")),
@@ -175,7 +175,7 @@ func inspection(report: Dictionary) -> String:
 
 
 func comparison(report: Dictionary) -> String:
-	var lines: Array[String] = [
+	var lines: PackedStringArray = [
 		_section("版本与结构比较", report)
 	]
 	if report.has("left") and typeof(report["left"]) == TYPE_DICTIONARY:
@@ -202,7 +202,7 @@ func comparison(report: Dictionary) -> String:
 
 
 func preview(report: Dictionary) -> String:
-	var lines: Array[String] = [
+	var lines: PackedStringArray = [
 		_section("迁移需求与假设预览", report),
 		"",
 		"状态：只读预览，不能应用、不能保存、不能恢复。",
