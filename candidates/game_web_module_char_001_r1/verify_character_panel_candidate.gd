@@ -1,5 +1,5 @@
 extends SceneTree
-## Future-only tests. This source has NOT been executed by the authoring window.
+## Future-only legacy r1 checks, path-adjusted for r2 scroll layout. NOT_RUN.
 
 const PanelScene = preload("res://character_profile_panel.tscn")
 const Contract = preload("res://profile_contract_candidate.gd")
@@ -47,7 +47,7 @@ func _run() -> void:
     root.add_child(panel)
     _check("initially empty", panel.profile_copy(), {})
     _check("empty label visible", panel.get_node("Layout/EmptyState").visible, true)
-    _check("no sections initially", panel.get_node("Layout/Scroll/Sections").get_child_count(), 0)
+    _check("no sections initially", panel.get_node("Layout/Scroll/Content/Sections").get_child_count(), 0)
 
     _check("null rejected", Contract.validate(null)["ok"], false)
     _check("array rejected", Contract.validate([])["ok"], false)
@@ -94,11 +94,11 @@ func _run() -> void:
 
     var raw := _sample()
     _check("valid data accepted", panel.set_profile(raw), true)
-    _check("name rendered", panel.get_node("Layout/Header/NameLabel").text, "占位姓名")
-    _check("one section rendered", panel.get_node("Layout/Scroll/Sections").get_child_count(), 1)
-    _check("named section exists", panel.get_node_or_null("Layout/Scroll/Sections/section_alpha") != null, true)
+    _check("name rendered", panel.get_node("Layout/Scroll/Content/Header/NameLabel").text, "占位姓名")
+    _check("one section rendered", panel.get_node("Layout/Scroll/Content/Sections").get_child_count(), 1)
+    _check("named section exists", panel.get_node_or_null("Layout/Scroll/Content/Sections/section_alpha") != null, true)
     _check("literal markup remains text", _contains_exact_label(panel, "[b]仅是普通文本[/b]"), true)
-    _check("two tags", panel.get_node("Layout/Header/Tags").get_child_count(), 2)
+    _check("two tags", panel.get_node("Layout/Scroll/Content/Header/Tags").get_child_count(), 2)
 
     raw["display_name"] = "mutated"
     raw["sections"][0]["items"][0]["value"] = "mutated"
@@ -112,7 +112,7 @@ func _run() -> void:
     invalid["sections"] = "invalid"
     _check("bad replacement rejected", panel.set_profile(invalid), false)
     _check("last valid data retained", panel.profile_copy()["profile_id"], "placeholder-one")
-    _check("last UI retained", panel.get_node("Layout/Header/NameLabel").text, "占位姓名")
+    _check("last UI retained", panel.get_node("Layout/Scroll/Content/Header/NameLabel").text, "占位姓名")
     _check("rejection reason exists", panel.last_error().is_empty(), false)
 
     var without_sections := _sample("placeholder-two")
@@ -122,10 +122,10 @@ func _run() -> void:
     without_sections["tags"] = []
     without_sections["sections"] = []
     _check("empty sections accepted", panel.set_profile(without_sections), true)
-    _check("old section removed", panel.get_node_or_null("Layout/Scroll/Sections/section_alpha") == null, true)
+    _check("old section removed", panel.get_node_or_null("Layout/Scroll/Content/Sections/section_alpha") == null, true)
     _check("section placeholder shown", _contains_exact_label(panel, "暂无展示章节"), true)
-    _check("subtitle hidden", panel.get_node("Layout/Header/SubtitleLabel").visible, false)
-    _check("tags removed", panel.get_node("Layout/Header/Tags").get_child_count(), 0)
+    _check("subtitle hidden", panel.get_node("Layout/Scroll/Content/Header/SubtitleLabel").visible, false)
+    _check("tags removed", panel.get_node("Layout/Scroll/Content/Header/Tags").get_child_count(), 0)
 
     var zero_items := _sample("placeholder-three")
     zero_items["sections"][0]["items"] = []
@@ -135,12 +135,12 @@ func _run() -> void:
     panel.clear_profile()
     _check("clear removes data", panel.profile_copy(), {})
     _check("clear restores empty state", panel.get_node("Layout/EmptyState").visible, true)
-    _check("clear removes cards", panel.get_node("Layout/Scroll/Sections").get_child_count(), 0)
+    _check("clear removes cards", panel.get_node("Layout/Scroll/Content/Sections").get_child_count(), 0)
 
     var detached = PanelScene.instantiate()
     _check("inject before ready", detached.set_profile(_sample("placeholder-early")), true)
     root.add_child(detached)
-    _check("pre-ready injection rendered", detached.get_node("Layout/Header/NameLabel").text, "占位姓名")
+    _check("pre-ready injection rendered", detached.get_node("Layout/Scroll/Content/Header/NameLabel").text, "占位姓名")
     detached.free()
     panel.free()
     _finish()

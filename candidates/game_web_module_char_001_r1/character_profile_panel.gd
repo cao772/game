@@ -1,30 +1,82 @@
 extends MarginContainer
-## Public (candidate only): set_profile, clear_profile, profile_copy, last_error.
-## Read-only display. Never parses markup, loads portrait URLs, saves or dispatches game actions.
+## GAME-WEB-MODULE-CHAR-002 r1. Presentation-only candidate; NOT a shared API.
+## Strict injection, no story/save/input-map/network side effects.
 
 signal profile_accepted(profile_id: String)
 signal profile_rejected(reason: String)
 signal profile_cleared
 
 const ProfileContract = preload("res://profile_contract_candidate.gd")
+const NARROW_WIDTH := 480.0
 
 var _profile: Dictionary = {}
 var _last_error: String = ""
+var _compact: bool = false
+var _layout_initialized: bool = false
 
-@onready var _header: VBoxContainer = $Layout/Header
-@onready var _name: Label = $Layout/Header/NameLabel
-@onready var _subtitle: Label = $Layout/Header/SubtitleLabel
-@onready var _status: Label = $Layout/Header/StatusLabel
-@onready var _summary: Label = $Layout/Header/SummaryLabel
-@onready var _tags: HFlowContainer = $Layout/Header/Tags
-@onready var _separator: HSeparator = $Layout/Separator
+@onready var _header: VBoxContainer = $Layout/Scroll/Content/Header
+@onready var _name: Label = $Layout/Scroll/Content/Header/NameLabel
+@onready var _subtitle: Label = $Layout/Scroll/Content/Header/SubtitleLabel
+@onready var _status: Label = $Layout/Scroll/Content/Header/StatusLabel
+@onready var _summary: Label = $Layout/Scroll/Content/Header/SummaryLabel
+@onready var _tags: HFlowContainer = $Layout/Scroll/Content/Header/Tags
+@onready var _separator: HSeparator = $Layout/Scroll/Content/Separator
 @onready var _scroll: ScrollContainer = $Layout/Scroll
-@onready var _sections: VBoxContainer = $Layout/Scroll/Sections
+@onready var _sections: VBoxContainer = $Layout/Scroll/Content/Sections
 @onready var _empty: Label = $Layout/EmptyState
+@onready var _help: Label = $Layout/HelpLabel
 
 
 func _ready() -> void:
+    resized.connect(_on_resized)
+    _apply_layout()
+    _scroll.focus_mode = Control.FOCUS_ALL
+    _scroll.follow_focus = true
+    if _has_property(_scroll, "draw_focus_border"):
+        _scroll.set("draw_focus_border", true)
+    _set_assistive(_scroll, "人物资料阅读区域", "Tab 聚焦；方向键、翻页键、Home、End 滚动")
+    _set_assistive(_empty, "等待资料", _empty.text)
+    _set_assistive(_help, "键盘操作提示", _help.text)
     _render()
+
+
+func _has_property(control: Object, property_name: String) -> bool:
+    for entry in control.get_property_list():
+        if str(entry.get("name", "")) == property_name:
+            return true
+    return false
+
+
+func _set_assistive(control: Control, readable_name: String, description: String = "") -> void:
+    # Native accessibility fields exist only on some Godot 4.x minors;
+    # tooltips remain a discoverable fallback, not a screen-reader guarantee.
+    if _has_property(control, "accessibility_name"):
+        control.set("accessibility_name", readable_name)
+    if _has_property(control, "accessibility_description"):
+        control.set("accessibility_description", description)
+    if not description.is_empty():
+        control.tooltip_text = description
+    elif not readable_name.is_empty():
+        control.tooltip_text = readable_name
+
+
+func _on_resized() -> void:
+    var was_compact := _compact
+    _apply_layout()
+    if was_compact != _compact and is_node_ready():
+        _render()
+
+
+func _apply_layout() -> void:
+    _compact = size.x < NARROW_WIDTH
+    var outer_padding := 10 if _compact else 20
+    for side in ["margin_left", "margin_top", "margin_right", "margin_bottom"]:
+        add_theme_constant_override(side, outer_padding)
+    _layout_initialized = true
+
+
+func is_compact_layout() -> bool:
+    return _compact
 
 
 func set_profile(source: Variant) -> bool:
@@ -63,26 +115,30 @@ func _clear_children(container: Node) -> void:
         child.queue_free()
 
 
-func _make_text(value: String, point_size: int, tint: Color) -> Label:
+func _make_text(value: String, point_size: int, tint: Color, context: String = "") -> Label:
     var result := Label.new()
     result.text = value
     result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     result.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    result.custom_minimum_size = Vector2.ZERO
     result.add_theme_font_size_override("font_size", point_size)
     result.add_theme_color_override("font_color", tint)
+    if not context.is_empty():
+        _set_assistive(result, context, value)
     return result
 
 
 func _card_style() -> StyleBoxFlat:
     var style := StyleBoxFlat.new()
     style.bg_color = Color("#17253b")
-    style.border_color = Color("#334865")
+    style.border_color = Color("#486383")
     style.set_border_width_all(1)
-    style.set_corner_radius_all(10)
-    style.content_margin_left = 16
-    style.content_margin_right = 16
-    style.content_margin_top = 14
-    style.content_margin_bottom = 14
+    style.set_corner_radius_all(9)
+    var padding := 9 if _compact else 16
+    style.content_margin_left = padding
+    style.content_margin_right = padding
+    style.content_margin_top = 12
+    style.content_margin_bottom = 12
     return style
 
 
@@ -91,23 +147,26 @@ func _add_section(section: Dictionary) -> void:
     card.name = "section_" + str(section["section_id"])
     card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     card.add_theme_stylebox_override("panel", _card_style())
+    _set_assistive(card, "资料章节：" + section["heading"])
 
     var body := VBoxContainer.new()
-    body.add_theme_constant_override("separation", 11)
+    body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    body.add_theme_constant_override("separation", 10)
     card.add_child(body)
-    body.add_child(_make_text(section["heading"], 18, Color("#f2f5fb")))
+    body.add_child(_make_text(section["heading"], 18, Color("#f2f5fb"), "章节标题"))
 
     var entries: Array = section["items"]
     if entries.is_empty():
-        body.add_child(_make_text("暂无条目", 13, Color("#b6c4d8")))
+        body.add_child(_make_text("暂无条目", 14, Color("#cbd7e9"), "空章节"))
     else:
         for index in range(entries.size()):
             var entry: Dictionary = entries[index]
             var entry_box := VBoxContainer.new()
             entry_box.name = "item_%d" % index
-            entry_box.add_theme_constant_override("separation", 4)
-            entry_box.add_child(_make_text(entry["label"], 12, Color("#aebed6")))
-            entry_box.add_child(_make_text(entry["value"], 15, Color("#eef3fa")))
+            entry_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+            entry_box.add_theme_constant_override("separation", 5)
+            entry_box.add_child(_make_text(entry["label"], 13, Color("#b9cce5"), "字段名称"))
+            entry_box.add_child(_make_text(entry["value"], 16, Color("#eef3fa"), entry["label"]))
             body.add_child(entry_box)
             if index != entries.size() - 1:
                 body.add_child(HSeparator.new())
@@ -122,6 +181,7 @@ func _render() -> void:
     _separator.visible = present
     _scroll.visible = present
     _empty.visible = not present
+    _help.visible = present
     if not present:
         return
 
@@ -132,27 +192,29 @@ func _render() -> void:
     _status.visible = not _status.text.is_empty()
     _summary.text = _profile["summary"]
     _summary.visible = not _summary.text.is_empty()
+    _set_assistive(_name, "资料名称", _name.text)
+    _set_assistive(_subtitle, "副标题", _subtitle.text)
+    _set_assistive(_status, "状态", _status.text)
+    _set_assistive(_summary, "摘要", _summary.text)
 
     for tag in _profile["tags"]:
         var capsule := PanelContainer.new()
         var style := _card_style()
-        style.bg_color = Color("#28405e")
-        style.border_color = Color("#3e6388")
+        style.bg_color = Color("#294663")
+        style.border_color = Color("#5c84ac")
         style.set_corner_radius_all(12)
-        style.content_margin_left = 10
-        style.content_margin_right = 10
+        style.content_margin_left = 9
+        style.content_margin_right = 9
         style.content_margin_top = 5
         style.content_margin_bottom = 5
         capsule.add_theme_stylebox_override("panel", style)
-        capsule.add_child(_make_text(tag, 12, Color("#f2f5fb")))
+        capsule.add_child(_make_text(tag, 13, Color("#f2f5fb"), "资料标签"))
         _tags.add_child(capsule)
     _tags.visible = not _profile["tags"].is_empty()
 
     var sections: Array = _profile["sections"]
     if sections.is_empty():
-        _sections.add_child(
-            _make_text("暂无展示章节", 14, Color("#b6c4d8"))
-        )
+        _sections.add_child(_make_text("暂无展示章节", 15, Color("#cbd7e9"), "空章节列表"))
     else:
         for section in sections:
             _add_section(section)

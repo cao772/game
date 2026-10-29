@@ -102,3 +102,36 @@ visual quality, accessibility or performance.
   before any merge or product-level integration.
 
 Task GAME-WEB-MODULE-CHAR-001; version r1; status SOURCE_SUBMITTED / NOT_RUN.
+
+
+---
+
+## Incremental follow-up: GAME-WEB-MODULE-CHAR-002 r1 (NOT_RUN)
+
+The same Draft PR #14 branch now includes a **002 r1** incremental candidate:
+keyboard-only focus-scoped scrolling, guarded accessibility metadata, visible
+keyboard hints, full-content vertical scroll layout, compact breakpoint,
+bounded atomic placeholder parsing, and explicit preview status/reload behavior.
+See [MODULE_CHAR_002_DESIGN.md](MODULE_CHAR_002_DESIGN.md) for the complete
+source inventory, exact policies, 480px layout breakpoint and limitations.
+
+Additional proposed source files:
+- \`profile_scroll_navigation.gd\` — scroll input handler only while focused.
+- \`placeholder_fixture_loader_candidate.gd\` — pure, bounded, atomic parser.
+- \`verify_character_accessibility_candidate.gd\` — additional future tests.
+- \`MODULE_CHAR_002_DESIGN.md\` — implementation decisions and acceptance plan.
+
+The existing r1 verifier was updated only to reflect moved scene-node paths,
+since all displayed data (including long summaries) now lives under
+\`Layout/Scroll/Content/\`. Fixture schema fields are unchanged and no
+external/shared interface has been approved. Runtime assistive properties are
+conditionally applied when supported by the installed Godot version; screen
+reader support is **not asserted**.
+
+Future independent verification (not run in this submission):
+
+    godot --headless --path candidates/game_web_module_char_001_r1 --script res://verify_character_panel_candidate.gd
+    godot --headless --path candidates/game_web_module_char_001_r1 --script res://verify_character_accessibility_candidate.gd
+
+**002 status: SOURCE_SUBMITTED / NOT_RUN.** No source execution, Godot
+launch, tests, CI runs or manual UI verification requested or claimed.

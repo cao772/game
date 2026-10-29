@@ -9,31 +9,42 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 18
-theme_override_constants/margin_top = 18
-theme_override_constants/margin_right = 18
-theme_override_constants/margin_bottom = 18
 script = ExtResource("1_preview")
 
 [node name="Layout" type="VBoxContainer" parent="."]
 layout_mode = 2
-theme_override_constants/separation = 10
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 9
+
+[node name="Caption" type="Label" parent="Layout"]
+layout_mode = 2
+text = "占位资料预览 · 仅供技术测试"
+autowrap_mode = 3
+theme_override_font_sizes/font_size = 19
 
 [node name="Toolbar" type="HBoxContainer" parent="Layout"]
 layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="Caption" type="Label" parent="Layout/Toolbar"]
-layout_mode = 2
-text = "占位资料预览"
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
 
 [node name="Choice" type="OptionButton" parent="Layout/Toolbar"]
 layout_mode = 2
 size_flags_horizontal = 3
+focus_mode = 2
+fit_to_longest_item = false
+disabled = true
 
 [node name="Clear" type="Button" parent="Layout/Toolbar"]
 layout_mode = 2
+focus_mode = 2
 text = "清空"
+disabled = true
+
+[node name="Reload" type="Button" parent="Layout/Toolbar"]
+layout_mode = 2
+focus_mode = 2
+text = "重载"
 
 [node name="Status" type="Label" parent="Layout"]
 layout_mode = 2
@@ -42,4 +53,5 @@ autowrap_mode = 3
 
 [node name="Panel" parent="Layout" instance=ExtResource("2_panel")]
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3

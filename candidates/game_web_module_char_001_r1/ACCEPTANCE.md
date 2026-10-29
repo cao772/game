@@ -65,3 +65,46 @@ private resources in authorized storage rather than public GitHub.
 
 No code, test, build, CI job, rendering, benchmark or native GUI acceptance
 was executed during this source-development task. No merge is authorized.
+
+
+---
+
+## Additional GAME-WEB-MODULE-CHAR-002 r1 acceptance cases
+
+**All cases below: NOT_RUN.** See
+[MODULE_CHAR_002_DESIGN.md](MODULE_CHAR_002_DESIGN.md) for rationale and
+the new \`verify_character_accessibility_candidate.gd\` future-only suite.
+
+| ID | Input / procedure | Acceptance condition | Status |
+| --- | --- | --- | --- |
+| A19 | Empty/non-text/non-JSON fixture | Loader rejects without partial data | NOT_RUN |
+| A20 | Root is JSON object/scalar or empty array | Loader rejects | NOT_RUN |
+| A21 | Encoded fixture >64 KiB | Loader rejects with bounded error | NOT_RUN |
+| A22 | More than 12 records | Rejects entire batch | NOT_RUN |
+| A23 | Duplicate profile_id | Rejects entire batch | NOT_RUN |
+| A24 | Invalid record after valid records | No partial result returned | NOT_RUN |
+| A25 | Valid two-record synthetic fixture | Two records accepted and selectable | NOT_RUN |
+| A26 | Long summary | Summary is under scroll Content | NOT_RUN |
+| A27 | Reading area | Keyboard focus enabled; horizontal scroll disabled | NOT_RUN |
+| A28 | Native accessibility properties available | Name/description set, status live hint guarded | NOT_RUN |
+| A29 | Empty and populated panel | Help hint visibility follows data presence | NOT_RUN |
+| A30 | Preview picker/clear/reload | All controls keyboard-focusable with tab order | NOT_RUN |
+| A31 | Preview clear, invalid index, reload | No stale content; reload recovers fixture | NOT_RUN |
+| A32 | Original r1 acceptance script after scene refactor | No stale node paths; r1 invariants preserved | NOT_RUN |
+
+| ID | Manual / accessibility review | Acceptance condition | Status |
+| --- | --- | --- | --- |
+| H11 | 320x240, 480x320, 960x680 resizing | Entire header/body reachable without horizontal clipping | NOT_RUN |
+| H12 | Keyboard Tab, Shift+Tab | Predictable navigation among preview controls and scroll | NOT_RUN |
+| H13 | OptionButton arrows/Enter; Buttons Enter/Space | Native activation, no accidental game command | NOT_RUN |
+| H14 | Focused scroll Up/Down/PageUp/PageDown/Home/End | Correct bounds and no keyboard trap | NOT_RUN |
+| H15 | Repeated/modifier keys, focus in picker | No unintended profile reading scroll | NOT_RUN |
+| H16 | Long CJK/Latin, high font scale | Words readable, no overlap or hidden content | NOT_RUN |
+| H17 | Supported Godot and assistive technology | Verify actual spoken labels, status updates and focus | NOT_RUN |
+| H18 | Unavailable, corrupt, oversized or duplicate fixture | Visible error, disabled invalid controls, no partial options | NOT_RUN |
+| H19 | Contrast/focus-border screenshots | Author review needed; no WCAG compliance assumed | NOT_RUN |
+| H20 | Diff scope and privacy audit | Only PR #14 module files, no lore or private material | NOT_RUN |
+
+The requested authoring window performs no code/test execution. Expected
+outputs are not evidence of a PASS. Exact engine minor and accessibility
+toolchain are still owner inputs.
