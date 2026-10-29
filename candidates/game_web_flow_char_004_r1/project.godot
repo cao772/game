@@ -1,0 +1,16 @@
+; GAME-WEB-FLOW-CHAR-004 r1 — source-only standalone candidate.
+; Snapshot-vendored PR #14 rendering dependencies remain unapproved and NOT_RUN.
+config_version=5
+
+[application]
+config/name="GAME-WEB-FLOW-CHAR-004 synthetic directory"
+run/main_scene="res://flow_demo.tscn"
+
+[display]
+window/size/viewport_width=1060
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

@@ -1,0 +1,115 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://profile_flow_candidate.gd" id="1_flow"]
+
+[node name="PlaceholderCharacterFlow" type="MarginContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_flow")
+
+[node name="Layout" type="VBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="Header" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Layout/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "占位角色资料"
+theme_override_font_sizes/font_size = 20
+autowrap_mode = 3
+
+[node name="BackButton" type="Button" parent="Layout/Header"]
+layout_mode = 2
+text = "返回列表"
+disabled = true
+
+[node name="ExitButton" type="Button" parent="Layout/Header"]
+layout_mode = 2
+text = "退出模块"
+
+[node name="Status" type="Label" parent="Layout"]
+layout_mode = 2
+text = "未装入资料；仅演示合成占位数据"
+autowrap_mode = 3
+
+[node name="Search" type="LineEdit" parent="Layout"]
+layout_mode = 2
+placeholder_text = "按名称或标签筛选"
+clear_button_enabled = true
+focus_mode = 2
+
+[node name="Body" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="ListSide" type="VBoxContainer" parent="Layout/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="ListTitle" type="Label" parent="Layout/Body/ListSide"]
+layout_mode = 2
+text = "资料列表"
+theme_override_font_sizes/font_size = 18
+
+[node name="ResultCount" type="Label" parent="Layout/Body/ListSide"]
+layout_mode = 2
+text = "显示 0 条"
+
+[node name="ListScroll" type="ScrollContainer" parent="Layout/Body/ListSide"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Rows" type="VBoxContainer" parent="Layout/Body/ListSide/ListScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="EmptyList" type="Label" parent="Layout/Body/ListSide"]
+layout_mode = 2
+text = "暂无占位资料"
+autowrap_mode = 3
+
+[node name="DetailSide" type="VBoxContainer" parent="Layout/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="DetailTitle" type="Label" parent="Layout/Body/DetailSide"]
+layout_mode = 2
+text = "资料详情"
+theme_override_font_sizes/font_size = 18
+
+[node name="RetryButton" type="Button" parent="Layout/Body/DetailSide"]
+visible = false
+layout_mode = 2
+text = "重试读取本地展示面板"
+
+[node name="DetailHost" type="MarginContainer" parent="Layout/Body/DetailSide"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="DetailFallback" type="Label" parent="Layout/Body/DetailSide"]
+layout_mode = 2
+size_flags_vertical = 3
+text = "从左侧列表选择一条合成占位资料。"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
