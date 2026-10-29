@@ -106,11 +106,15 @@ func confirm_migration(token: String, destination: String) -> Dictionary:
         return _fail("BUSY")
     var result := workflow.confirm_migration(token)
     if not result["ok"]:
-        return _fail(str(result["code"]), str(result["message"]))
+        return {"ok": false, "code": str(result["code"]),
+            "message": str(result["message"]), "changed": false,
+            "persisted": bool(result.get("committed", false)),
+            "committed": bool(result.get("committed", false))}
     var verified := _migrator.read_v2(destination)
     if not verified["ok"]:
-        return _fail("MIGRATION_COMMITTED_NEEDS_RELOAD",
-            "Migration committed but V2 file could not be verified again")
+        return {"ok": false, "code": "MIGRATION_COMMITTED_NEEDS_RELOAD",
+            "message": "Migration committed but V2 readback needs review",
+            "changed": false, "persisted": true, "committed": true}
     _known_hash[destination] = verified["digest"]
     return _success("MIGRATED", bool(result.get("memory_changed", false)),
         true, bool(result.get("committed", false)))
