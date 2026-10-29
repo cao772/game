@@ -193,11 +193,18 @@
       ));
       const runTable = g.runDetails.map(r => [
         r.id, r.count === null ? "未提供" : String(r.count),
-        ORIGINS[r.sourceOrigin] || r.sourceOrigin, "源声明：" + r.sourceStatus
+        ORIGINS[r.sourceOrigin] || r.sourceOrigin, "源声明：" + r.sourceStatus,
+        r.engineVersion, r.renderer, r.sceneHash
       ]);
-      put(box, heading("每次采样来源", "h3"),
-        table(["run ID", "来源帧数", "来源声明", "子集状态（来源）"], runTable));
+      put(box, heading("每次采样来源与元数据（均未经核实）", "h3"),
+        table(["run ID", "来源帧数", "来源声明", "子集状态（来源）",
+               "引擎版本", "渲染后端", "场景哈希"], runTable));
       const missing = [];
+      for (const r of g.runDetails) {
+        for (const warning of r.warnings) {
+          missing.push(r.id + " / 来源校验：" + warning);
+        }
+      }
       for (const m of g.metrics) {
         for (const item of m.missingRuns) {
           missing.push(m.name + " / " + item.id + "：" + item.reason + " [" + item.status + "]");
