@@ -213,7 +213,10 @@ func _run() -> void:
     var recipient := Callable(fake, "request_button_action")
     _check("key forwarded to supplied receiver",
         adapter.route_key_candidate(_key(KEY_1), false, null, recipient)["ok"], true)
-    _check("forwarded action is canonical", fake.received[0], &"observe")
+    if fake.received.size() > 0:
+        _check("forwarded action is canonical", fake.received[0], &"observe")
+    else:
+        _check("forwarded action is canonical", false, true)
     var received_before := fake.received.size()
     _check("echo does not forward",
         adapter.route_key_candidate(_key(KEY_1, true, true),
