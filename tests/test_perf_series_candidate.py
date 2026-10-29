@@ -183,6 +183,21 @@ class SeriesFutureAcceptance(unittest.TestCase):
         self.assertEqual(summary["group_comparison"]["context_status"], "CONFLICT")
         self.assertFalse(summary["has_verified_real_game_benchmark"])
 
+    def test_headless_and_rendered_origin_mismatch_is_not_comparable(self):
+        headless = {"is_synthetic": False, "rendering_driver": "dummy",
+                    "display_server": "headless", "capture_complete": True,
+                    "engine_version": "4.7.2"}
+        rendered = {"is_synthetic": False, "rendering_driver": "opengl3",
+                    "display_server": "windows", "capture_complete": True,
+                    "engine_version": "4.7.2"}
+        summary = build_series_summary([
+            group("baseline", run("H", capture=headless)),
+            group("current", run("R", capture=rendered)),
+        ])
+        comparison = summary["group_comparison"]
+        self.assertEqual(comparison["context_status"], "CONFLICT")
+        self.assertTrue(all(row["delta_median"] is None for row in comparison["rows"]))
+
     def test_html_is_offline_and_escapes_declared_metadata(self):
         attack = {"is_synthetic": True, "engine_version": "<script>alert(1)</script>"}
         result = build_series_summary([group("current", run("A", capture=attack), run("B"))])
