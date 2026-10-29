@@ -1,0 +1,15 @@
+{
+  "event_id": "EVENT_BETA",
+  "trigger": {
+    "signal": "SIGNAL_BETA",
+    "conditions": [
+      "FLAG_AVAILABLE"
+    ]
+  },
+  "actions": [
+    {
+      "action_id": "ACTION_DONE",
+      "next_event_id": null
+    }
+  ]
+}
