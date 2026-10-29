@@ -12,8 +12,8 @@ const SnapshotCandidate = preload("res://round_snapshot_candidate.gd")
 # Cooperative process-local path ownership. Not an inter-process file lock.
 static var _path_owners: Dictionary = {}
 
-var _router: Node
-var _storage: RefCounted = SnapshotCandidate.new()
+var _router
+var _storage = SnapshotCandidate.new()
 var _snapshot: Dictionary = {}
 var _save_path: String = ""
 var _configured: bool = false
