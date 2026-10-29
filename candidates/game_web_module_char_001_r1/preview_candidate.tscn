@@ -1,0 +1,64 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://preview_candidate.gd" id="1_preview"]
+
+[node name="PlaceholderPreview" type="MarginContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_preview")
+
+[node name="Layout" type="VBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 9
+
+[node name="Caption" type="Label" parent="Layout"]
+layout_mode = 2
+text = "占位资料预览 · 仅供技术测试"
+autowrap_mode = 3
+theme_override_font_sizes/font_size = 19
+
+[node name="Toolbar" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="Choice" type="OptionButton" parent="Layout/Toolbar"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 2
+fit_to_longest_item = false
+disabled = true
+
+[node name="Clear" type="Button" parent="Layout/Toolbar"]
+layout_mode = 2
+focus_mode = 2
+text = "清空"
+disabled = true
+
+[node name="Reload" type="Button" parent="Layout/Toolbar"]
+layout_mode = 2
+focus_mode = 2
+text = "重载"
+
+[node name="Status" type="Label" parent="Layout"]
+layout_mode = 2
+text = "加载占位数据中"
+autowrap_mode = 3
+
+[node name="PanelHost" type="MarginContainer" parent="Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Fallback" type="Label" parent="Layout/PanelHost"]
+visible = false
+layout_mode = 2
+text = "资料组件不可用，请尝试重载。"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3

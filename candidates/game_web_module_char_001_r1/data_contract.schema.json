@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/game-web-module-char-001-r1.schema.json",
+  "title": "Unapproved placeholder character presentation input",
+  "description": "Candidate-only UI input. Does not establish story facts or shared APIs. Runtime Godot validator additionally rejects duplicate section_id values.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "display_name",
+    "subtitle",
+    "summary",
+    "status_label",
+    "tags",
+    "sections"
+  ],
+  "properties": {
+    "schema_version": {"type": "number", "const": 1},
+    "profile_id": {"$ref": "#/$defs/identifier"},
+    "display_name": {"type": "string", "minLength": 1, "maxLength": 80, "pattern": "\\S"},
+    "subtitle": {"type": "string", "maxLength": 120},
+    "summary": {"type": "string", "maxLength": 1200},
+    "status_label": {"type": "string", "maxLength": 40},
+    "tags": {
+      "type": "array",
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 24, "pattern": "\\S"}
+    },
+    "sections": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["section_id", "heading", "items"],
+        "properties": {
+          "section_id": {"$ref": "#/$defs/identifier"},
+          "heading": {"type": "string", "minLength": 1, "maxLength": 80, "pattern": "\\S"},
+          "items": {
+            "type": "array",
+            "maxItems": 12,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["label", "value"],
+              "properties": {
+                "label": {"type": "string", "minLength": 1, "maxLength": 50, "pattern": "\\S"},
+                "value": {"type": "string", "minLength": 1, "maxLength": 600, "pattern": "\\S"}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "minLength": 1,
+      "maxLength": 64
+    }
+  }
+}
