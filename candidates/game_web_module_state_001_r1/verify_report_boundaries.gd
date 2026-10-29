@@ -222,6 +222,29 @@ func _run() -> void:
 	_assert(not FileAccess.file_exists(story_path + ".tmp"),
 		"R43 no temporary write")
 
+	# Numeric 1/1.0 is the same protocol version, never a diff.
+	var untouched := inspector.preview_migration(story_path, "story", story)
+	_assert(untouched["ok"] and untouched["status"] == "no_changes",
+		"R44 JSON numeric normalization doesn't create false diff")
+	var numeric_version_json := JSON.stringify(story).replace(
+		'"version":1', '"version":1.0'
+	)
+	_assert(numeric_version_json != JSON.stringify(story),
+		"R45 synthetic numeric fixture actually changed")
+	var numeric_path := _fixture("version_decimal", "story", numeric_version_json)
+	if not numeric_path.is_empty():
+		var numeric_report := inspector.report_snapshot(numeric_path, "story")
+		_assert(numeric_report["valid"] and numeric_report["version_label"] == "1",
+			"R46 numeric 1.0 is accepted v1")
+		_assert(inspector.preview_migration(numeric_path, "story", story)["status"]
+			== "no_changes", "R47 1.0 vs 1 preview is unchanged")
+	var extra_v1 := story.duplicate(true)
+	extra_v1["synthetic_extra_field"] = 123
+	var extra_v1_path := _fixture("extra_v1_with_target", "story", JSON.stringify(extra_v1))
+	if not extra_v1_path.is_empty():
+		_assert(not inspector.preview_migration(extra_v1_path, "story", story)["ok"],
+			"R48 unknown v1 fields block target-driven recovery")
+
 
 func _cleanup() -> void:
 	for path in _files:
