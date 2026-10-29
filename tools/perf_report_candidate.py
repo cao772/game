@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GAME-WEB-MODULE-PERF-001/r1: read-only, offline performance evidence report.
+"""GAME-WEB-MODULE-PERF-002/r1: read-only offline report & comparison candidate.
 
 Consumes the JSON produced by PR #2 tools/perf_analyze_candidate.py.
 Optional Windows process-memory JSON and Godot capture metadata stay separate.
@@ -17,10 +17,25 @@ import math
 from pathlib import Path
 import sys
 
-TASK_ID = "GAME-WEB-MODULE-PERF-001"
+TASK_ID = "GAME-WEB-MODULE-PERF-002"
 VERSION = "r1"
 INPUT_VERSION = "GAME-WEB-PERF-002/r1 (PR #2)"
 MAX_INPUT_BYTES = 2_000_000
+# Exact definition currently emitted by the PR #2 offline analyzer.
+ANALYZER_PERCENTILE = (
+    "nearest-rank: ascending, rank=ceil(p*n), "
+    "p in {0.50,0.95,0.99}; no interpolation"
+)
+STAT_PATHS = {
+    "frame_p50_ms": ("frame_ms", "p50"),
+    "frame_p95_ms": ("frame_ms", "p95"),
+    "frame_p99_ms": ("frame_ms", "p99"),
+    "script_p95_ms": ("script_ms", "p95"),
+    "ram_peak_gib": ("ram_gib", "peak"),
+    "vram_delta_peak_gib": ("vram_delta_gib", "peak"),
+    "draw_calls_peak": ("draw_calls", "peak"),
+    "triangles_peak": ("triangles", "peak"),
+}
 
 # All thresholds are unapproved proposal values from PERF-001/r1.
 BUDGETS = (
@@ -61,15 +76,30 @@ def short_text(value, limit=180):
 
 
 def read_object(filename):
+    """Bounded JSON parsing; reject duplicate keys and non-finite constants."""
     path = Path(filename)
-    if path.stat().st_size > MAX_INPUT_BYTES:
-        raise ValueError("JSON too large (>2 MB): " + path.name)
+    with path.open("rb") as handle:
+        raw = handle.read(MAX_INPUT_BYTES + 1)
+    if len(raw) > MAX_INPUT_BYTES:
+        raise ValueError("JSON exceeds 2 MiB byte limit")
+
+    def no_duplicates(pairs):
+        obj = {}
+        for key, value in pairs:
+            if key in obj:
+                raise ValueError("Duplicate JSON key: " + key[:80])
+            obj[key] = value
+        return obj
+
     def bad_constant(text):
         raise ValueError("Non-finite JSON constant: " + text)
-    with path.open("r", encoding="utf-8-sig") as handle:
-        obj = json.load(handle, parse_constant=bad_constant)
+
+    obj = json.loads(
+        raw.decode("utf-8-sig"), parse_constant=bad_constant,
+        object_pairs_hook=no_duplicates,
+    )
     if not isinstance(obj, dict):
-        raise ValueError("Expected a JSON object: " + path.name)
+        raise ValueError("Expected a JSON object")
     return obj
 
 
@@ -87,7 +117,9 @@ def declared_origin(capture):
         return "NOT_GPU_BENCHMARK", "无有效图形后端证明，不能当作 GPU 跑分"
     if capture.get("capture_complete") is not True:
         return "UNVERIFIED", "采集记录未证实完整"
-    return "DECLARED_REAL_UNLINKED", "元数据声明为真实采样；尚未校验 CSV 与场景哈希的绑定"
+    if not driver or not display:
+        return "UNVERIFIED", "缺少渲染后端或显示服务标识"
+    return "DECLARED_REAL_UNLINKED", "仅声明非合成采样；未经原始CSV、场景哈希及设备身份回读校验"
 
 
 def build_memory(memory):
@@ -141,7 +173,13 @@ def build_report(analysis, memory=None, capture=None):
         raise ValueError("Analyzer report must be a JSON object")
     checks = analysis.get("checks")
     checks = checks if isinstance(checks, dict) else {}
+    stats = analysis.get("stats")
+    stats = stats if isinstance(stats, dict) else {}
     warnings = []
+    if not isinstance(analysis.get("checks"), dict):
+        warnings.append("分析器缺少checks对象")
+    if not isinstance(analysis.get("stats"), dict):
+        warnings.append("分析器缺少stats对象")
     error_count = analysis.get("error_count")
     clean_input = type(error_count) is int and error_count == 0
     if not clean_input:
@@ -153,14 +191,19 @@ def build_report(analysis, memory=None, capture=None):
     if analysis.get("status") != "incomplete" or analysis.get("full_scene_pass") is not False:
         clean_input = False
         warnings.append("分析器整体场景状态缺失或非incomplete；不接受任何PASS")
+    if analysis.get("version") != "r1":
+        clean_input = False
+        warnings.append("分析器版本非r1，拒绝直接比较")
+    if not isinstance(analysis.get("checks"), dict) or not isinstance(analysis.get("stats"), dict):
+        clean_input = False
+    if analysis.get("errors") != []:
+        clean_input = False
+        warnings.append("分析器错误明细非空、缺失或格式异常")
     if analysis.get("task_id") != "GAME-WEB-PERF-002":
         clean_input = False
         warnings.append("不是已知 PERF-002 分析器输出：不接受PASS")
     definition = analysis.get("percentile_definition")
-    correct_definition = (
-        isinstance(definition, str) and
-        "nearest-rank" in definition and "ceil" in definition
-    )
+    correct_definition = definition == ANALYZER_PERCENTILE
     if not correct_definition:
         clean_input = False
         warnings.append("未证实最近秩分位数口径：不接受PASS")
@@ -178,10 +221,19 @@ def build_report(analysis, memory=None, capture=None):
             raw = number(check.get("value"))
             source_limit = number(check.get("upper_inclusive"))
             declared = check.get("status")
+            path_a, path_b = STAT_PATHS[key]
+            group = stats.get(path_a)
+            stat_raw = number(group.get(path_b)) if isinstance(group, dict) else None
             if raw is not None:
                 metric["observed"] = raw
             if raw is None:
                 metric["note"] = "缺测、无效或非有限值，不能判为通过"
+                if declared == "PASS":
+                    warnings.append(key + " 缺测却声明PASS")
+            elif stat_raw is None or raw != stat_raw:
+                metric["status"] = "INCOMPLETE"
+                metric["note"] = "checks与stats缺少一致数值，不能采信"
+                warnings.append(key + " 的统计字段不一致")
             elif source_limit != limit:
                 metric["status"] = "INCOMPLETE"
                 metric["note"] = "分析器预算与本候选固定预算不一致"
@@ -202,6 +254,7 @@ def build_report(analysis, memory=None, capture=None):
 
     statuses = [metric["status"] for metric in metrics]
     computed = (
+        "INCOMPLETE" if "INCOMPLETE" in statuses or "NOT_MEASURED" in statuses else
         "FAIL" if "FAIL" in statuses else
         "PASS" if all(s == "PASS" for s in statuses) else
         "INCOMPLETE"
@@ -247,7 +300,7 @@ def build_report(analysis, memory=None, capture=None):
         },
         "process_memory": build_memory(memory),
         "warnings": warnings,
-        "testing_status": "NOT_RUN_BY_THIS_COMPONENT",
+        "testing_status": "NOT_RUN",
         "shared_interface_approved": False,
     }
 
@@ -292,7 +345,7 @@ def html_report(report):
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
-<title>GAME-WEB-MODULE-PERF-001 性能证据报告（候选）</title>
+<title>GAME-WEB-MODULE-PERF-002 性能证据报告（候选）</title>
 <style>
 :root{color-scheme:light;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
 body{background:#f4f7fb;color:#192d45;margin:0;padding:30px 16px}
@@ -333,7 +386,7 @@ e(memory["status"]) + """。""" + e(memory["note"]) + """</p>
 <p>不将工作集或私有提交自动写入PERF-002的ram_gib；未验证时间同步和来源绑定。</p>
 <p>全进程CPU累计时间不是游戏脚本CPU；GPU/VRAM均未由该观察器测量。</p></section>
 <section><h2>需要复核</h2><ul>""" + warnings + """</ul>
-<p>实现未执行测试；输出仅用于候选报告审核，不构成正史或共享接口批准。</p></section>
+<p>本任务交付状态NOT_RUN；后续使用工具生成报告不等于测试或性能验收，不构成共享接口批准。</p></section>
 </main></body></html>"""
 
 
@@ -370,13 +423,13 @@ def main(argv=None):
         capture = read_object(args.capture) if args.capture else None
         report = build_report(analysis, memory, capture)
         html_path, json_path = save_pair(args.out_prefix, html_report(report), report)
-    except (ValueError, OSError, TypeError, OverflowError) as exc:
+    except (ValueError, OSError, UnicodeError, TypeError, OverflowError) as exc:
         print("REPORT_ERROR: " + type(exc).__name__ + ": " + str(exc), file=sys.stderr)
         return 2
     print("HTML=" + str(html_path))
     print("JSON=" + str(json_path))
     print("WHOLE_SCENE_STATUS=INCOMPLETE")
-    print("TEST_STATUS=NOT_RUN_BY_THIS_COMPONENT")
+    print("TEST_STATUS=NOT_RUN")
     return 0
 
 
