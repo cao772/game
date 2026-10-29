@@ -1,0 +1,54 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://demo.gd" id="1_demo"]
+[ext_resource type="PackedScene" path="res://interaction_prompt_candidate.tscn" id="2_prompt"]
+
+[node name="StandaloneDemo" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_demo")
+
+[node name="DemoPanel" type="VBoxContainer" parent="."]
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 520.0
+offset_bottom = 240.0
+theme_override_constants/separation = 8
+
+[node name="TitleLabel" type="Label" parent="DemoPanel"]
+layout_mode = 2
+text = "Godot 4 独立交互提示 UI · 占位演示"
+
+[node name="InstructionsLabel" type="Label" parent="DemoPanel"]
+layout_mode = 2
+text = "选择占位目标，再使用 Tab / Enter / Space / Esc；不修改原场景。"
+
+[node name="TargetAButton" type="Button" parent="DemoPanel"]
+layout_mode = 2
+focus_mode = 2
+text = "显示：占位目标 A"
+
+[node name="TargetBButton" type="Button" parent="DemoPanel"]
+layout_mode = 2
+focus_mode = 2
+text = "显示：占位目标 B"
+
+[node name="HideButton" type="Button" parent="DemoPanel"]
+layout_mode = 2
+focus_mode = 2
+text = "外部调用：隐藏提示"
+
+[node name="StatusLabel" type="Label" parent="DemoPanel"]
+layout_mode = 2
+autowrap_mode = 3
+text = "尚未操作"
+
+[node name="InteractionPromptCandidate" parent="." instance=ExtResource("2_prompt")]
+offset_left = 550.0
+offset_top = 30.0
+offset_right = 960.0
+offset_bottom = 210.0

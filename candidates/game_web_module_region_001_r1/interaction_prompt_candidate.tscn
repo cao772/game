@@ -1,0 +1,41 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://interaction_prompt_candidate.gd" id="1_prompt"]
+
+[node name="InteractionPromptCandidate" type="PanelContainer"]
+visible = false
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 394.0
+offset_bottom = 180.0
+script = ExtResource("1_prompt")
+
+[node name="Padding" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 12
+
+[node name="Content" type="VBoxContainer" parent="Padding"]
+layout_mode = 2
+theme_override_constants/separation = 7
+
+[node name="TargetLabel" type="Label" parent="Padding/Content"]
+layout_mode = 2
+text = "目标：未指定"
+
+[node name="HintLabel" type="Label" parent="Padding/Content"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Tab 切换焦点；Enter / Space 确认；Esc 隐藏"
+
+[node name="ActionButton" type="Button" parent="Padding/Content"]
+layout_mode = 2
+focus_mode = 2
+text = "交互"
+
+[node name="DismissButton" type="Button" parent="Padding/Content"]
+layout_mode = 2
+focus_mode = 2
+text = "隐藏提示"
