@@ -127,7 +127,16 @@
       }
       byKey[item.key] = item;
     }
+    const allStates = METRICS.map(spec => field(byKey[spec[0]], "status"));
+    const derivedSubset = allStates.some(x => x !== "PASS" && x !== "FAIL") ?
+      "INCOMPLETE" : allStates.includes("FAIL") ? "FAIL" : "PASS";
+    const subsetCoherent = source.measured_subset_status === derivedSubset &&
+      duplicateKeys.size === 0;
+    if (!subsetCoherent) {
+      issues.push("已测子集声明与逐项状态不一致或存在重复指标；禁止整体数值可用性结论");
+    }
     const sourceClean = (
+      subsetCoherent &&
       ["GAME-WEB-MODULE-PERF-001", "GAME-WEB-MODULE-PERF-002"].includes(source.task_id) &&
       source.version === "r1" &&
       source.budget_approval === "UNAPPROVED_PROPOSAL" &&
