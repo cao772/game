@@ -1,0 +1,12 @@
+; GAME-WEB-INTEGRATE-001 r1
+; Isolated Godot 4 project; no existing scenes or InputMap changes.
+config_version=5
+
+[application]
+
+config/name="GAME-WEB-INTEGRATE-001 isolated candidate"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
