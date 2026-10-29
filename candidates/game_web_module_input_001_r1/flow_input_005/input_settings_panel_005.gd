@@ -26,6 +26,8 @@ var _retry_disk_path: String = ""
 var _last_result: Dictionary = {}
 var _last_preview_action: StringName = &""
 var _panel_safety_warning: String = ""
+var _reviewed_v2_path: String = ""
+var _reviewed_legacy_path: String = ""
 
 
 func _ready() -> void:
@@ -162,6 +164,7 @@ func _failed_save(result: Dictionary, origin: String) -> void:
         _retry_profile_digest = _profile_digest_now()
         _retry_disk_path = v2_profile_path
         _retry_button.disabled = false
+        _repreview_button.disabled = false
         if origin == "pending":
             _confirm_memory.disabled = true
             _confirm_save.disabled = true
@@ -185,6 +188,8 @@ func begin_rebind(action_id: StringName) -> void:
     _clear_recovery()
     _clear_alternatives()
     _last_preview_action = action_id
+    _reviewed_v2_path = v2_profile_path
+    _reviewed_legacy_path = legacy_profile_path
     super.begin_rebind(action_id)
 
 
@@ -222,6 +227,8 @@ func preview_reset_action(action_id: StringName) -> Dictionary:
     _clear_recovery()
     _clear_alternatives()
     _last_preview_action = action_id
+    _reviewed_v2_path = v2_profile_path
+    _reviewed_legacy_path = legacy_profile_path
     return super.preview_reset_action(action_id)
 
 
@@ -229,6 +236,8 @@ func preview_restore_all() -> Dictionary:
     _clear_recovery()
     _clear_alternatives()
     _last_preview_action = &""
+    _reviewed_v2_path = v2_profile_path
+    _reviewed_legacy_path = legacy_profile_path
     return super.preview_restore_all()
 
 
@@ -236,6 +245,8 @@ func preview_migration() -> Dictionary:
     _clear_recovery()
     _clear_alternatives()
     _last_preview_action = &""
+    _reviewed_v2_path = v2_profile_path
+    _reviewed_legacy_path = legacy_profile_path
     return super.preview_migration()
 
 
@@ -268,6 +279,13 @@ func _save_pending_once() -> Dictionary:
 
 
 func apply_and_save() -> Dictionary:
+    if _reviewed_v2_path != v2_profile_path \
+            or _reviewed_legacy_path != legacy_profile_path:
+        _reset_pending()
+        _clear_retry()
+        var path_changed := _result_dict(false, "STALE_PATH", "配置路径已改变，请重新预览")
+        _display_result(path_changed)
+        return path_changed
     if not _pending_is_current() or not _preview_details.get("ok", false):
         _reset_pending()
         _clear_alternatives()
