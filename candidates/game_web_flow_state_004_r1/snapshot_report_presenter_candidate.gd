@@ -28,6 +28,27 @@ const STATUSES := {
 	"unmapped_versions": "存在未知版本，禁止字段语义比较",
 	"source_not_stable": "源文件发生变化，本次结果已作废"
 }
+const ALLOWED_ERROR_CODES := [
+	"INVALID_EXPECTED_MODE", "UNSUPPORTED_PATH_SCHEME", "UNSAFE_PATH",
+	"FILENAME_MODE_MISMATCH", "PATH_IS_DIRECTORY", "FILE_MISSING",
+	"OPEN_FAILED", "FILE_TOO_LARGE", "JSON_PARSE_FAILED", "ROOT_NOT_OBJECT",
+	"MISSING_FIELD", "INVALID_VERSION_TYPE", "NONFINITE_VERSION",
+	"UNSUPPORTED_VERSION", "INVALID_MODE", "SOURCE_MODE_MISMATCH",
+	"UNEXPECTED_FIELD", "INVALID_ROUND_ID_TYPE", "BLANK_ROUND_ID",
+	"INVALID_PHASE", "INVALID_DOOR_OPEN", "INVALID_CLOCK_TYPE",
+	"NONFINITE_CLOCK", "NEGATIVE_CLOCK", "REFERENCE_NOT_APPROVED_V1",
+	"UNCOMPARABLE_SOURCES", "VERSION_MAPPING_NOT_PROVIDED",
+	"TARGET_MODE_MISMATCH", "PROTECTED_FIELDS_DIFFER",
+	"FOLDER_REQUIRED", "FOLDER_WHITESPACE", "FOLDER_TOO_LONG",
+	"USER_SCHEME_REQUIRED", "INVALID_FOLDER", "INVALID_PROPOSED_PHASE",
+	"INVALID_PROPOSED_DOOR", "SOURCE_CHANGED_OR_UNREADABLE",
+	"LEFT_FOLDER_REQUIRED", "RIGHT_FOLDER_REQUIRED",
+	"LEFT_FOLDER_WHITESPACE", "RIGHT_FOLDER_WHITESPACE",
+	"LEFT_FOLDER_TOO_LONG", "RIGHT_FOLDER_TOO_LONG",
+	"LEFT_USER_SCHEME_REQUIRED", "RIGHT_USER_SCHEME_REQUIRED",
+	"LEFT_INVALID_FOLDER", "RIGHT_INVALID_FOLDER",
+	"LEFT_INVALID_EXPECTED_MODE", "RIGHT_INVALID_EXPECTED_MODE"
+]
 const COMPATIBILITY := {
 	"compatible_v1": "已知 v1 格式匹配（仅格式）",
 	"unsupported": "未知版本，不能推断可迁移",
@@ -61,18 +82,12 @@ func _compat(value: Variant) -> String:
 
 
 func _code(value: Variant) -> String:
-	# Only upper-case ASCII status keys are rendered. No attacker-supplied
-	# path, JSON text, arbitrary field/value or exception is ever reflected.
+	# Only known static codes can appear in the public-facing UI.
 	if typeof(value) != TYPE_STRING:
 		return ""
-	if value.length() > 72:
-		return ""
-	for character in value:
-		var ordinal := character.unicode_at(0)
-		if not ((ordinal >= 65 and ordinal <= 90)
-			or (ordinal >= 48 and ordinal <= 57) or ordinal == 95):
-			return ""
-	return value
+	if ALLOWED_ERROR_CODES.has(value):
+		return value
+	return ""
 
 
 func _label(value: Variant) -> String:
@@ -95,9 +110,12 @@ func _label(value: Variant) -> String:
 
 func _section(title: String, value: Dictionary) -> String:
 	var status_code: Variant = value.get("status", "unknown")
+	var safe_status := "unknown"
+	if typeof(status_code) == TYPE_STRING and STATUSES.has(status_code):
+		safe_status = status_code
 	var lines: Array[String] = [
 		title,
-		"  状态：" + _status(status_code) + " [" + str(status_code) + "]"
+		"  状态：" + _status(status_code) + " [" + safe_status + "]"
 	]
 	var error_code := _code(value.get("error_code", ""))
 	if not error_code.is_empty():
