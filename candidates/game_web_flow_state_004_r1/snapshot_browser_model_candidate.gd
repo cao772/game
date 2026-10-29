@@ -1,8 +1,8 @@
 extends RefCounted
-## GAME-WEB-FLOW-STATE-004 r1
-## Pure read-only UI application model. No persisted state / commands / logs.
-## Uses pinned, unchanged public inspector candidate from Draft PR #13.
-## NOT_RUN. Canon N/A. No approved runtime/shared API.
+## GAME-WEB-PLAY-STATE-005 r1 — read-only browser application model.
+## Uses unchanged pinned inspector candidate from Draft PR #13.
+## Only fixed paths and allowlisted, redacted inspector APIs are exposed.
+## NOT_RUN / NOT_VERIFIED / Canon N/A.
 
 const Inspector = preload("res://snapshot_inspector_dependency.gd")
 const MODES := ["story", "free"]
@@ -13,8 +13,7 @@ var _inspector = Inspector.new()
 
 
 func _folder_issue(folder: String) -> String:
-	# Restrict UI to an explicitly entered user:// directory, never
-	# directory enumeration, file picking, implicit search or scanning.
+	# No enumeration, relative-path lookup, implicit discover or scan.
 	if folder.is_empty():
 		return "FOLDER_REQUIRED"
 	if folder != folder.strip_edges():
@@ -29,6 +28,10 @@ func _folder_issue(folder: String) -> String:
 	for segment in relative.split("/"):
 		if segment.is_empty() or segment == "." or segment == "..":
 			return "INVALID_FOLDER"
+	for i in range(relative.length()):
+		var scalar := relative.unicode_at(i)
+		if scalar < 32 or scalar == 127:
+			return "INVALID_FOLDER"
 	return ""
 
 
@@ -39,13 +42,13 @@ func _context_issue(folder: String, mode: String) -> String:
 
 
 func _file_for(folder: String, mode: String) -> String:
-	# Caller must have validated _context_issue first.
+	# Only called after checking folder/mode. No file discovery.
 	return folder.path_join(mode + ".round_snapshot.json")
 
 
 func _rejected(kind: String, code: String) -> Dictionary:
 	return {
-		"task_id": "GAME-WEB-FLOW-STATE-004",
+		"task_id": "GAME-WEB-PLAY-STATE-005",
 		"kind": kind,
 		"status": "invalid_request",
 		"error_code": code,
@@ -55,19 +58,53 @@ func _rejected(kind: String, code: String) -> Dictionary:
 	}
 
 
+func _stale_result(kind: String = "migration_preview") -> Dictionary:
+	return {
+		"task_id": "GAME-WEB-PLAY-STATE-005",
+		"kind": kind,
+		"status": "source_unstable",
+		"error_code": "SOURCE_CHANGED_OR_UNREADABLE",
+		"changes": [],
+		"changed_fields": [],
+		"changed_field_count": 0,
+		"requires_review": true,
+		"mapping_approved": false,
+		"can_apply": false,
+		"writes": false,
+		"read_only": true,
+		"atomic_reads": false,
+		"contains_snapshot_payload": false,
+		"verified": false
+	}
+
+
+func _same_observation(first: Dictionary, last: Dictionary) -> bool:
+	# A best-effort consistency check, NOT a file lock or atomic snapshot.
+	# Detects differences between two independent decoded-text reads.
+	return first.get("status", "") == last.get("status", "") 		and first.get("text_sha256", "") == last.get("text_sha256", "") 		and first.get("byte_length", -1) == last.get("byte_length", -2)
+
+
 func inspect_folder(folder: String, mode: String) -> Dictionary:
 	var issue := _context_issue(folder, mode)
 	if not issue.is_empty():
 		return _rejected("inspection", issue)
 	var path := _file_for(folder, mode)
-	# Independent reads: not a consistency/transaction promise.
+	var first: Dictionary = _inspector.inspect_snapshot(path, mode)
+	var report: Dictionary = _inspector.report_snapshot(path, mode)
+	var version: Dictionary = _inspector.report_version_delta(path, mode)
+	var last: Dictionary = _inspector.inspect_snapshot(path, mode)
+	if not _same_observation(first, last):
+		return _stale_result("inspection")
+	if report.get("status", "") != first.get("status", "") 			or version.get("status", "") != first.get("status", ""):
+		return _stale_result("inspection")
 	return {
-		"task_id": "GAME-WEB-FLOW-STATE-004",
+		"task_id": "GAME-WEB-PLAY-STATE-005",
 		"kind": "inspection",
-		"inspection": _inspector.report_snapshot(path, mode),
-		"version_delta": _inspector.report_version_delta(path, mode),
+		"inspection": report.duplicate(true),
+		"version_delta": version.duplicate(true),
 		"read_only": true,
 		"atomic_reads": false,
+		"consistency": "best_effort_observed_same",
 		"verified": false,
 		"contains_snapshot_payload": false
 	}
@@ -82,43 +119,43 @@ func compare_folders(
 	var issue_right := _context_issue(right_folder, mode)
 	if not issue_right.is_empty():
 		return _rejected("version_difference", "RIGHT_" + issue_right)
-	return _inspector.compare_snapshot_versions(
-		_file_for(left_folder, mode),
-		_file_for(right_folder, mode),
-		mode
+	var left_path := _file_for(left_folder, mode)
+	var right_path := _file_for(right_folder, mode)
+	var left_before: Dictionary = _inspector.inspect_snapshot(left_path, mode)
+	var right_before: Dictionary = _inspector.inspect_snapshot(right_path, mode)
+	var result: Dictionary = _inspector.compare_snapshot_versions(
+		left_path, right_path, mode
 	)
+	var left_after: Dictionary = _inspector.inspect_snapshot(left_path, mode)
+	var right_after: Dictionary = _inspector.inspect_snapshot(right_path, mode)
+	if not _same_observation(left_before, left_after) 			or not _same_observation(right_before, right_after):
+		return _stale_result("version_difference")
+	if result.get("left", {}).get("status", "") != left_before.get("status", "") 			or result.get("right", {}).get("status", "") != right_before.get("status", ""):
+		return _stale_result("version_difference")
+	result["consistency"] = "best_effort_observed_same"
+	return result.duplicate(true)
 
 
 func preview_without_target(folder: String, mode: String) -> Dictionary:
 	var issue := _context_issue(folder, mode)
 	if not issue.is_empty():
 		return _rejected("migration_preview", issue)
-	return _inspector.preview_migration_safe(_file_for(folder, mode), mode)
-
-
-func _stale_result() -> Dictionary:
-	# Never return detailed inspection content or checksums on errors.
-	return {
-		"task_id": "GAME-WEB-FLOW-STATE-004",
-		"status": "source_unstable",
-		"error_code": "SOURCE_CHANGED_OR_UNREADABLE",
-		"changes": [],
-		"changed_field_count": 0,
-		"requires_review": true,
-		"mapping_approved": false,
-		"can_apply": false,
-		"writes": false,
-		"read_only": true,
-		"contains_snapshot_payload": false,
-		"verified": false
-	}
+	var path := _file_for(folder, mode)
+	var before: Dictionary = _inspector.inspect_snapshot(path, mode)
+	var preview: Dictionary = _inspector.preview_migration_safe(path, mode)
+	var after: Dictionary = _inspector.inspect_snapshot(path, mode)
+	if not _same_observation(before, after):
+		return _stale_result()
+	if preview.get("source_status", "") != before.get("status", ""):
+		return _stale_result()
+	preview["consistency"] = "best_effort_observed_same"
+	return preview.duplicate(true)
 
 
 func preview_candidate(
 	folder: String, mode: String, phase: String, door_open: Variant
 ) -> Dictionary:
-	# UI never accepts or reconstructs a whole legacy save and never
-	# fabricates a migration mapping for unknown versions.
+	# No arbitrary JSON editor or exposed protected field setter.
 	var issue := _context_issue(folder, mode)
 	if not issue.is_empty():
 		return _rejected("migration_preview", issue)
@@ -129,11 +166,9 @@ func preview_candidate(
 	var path := _file_for(folder, mode)
 	var first: Dictionary = _inspector.inspect_snapshot(path, mode)
 	if not first["ok"]:
-		# Safe error/mapping-required report; no copy of a bad source.
-		return _inspector.preview_migration_safe(path, mode)
+		return preview_without_target(folder, mode)
 	var target: Dictionary = first["data"].duplicate(true)
-	# Only these two hypothetical fields are offered by this browser.
-	# No setters for version, mode, round_id, clock_seconds.
+	# Only ephemeral hypothetical fields; source is never mutated.
 	target["phase"] = phase
 	target["door_open"] = door_open
 	var preview: Dictionary = _inspector.preview_migration_safe(
@@ -142,9 +177,8 @@ func preview_candidate(
 	var last: Dictionary = _inspector.inspect_snapshot(path, mode)
 	if not last["ok"] or preview.get("source_status", "") != "valid":
 		return _stale_result()
-	if first["text_sha256"] != last["text_sha256"] \
-			or first["byte_length"] != last["byte_length"]:
+	if not _same_observation(first, last):
 		return _stale_result()
-	# The target and copied full snapshot are never placed in the report,
-	# node state, editor, logs, clipboard or filesystem.
+	preview["consistency"] = "best_effort_observed_same"
+	# Never return target/detailed data/hash/path. No persistence operation.
 	return preview.duplicate(true)
