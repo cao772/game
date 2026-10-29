@@ -48,7 +48,7 @@ func _on_simulated(slot: String, request_id: String) -> void:
 
 
 func _verify() -> void:
-    var shell: Control = DemoScene.instantiate()
+    var shell: Variant = DemoScene.instantiate()
     get_root().add_child(shell)
     shell.simulated_request.connect(_on_simulated)
 
@@ -136,7 +136,7 @@ func _verify() -> void:
     _check(signals_seen == before_bad + 1, "C20c")
 
     # C21-C24: registry isolation, no data mutation, invalid slot, pause.
-    var registry = Registry.new()
+    var registry: Variant = Registry.new()
     registry.restore_all_mocks()
     var original: Array[Dictionary] = registry.snapshot()
     original[0]["status"] = "faked_by_caller"
