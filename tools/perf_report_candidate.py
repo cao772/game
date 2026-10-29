@@ -341,6 +341,28 @@ def html_report(report):
     )
     warnings = "".join("<li>" + e(w) + "</li>" for w in report["warnings"])
     capture = report["capture"]
+    comparison = report.get("comparison")
+    compare_html = ""
+    if isinstance(comparison, dict):
+        compare_rows = "\n".join(
+            "<tr><td>" + e(item["label"]) + "</td><td>" +
+            e(fmt(item["baseline"], item["unit"])) + "</td><td>" +
+            e(fmt(item["current"], item["unit"])) + "</td><td>" +
+            e(fmt(item["delta"], item["unit"])) + "</td><td>" +
+            e(fmt(item["delta_percent"], "%")) + "</td><td>" +
+            e(item["status"]) + "</td></tr>"
+            for item in comparison["rows"]
+        )
+        compare_html = (
+            '<section><h2>两次观测数值比较（并非跑分结论）</h2>'
+            '<p>差值＝本次－基线；负值仅表示数值下降，不自动代表性能改善。'
+            '无法证明同设备、同渲染配置、同场景与同采样阶段。</p>'
+            '<p>上下文：' + e(comparison["context_status"]) + "；" +
+            e(comparison["context_note"]) + '</p>'
+            '<table><thead><tr><th>指标</th><th>基线</th><th>本次</th>'
+            '<th>差值</th><th>变化率</th><th>状态</th></tr></thead><tbody>' +
+            compare_rows + '</tbody></table></section>'
+        )
     return """<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -379,6 +401,7 @@ strong{font-weight:700}code{white-space:pre-wrap}
 <section><h2>全场景仍缺测</h2>
 <table><thead><tr><th>指标</th><th>观测值</th><th>状态</th></tr></thead>
 <tbody>""" + missing + """</tbody></table></section>
+""" + compare_html + """
 <section><h2>Windows PID内存旁路证据</h2>
 <p>质量：""" + e(memory["quality"]) + """；进程采样状态：""" +
 e(memory["status"]) + """。""" + e(memory["note"]) + """</p>
@@ -388,6 +411,61 @@ e(memory["status"]) + """。""" + e(memory["note"]) + """</p>
 <section><h2>需要复核</h2><ul>""" + warnings + """</ul>
 <p>本任务交付状态NOT_RUN；后续使用工具生成报告不等于测试或性能验收，不构成共享接口批准。</p></section>
 </main></body></html>"""
+
+
+def compare_reports(current, baseline):
+    """Compare numerical values only; no claim of a verified game benchmark."""
+    now, old = current["capture"], baseline["capture"]
+    fields = ("engine_version", "renderer", "scene_sha256")
+    conflicts = [
+        field for field in fields
+        if now.get(field) not in (None, "", "未提供")
+        and old.get(field) not in (None, "", "未提供")
+        and now[field] != old[field]
+    ]
+    context = "CONFLICT" if conflicts else "UNVERIFIED"
+    context_note = (
+        "不同的声明环境：" + "、".join(conflicts) + "；不得做同条件比较"
+        if conflicts else
+        "未校验设备、分辨率、时间窗、场景哈希与采样文件的一致性"
+    )
+    older = {item["key"]: item for item in baseline["metrics"]}
+    rows = []
+    for item in current["metrics"]:
+        previous = older[item["key"]]
+        a, b = number(previous["observed"]), number(item["observed"])
+        valid = (
+            not conflicts and a is not None and b is not None
+            and item["status"] in ("PASS", "FAIL")
+            and previous["status"] in ("PASS", "FAIL")
+            and item["budget"] == previous["budget"]
+        )
+        delta = b - a if valid else None
+        if delta is not None and number(abs(delta)) is None:
+            delta = None
+        ratio = delta / a * 100.0 if delta is not None and a != 0 else None
+        if ratio is not None and number(abs(ratio)) is None:
+            ratio = None
+        rows.append({
+            "key": item["key"],
+            "label": item["label"],
+            "unit": item["unit"],
+            "baseline": a,
+            "current": b,
+            "delta": delta,
+            "delta_percent": ratio,
+            "status": "NUMERIC_ONLY" if delta is not None else "NOT_COMPARABLE",
+        })
+    return {
+        "status": "DESCRIPTIVE_ONLY",
+        "context_status": context,
+        "context_note": context_note,
+        "comparison_is_verified_benchmark": False,
+        "baseline_whole_scene": "INCOMPLETE",
+        "current_whole_scene": "INCOMPLETE",
+        "rows": rows,
+        "baseline_warnings": baseline["warnings"],
+    }
 
 
 def save_pair(prefix, markup, summary):
@@ -415,13 +493,24 @@ def main(argv=None):
     parser.add_argument("--analysis", required=True, help="PERF-002 JSON result")
     parser.add_argument("--memory", help="Optional PERF-004 process JSON")
     parser.add_argument("--capture", help="Optional PERF-003 capture metadata JSON")
+    parser.add_argument("--baseline-analysis", help="Optional earlier PERF-002 JSON (numeric comparison only)")
+    parser.add_argument("--baseline-capture", help="Optional earlier capture metadata; requires --baseline-analysis")
     parser.add_argument("--out-prefix", required=True, help="New HTML and JSON output prefix")
     args = parser.parse_args(argv)
+    if args.baseline_capture and not args.baseline_analysis:
+        parser.error("--baseline-capture requires --baseline-analysis")
     try:
         analysis = read_object(args.analysis)
         memory = read_object(args.memory) if args.memory else None
         capture = read_object(args.capture) if args.capture else None
         report = build_report(analysis, memory, capture)
+        if args.baseline_analysis:
+            baseline = read_object(args.baseline_analysis)
+            baseline_capture = (
+                read_object(args.baseline_capture) if args.baseline_capture else None
+            )
+            baseline_report = build_report(baseline, capture=baseline_capture)
+            report["comparison"] = compare_reports(report, baseline_report)
         html_path, json_path = save_pair(args.out_prefix, html_report(report), report)
     except (ValueError, OSError, UnicodeError, TypeError, OverflowError) as exc:
         print("REPORT_ERROR: " + type(exc).__name__ + ": " + str(exc), file=sys.stderr)
