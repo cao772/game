@@ -1,0 +1,125 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://shell_candidate.gd" id="1_shell"]
+
+[node name="ShellDemo" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_shell")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.05, 0.085, 0.14, 1)
+
+[node name="Frame" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 26
+theme_override_constants/margin_top = 26
+theme_override_constants/margin_right = 26
+theme_override_constants/margin_bottom = 26
+
+[node name="Layout" type="VBoxContainer" parent="Frame"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Header" type="VBoxContainer" parent="Frame/Layout"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="Frame/Layout/Header"]
+layout_mode = 2
+text = "独立演示入口 · 候选"
+theme_override_font_sizes/font_size = 27
+
+[node name="Subtitle" type="Label" parent="Frame/Layout/Header"]
+layout_mode = 2
+text = "GAME-WEB-MODULE-SHELL-001 r1  |  仅合成占位  |  DRAFT / NOT_RUN"
+theme_override_font_sizes/font_size = 13
+
+[node name="Divider" type="HSeparator" parent="Frame/Layout"]
+layout_mode = 2
+
+[node name="Body" type="HBoxContainer" parent="Frame/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+
+[node name="Sidebar" type="VBoxContainer" parent="Frame/Layout/Body"]
+custom_minimum_size = Vector2(210, 0)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HomeButton" type="Button" parent="Frame/Layout/Body/Sidebar"]
+layout_mode = 2
+text = "概览"
+
+[node name="RoundButton" type="Button" parent="Frame/Layout/Body/Sidebar"]
+layout_mode = 2
+text = "回合候选"
+
+[node name="PromptButton" type="Button" parent="Frame/Layout/Body/Sidebar"]
+layout_mode = 2
+text = "交互提示"
+
+[node name="ProfileButton" type="Button" parent="Frame/Layout/Body/Sidebar"]
+layout_mode = 2
+text = "角色信息占位"
+
+[node name="BindingsButton" type="Button" parent="Frame/Layout/Body/Sidebar"]
+layout_mode = 2
+text = "输入配置占位"
+
+[node name="View" type="PanelContainer" parent="Frame/Layout/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Inner" type="MarginContainer" parent="Frame/Layout/Body/View"]
+layout_mode = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_top = 22
+theme_override_constants/margin_bottom = 22
+
+[node name="Page" type="VBoxContainer" parent="Frame/Layout/Body/View/Inner"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="PageTitle" type="Label" parent="Frame/Layout/Body/View/Inner/Page"]
+layout_mode = 2
+text = "概览"
+theme_override_font_sizes/font_size = 21
+
+[node name="PageBody" type="Label" parent="Frame/Layout/Body/View/Inner/Page"]
+layout_mode = 2
+size_flags_vertical = 3
+autowrap_mode = 3
+text = "仅展示合成占位内容。"
+
+[node name="PreviewButton" type="Button" parent="Frame/Layout/Body/View/Inner/Page"]
+layout_mode = 2
+text = "发送模拟请求（不执行游戏动作）"
+
+[node name="Status" type="Label" parent="Frame/Layout/Body/View/Inner/Page"]
+layout_mode = 2
+autowrap_mode = 3
+text = "适配器未连接至上游 Draft PR"
+
+[node name="Footer" type="Label" parent="Frame/Layout"]
+layout_mode = 2
+text = "独立项目 · 无真实场景、角色、存档、外部资源或自动集成"
+theme_override_font_sizes/font_size = 12
