@@ -8,12 +8,13 @@
 <title>性能证据浏览器 · 独立候选</title>
 <link rel="stylesheet" href="./style.css">
 <script src="./model.js" defer></script>
+<script src="./cohort.js" defer></script>
 <script src="./app.js" defer></script>
 </head>
 <body>
 <header class="topbar">
   <div class="brand"><span class="brandmark">PERF</span>
-    <div><strong>性能证据浏览器</strong><span class="subtitle">GAME-WEB-FLOW-PERF-004 · r1 · 本地只读候选</span></div>
+    <div><strong>性能证据浏览器</strong><span class="subtitle">GAME-WEB-PLAY-PERF-005 · r1 · 本地只读候选</span></div>
   </div>
   <span class="status">NOT_RUN · 待作者验收</span>
 </header>
@@ -44,6 +45,7 @@
           <option value="UNVERIFIED">来源未核实</option>
           <option value="CONFLICT">来源冲突</option>
         </select></label>
+      <p class="selection-hint">在报告名前勾选 2–12 份单次报告，可进行多份数值比较。系列摘要可单独查看，不再混入逐帧统计。</p>
       <ul id="report-list" class="report-list" aria-label="已导入的报告"></ul>
       <p id="list-empty" class="empty">暂无报告。请导入现有分析结果或报告JSON。</p>
       <div id="import-status" class="feedback" aria-live="polite"></div>
@@ -73,6 +75,18 @@
           <button id="compare" type="button" disabled>计算数值差异</button>
         </div>
         <div id="compare-result" aria-live="polite" class="empty">导入两份报告后选择基线与本次。</div>
+      </section>
+      <section class="panel" aria-labelledby="multi-heading">
+        <div class="panel-head"><h2 id="multi-heading">多份报告横向对照 <span id="multi-count" class="count">0/12</span></h2>
+          <span class="pill muted">不是合并帧P99</span></div>
+        <p class="small">左侧勾选2–12份独立单次/分析器JSON；选定基准后展示每份来源、缺测率、逐指标的报告值与描述性差值。任何数值都不能证明性能改善。</p>
+        <div class="multi-controls">
+          <label>选定基准报告
+            <select id="multi-baseline"><option value="">请先勾选报告</option></select></label>
+          <button id="multi-compare" type="button" disabled>比较已勾选报告</button>
+          <button id="multi-clear" type="button" class="secondary" disabled>取消勾选</button>
+        </div>
+        <div id="multi-result" aria-live="polite"><p class="empty">暂无多份数值对照。只在本地会话中计算，不上传证据。</p></div>
       </section>
       <p class="footer">技术候选 · 无远程依赖 · 不批准预算、共享接口、正史或完整场景性能</p>
     </div>
