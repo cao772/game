@@ -270,3 +270,18 @@ test("FB23: process RAM and private commit remain isolated metadata", () => {
   assert.equal(r.processMemory.privateCommit, 0.4);
   assert.equal(getMetric(r, "ram_peak_gib").observed, null);
 });
+
+test("FB24: series retains per-run engine, renderer, hash and source warnings", () => {
+  const s = fakeSeries();
+  s.groups[0].runs[0].capture = {
+    engine_version: "4.7.2", renderer: "opengl3", scene_sha256: "a".repeat(64)
+  };
+  s.groups[0].runs[0].warnings = ["缺少脚本CPU"];
+  const r = importSynthetic(s);
+  const row = r.groups[0].runDetails[0];
+  assert.equal(row.engineVersion, "4.7.2");
+  assert.equal(row.renderer, "opengl3");
+  assert.equal(row.sceneHash, "a".repeat(64));
+  assert.deepEqual(row.warnings, ["缺少脚本CPU"]);
+  assert.equal(r.provenanceVerified, false);
+});
