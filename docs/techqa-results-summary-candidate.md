@@ -63,4 +63,8 @@ Future Codex commands only after explicit authorization (NOT_RUN now):
 
 ## Limitations
 
-All generated acceptance fixtures are synthetic, not actual game telemetry. No real run logs or private materials are included in this PR. Reports may carry private stdout/stderr: future operators must not publish real diagnostic content without authorization. Byte-integrity consistency does not independently authenticate provenance. The pinned JSON field semantics must be re-reviewed before any adaptation to newer analyzers. No connection to Notion, Drive, game scene runtime, CI gate or shared interface is approved. Python syntax check, 20 tests, smoke runs, analyzer execution, CI and archive are **NOT_RUN** for this request.
+All generated acceptance fixtures are synthetic, not actual game telemetry. No real run logs or private materials are included in this PR. Reports may carry private stdout/stderr: future operators must not publish real diagnostic content without authorization. Byte-integrity consistency does not independently authenticate provenance. The pinned JSON field semantics must be re-reviewed before any adaptation to newer analyzers. No connection to Notion, Drive, game scene runtime, CI gate or shared interface is approved. Python syntax check, 25 tests, smoke runs, analyzer execution, CI and archive are **NOT_RUN** for this request.
+
+## Independent follow-on, GAME-WEB-MODULE-TECHQA-002 r1
+
+New additive offline view candidate: `tools/perf_qa_results_views_candidate.py`; future 30-case synthetic acceptance module: `tools/test_perf_qa_results_views_candidate.py`; scope/filters/evidence-index rules: `docs/techqa-results-views-candidate.md`. This does not change the existing aggregator contract, source parser, prior tests, target analyzer or any shared interface. All execution and acceptance statuses: **NOT_RUN**. Do not infer full-scene performance from filtered measured-subset records.
