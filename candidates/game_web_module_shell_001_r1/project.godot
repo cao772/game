@@ -1,0 +1,17 @@
+config_version=5
+
+[application]
+
+config/name="GAME-WEB-MODULE-SHELL-001 r1 DRAFT"
+run/main_scene="res://shell_demo.tscn"
+
+[display]
+
+window/size/viewport_width=1024
+window/size/viewport_height=640
+window/stretch/mode="canvas_items"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
