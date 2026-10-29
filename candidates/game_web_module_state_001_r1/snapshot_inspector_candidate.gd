@@ -11,6 +11,9 @@ const FIELDS := [
 ]
 const MODES := ["story", "free"]
 const PHASES := ["ready", "observing", "resolved", "deferred"]
+const PROTECTED_FIELDS := [
+	"version", "mode", "round_id", "clock_seconds"
+]
 
 
 func _issue(code: String, field: String = "", message: String = "") -> Dictionary:
@@ -377,11 +380,6 @@ func preview_migration(path: String, expected_mode: String, proposed_target: Var
 # CONTINUE-STATE-003 r1: safe version-difference & guarded preview.
 # All added reports contain fixed status codes / known field NAMES only.
 # No payload, round identifier, source path or checksum is returned.
-
-const PROTECTED_FIELDS := [
-	"version", "mode", "round_id", "clock_seconds"
-]
-
 
 func _numeric_relation(left: Variant, right: Variant) -> String:
 	var left_type := typeof(left)
