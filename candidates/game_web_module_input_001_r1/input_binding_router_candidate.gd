@@ -55,7 +55,7 @@ func attach_integration(integration: Node) -> Dictionary:
 
 
 func detach_integration() -> void:
-    if _integration != null:
+    if is_instance_valid(_integration):
         var key := _integration.get_instance_id()
         if _integration_owners.get(key, 0) == get_instance_id():
             _integration_owners.erase(key)
