@@ -54,9 +54,9 @@ func _write(path: String, content: String) -> bool:
 		_check(false, "Create fixture file")
 		return false
 	_owned_files.append(path)
-	var written: bool = f.store_string(content)
+	f.store_string(content)
 	f.flush()
-	var good := written and f.get_error() == OK
+	var good := f.get_error() == OK
 	f.close()
 	_check(good, "Fixture written " + path.get_base_dir().get_file())
 	return good
