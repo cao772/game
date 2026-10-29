@@ -71,3 +71,71 @@ python -m unittest discover -s tests -p "test_perf_report_candidate.py"
 - 未来验证后应独立记录task_id、版本、输入版本、文件哈希、采样环境、结果和缺失原因，保留证据原件。
 
 记录包：`task_id=GAME-WEB-MODULE-PERF-001`；`version=r1`；`input_version=PR#2 HEAD cb0026e / PERF-002 r1`；`scope=offline static report candidate`；`deliverable=module+future tests+documentation`；`acceptance=R01..R10 pending`；`status=NOT_RUN / REVIEW_REQUIRED`。
+
+---
+
+# GAME-WEB-MODULE-PERF-002｜离线报告比较与异常输入加固 r1
+
+**状态：NOT_RUN。只提交源码、说明和未来验收用例，没有执行代码、单测或Godot跑分。**
+本节是前述 PERFMODULE-001 的增量候选；保留PR #12草稿、独立分支和PR #2分析器依赖，不修改任何已有分析器/采样器/游戏文件，也不批准共享接口或性能预算。
+
+## 新增比较能力与使用说明（未来执行，尚未运行）
+
+保留单次报告用法，增加可选基线报告及可选基线采集元信息：
+
+```text
+python tools/perf_report_candidate.py --analysis evidence/current.json --out-prefix evidence/report_current
+python tools/perf_report_candidate.py --analysis evidence/current.json --capture evidence/current_capture.json --baseline-analysis evidence/baseline.json --baseline-capture evidence/baseline_capture.json --out-prefix evidence/report_compare
+python -m unittest discover -s tests -p "test_perf_report_candidate.py"
+```
+
+输入均为本地 **PERF-002 r1 JSON分析结果**；`--capture` 和 `--baseline-capture` 均只是可选 **PERF-003** 元信息（不是用来自动导出真实性）。`--baseline-capture` 单独使用会报告参数错误。仍可选 `--memory` 单列展示 **PERF-004** 进程内存，绝不按行合并到逐帧数据。
+
+输出文件固定为一个**新路径前缀**对应的 `<prefix>.html` 与 `<prefix>.summary.json`；任一已存在就拒绝覆盖；两者是本地静态报告和机器可读候选摘要，**不是已批准的共享接口**。
+
+### 报告字段如何阅读
+
+- **预算**：所有上限依旧来自 PERF-001/r1 的**待批准提案**，不是实际测量。
+- **本次观测**：仅显示PERF-002输入中对应 `checks` 和 `stats` 相互一致且数值有限、非负的指标。空、坏、非有限、遗漏值为 `null` / 未测，不能当成0。
+- **单项状态**：`PASS` / `FAIL` 仅代表输入数据与提案阈值的比较；统计缺失、异常或者两处值不一致则 `INCOMPLETE` 或 `NOT_MEASURED`。
+- **已测子集**：严格要求分析器task_id、r1版本、正样本量、0错误和空错误明细、固定最近秩分位数定义，以及 `status=incomplete`、`full_scene_pass=false`。任何异常均不接收PASS；`checks`与`stats`不一致同理。
+- **场景整体**：始终 `INCOMPLETE`、`full_scene_pass=false`；加载、切换、灯光、NPC依旧 `NOT_MEASURED`。
+- **两次比较**：`--baseline-analysis` 开启数值对照，按 `本次－基线` 计算 `delta`、当基线不为0时计算百分比。负号仅表示数值下降，**绝不直接判断性能改善**。当任一侧无效、缺测、预算不一致，或声明的引擎/渲染器/场景哈希冲突时，该指标 `NOT_COMPARABLE`。有效行也仅标 `NUMERIC_ONLY`；`comparison_is_verified_benchmark=false`，机器、渲染分辨率、场景哈希、采样条件和真实运行证据未独立核实。
+- **进程内存**：工作集含共享页，Private Bytes是私有提交；不混入逐帧RAM，不从进程CPU推断脚本CPU，不将未测GPU/显存写0。
+
+### 异常输入处理
+
+| 条件 | 处理原则 |
+|---|---|
+| 重复JSON键、JSON NaN/Infinity、非对象顶层、无效UTF-8 | 拒绝输入；不得创建成功报告 |
+| 单份JSON超过2,000,000字节 | 拒绝，避免无界载入 |
+| 非法task_id/版本、样本数≤0、错误列表丢失、分位数定义不符 | 本次子集不得PASS |
+| 数值为负、布尔、字符串、非有限、null、预算不一致 | 不产生该项PASS；缺测显示为未测 |
+| `checks` / `stats` 不一致、源声明PASS但数值越界 | `INCOMPLETE`，报告需要复核 |
+| 两次数据背景不同或有指标缺失 | 数值变化不可比；不发布改善结论 |
+| 同名输出存在 | 拒绝覆盖，不破坏旧报告 |
+
+`read_object` 使用读入字节上限与重复键检测，不读取私密环境变量、无网络访问、不调用任何系统命令。
+
+### 新增未来验收用例（均待执行、无PASS）
+
+- **R11** 两份完整合成分析对象比较：delta和变化率正确，`comparison_is_verified_benchmark=false`。
+- **R12** 基线某指标缺失：该指标 `NOT_COMPARABLE`，不得填零。
+- **R13** 声明场景哈希不同：上下文 `CONFLICT`，禁止同条件数值比较。
+- **R14** 基线为0：可给数值delta但百分比为null。
+- **R15** `checks`与`stats`矛盾：不接受PASS。
+- **R16** 分析器版本、分位数、错误明细或整体状态不匹配：降级INCOMPLETE。
+- **R17** 重复JSON键、NaN/Infinity：输入拒绝。
+- **R18** 输入超字节上限及顶层非对象：输入拒绝。
+- **R19** 比较页有恶意标签：HTML转义、离线安全边界保留。
+
+## 交付限制与归档记录
+
+`task_id=GAME-WEB-MODULE-PERF-002`；`version=r1`；
+`input_version=PR#12当前源码 + PR#2 PERF-002/r1`；
+`scope=只改PR#12内报告组件、未来测试与文档`；
+`deliverable=报告对比、缺测/异常加固、离线中文说明、R11..R19`；
+`acceptance=全部未来执行，当前NOT_RUN`；
+`status=NOT_RUN / REVIEW_REQUIRED`。
+
+需Codex后续在批准的测试阶段独立核查实际报告效果、异常输入、两次采样对齐与完整链路；本轮不执行、不将CI状态充当验收，不公开私人场景或原稿，不合并main。
