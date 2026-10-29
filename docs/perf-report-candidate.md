@@ -156,7 +156,7 @@ python -m unittest discover -s tests -p "test_perf_report_candidate.py"
 - 空值、无效值、原分析器不一致、缺失列不参加有效数值聚合，但必须计入分母并单列具体 **run ID、状态、原因**。不填0、不把缺测忽略成全覆盖。
 - 组间比较定义 `delta_median = current_group_median - baseline_group_median`，比率以基线中位数为分母。**任一组存在不完整覆盖、预算不同、或已声明版本/后端/场景哈希冲突时不计算差值**；基线值为0时百分比保持null。即使都有效，也只叫 `NUMERIC_ONLY`，绝不推断「优化成功」「真实性能改善」。
 - 不同组数可能不同；组级中位数对比只为描述性对照，不构成配对试验、置信区间或显著性结论。真实设备、分辨率、采样流程和来源哈希尚无可核验输入，此时 `context_status=UNVERIFIED`。
-- 如果一份证据声明为合成而另一份声明为真实，标 `CONFLICT`；headless/dummy仅作为来源警告，不视为可验证GPU结果。没有完整真实性证明时，整个报告始终 `INCOMPLETE`。
+- 如果一份证据声明为合成而另一份声明为真实，标 `CONFLICT`；headless/dummy与有窗口渲染来源混合时也标为来源冲突，并阻止跨组差值。即使两组都声称真实，只能作为数字描述，不能验证GPU。没有完整真实性证明时，整个报告始终 `INCOMPLETE`。
 - 有独立 PERF-004 进程工作集证据时，仍只允许旧单次模式单列展示，不自动替代 `ram_gib`，不拿私有提交当物理内存，也不拿累计进程CPU当脚本CPU或推算VRAM。
 - 安全与隐私：manifest仅引用其所在目录及子目录的相对POSIX路径，拒绝绝对、父级穿越、符号链接逃逸、网络URL与重复输入文件；run ID限ASCII字母数字、下划线、连字符，最长32位。输出JSON/HTML不包含原始路径、小说设定、进程命令行或私有内容。HTML纯静态并HTML转义。
 - 为避免大型或恶意证据拖垮离线工具，每份输入JSON沿用2,000,000字节限制，最多12次/run组、最多2组和24次总采样；仅标准库。以上都是**试验提案**。
@@ -240,6 +240,7 @@ python -m unittest discover -s tests -p "test_perf_series_candidate.py"
 | R32 | 每组超12次、组为空 | 拒绝，资源上限生效 |
 | R33 | HTML/summary同名文件已存在 | 拒绝覆盖，旧结果字节不变 |
 | R34 | 现有单次/成对模式 | 参数仍兼容；未来应与上一阶段回归一起复核 |
+| R35 | headless/dummy与有窗口渲染混入跨组比较 | 标为来源冲突，delta=null，不能视为GPU对照 |
 
 所有未来验收必须由作者批准后再由Codex执行，**本次未运行，绝不声称PASS**。如真实证据不齐，只呈现缺失清单与待复核信息。
 
