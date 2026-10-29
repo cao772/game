@@ -13,10 +13,12 @@ Prepared after reading GitHub draft [PR #6](https://github.com/cao772/game/pull/
 validation conventions). Neither makes a public event-definition JSON
 contract available on main. Accordingly this directory declares a **new,
 independent public candidate contract**, rather than assuming or copying the
-private EVENT001 schema. No existing file or branch source is modified.
+private EVENT001 schema. No sources outside this PR's own candidate module are modified.
 
 Files:
 - event_data_check_candidate.py — read-only checker, human and JSON CLI.
+- event_source_diagnostics_candidate.py — source locations, duplicate-member offsets and reference target diagnostics.
+- test_event_source_diagnostics_candidate.py — new synthetic prospective acceptance (NOT_RUN).
 - test_event_data_check_candidate.py — synthetic future unittest acceptance.
 - fixtures/placeholder_alpha.json and placeholder_beta.json — no story text.
 - docs/game-web-module-event-001-acceptance.md — independent acceptance matrix.
@@ -99,3 +101,78 @@ claiming a local PASS. Do not add unapproved CI runs.
 **Review gate:** NOT_RUN until Codex independently executes the prospective
 cases and provides evidence. Do not merge to main, publish as shared interface,
 or treat this as approval of any narrative or event behavior.
+
+
+## EVENT-002 r1 enhancement — structured diagnostics (NOT_RUN)
+
+The existing CLI and one-event-per-file placeholder JSON contract remain
+unchanged. This **extends** PR #9's candidate, not EVENT001 or any other
+schema/module. The same public placeholders are used.
+
+### Diagnostic fields (machine-readable JSON)
+
+Each issue preserves the original keys "code", "file", "pointer", "detail" and
+adds:
+- "severity": always "error" in this strict candidate.
+- "location": null if no trustworthy source coordinate exists, or object
+  with 1-based "line", "column", "precision" ("exact" or "parent") and
+  "column_unit": "unicode_character".
+- "related": optional list of file/pointer/location for known duplicate
+  definitions, ambiguous targets, and original JSON member occurrence.
+- "target_id": optional placeholder reference identifier for unresolved,
+  ambiguous, or invalid target references.
+
+The top-level report adds:
+- "enhancement_task_id": "GAME-WEB-MODULE-EVENT-002"
+- "enhancement_version": "r1"
+- "diagnostic_format": "2.0-candidate"
+- "references_checked": number of syntactically valid non-null reference sites
+  examined by the enhancer (not a count of successful runtime transitions).
+- "issue_counts_by_code": sorted mapping code to occurrence count.
+
+Location precision: exact points to the syntactic key or array element;
+parent anchors a missing field to an existing ancestor rather than
+inventing a position. A malformed JSON syntax error uses Python's
+JSONDecodeError line/column when supplied. UTF-8 errors and input/OS errors
+may have no line/column, and never invent them. Nonstandard numeric
+constants such as NaN remain invalid, but Python's parse_constant failure
+does not guarantee a source coordinate. No raw source excerpts are copied
+into diagnostics.
+
+### Cross-reference behavior
+
+- Known single valid target: accepted.
+- Missing ID in the selected files: UNKNOWN_EVENT_REFERENCE with target_id.
+- More than one definition: DUPLICATE_EVENT_ID on the later file and
+  AMBIGUOUS_EVENT_REFERENCE at every reference site, with related source
+  locations for competing definitions; **not silently resolved to first**.
+- Single target with structural errors: INVALID_EVENT_REFERENCE_TARGET at
+  its referring site with a linked definition coordinate.
+- Invalid syntactic reference ID: INVALID_ID; no further resolution attempt.
+- A duplicate JSON member is rejected before validating a last-key-wins
+  object, and reports each repeated key's coordinate plus first occurrence.
+- Self references and static graph cycles remain permitted, do not imply
+  runtime iteration, story semantics, or authorization of any event loop.
+- Scope remains a single selected file set; no remote imports, implicit
+  namespaces, or private cross-project knowledge.
+
+The source-location indexer accepts up to 128 levels of nesting after
+normal JSON parsing and fails closed with SOURCE_INDEX_ERROR above that
+limit. The previous per-file 1MiB and 1,024-file scan caps remain. No claim
+of transactional filesystem snapshot or protection against concurrent file
+replacement/symlink TOCTOU races.
+
+The Python interpreter can itself generate __pycache__ on import; run
+future verification with python -B or PYTHONDONTWRITEBYTECODE=1 if
+zero interpreter cache writes are required. The checker never writes or
+rewrites the event input JSON, generates reports on stdout only, and does
+not launch Godot. No source/runtime tests have been run for EVENT-002.
+
+Future acceptance matrix:
+[EVENT-002 diagnostics](../../docs/game-web-module-event-002-acceptance.md).
+The original EVENT-001 acceptance set remains present and unmodified.
+
+**Gate:** Source submitted only. NOT_RUN. Codex must independently run both
+test suites and capture exit codes, platform, precise HEAD SHA, errors,
+skips, and read-only verification before anyone calls the change tested.
+No main merge, story approval, or shared interface approval.
