@@ -1,0 +1,45 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://preview_candidate.gd" id="1_preview"]
+[ext_resource type="PackedScene" path="res://character_profile_panel.tscn" id="2_panel"]
+
+[node name="PlaceholderPreview" type="MarginContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+script = ExtResource("1_preview")
+
+[node name="Layout" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Toolbar" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Caption" type="Label" parent="Layout/Toolbar"]
+layout_mode = 2
+text = "占位资料预览"
+
+[node name="Choice" type="OptionButton" parent="Layout/Toolbar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Clear" type="Button" parent="Layout/Toolbar"]
+layout_mode = 2
+text = "清空"
+
+[node name="Status" type="Label" parent="Layout"]
+layout_mode = 2
+text = "加载占位数据中"
+autowrap_mode = 3
+
+[node name="Panel" parent="Layout" instance=ExtResource("2_panel")]
+layout_mode = 2
+size_flags_vertical = 3

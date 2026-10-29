@@ -1,0 +1,45 @@
+[
+  {
+    "schema_version": 1,
+    "profile_id": "placeholder-a",
+    "display_name": "占位条目 A",
+    "subtitle": "用于展示长短文本、标签与分组",
+    "summary": "此处仅为测试性文本。内容由调用方注入，组件不包含任何人物、情节或世界观资料。",
+    "status_label": "仅作占位",
+    "tags": ["示例标签一", "示例标签二", "纯文本"],
+    "sections": [
+      {
+        "section_id": "sample-fields",
+        "heading": "示例字段",
+        "items": [
+          {"label": "字段 A", "value": "示例值 A"},
+          {"label": "字段 B", "value": "这段占位值用于观察自动换行以及可滚动区域的尺寸表现。"}
+        ]
+      },
+      {
+        "section_id": "sample-notes",
+        "heading": "额外演示",
+        "items": [
+          {"label": "字面文本", "value": "[b]这不是富文本[/b]，仅按普通字符显示。"},
+          {"label": "输入来源", "value": "合成占位数据"}
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "profile_id": "placeholder-b",
+    "display_name": "占位条目 B",
+    "subtitle": "",
+    "summary": "",
+    "status_label": "",
+    "tags": [],
+    "sections": [
+      {
+        "section_id": "empty-section",
+        "heading": "空章节示例",
+        "items": []
+      }
+    ]
+  }
+]
