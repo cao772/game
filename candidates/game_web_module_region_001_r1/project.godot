@@ -1,0 +1,15 @@
+; GAME-WEB-MODULE-REGION-001 r1: isolated Godot 4 UI-only demonstration.
+; All paths are local to this candidate directory. No InputMap changes.
+config_version=5
+
+[application]
+config/name="GAME-WEB-MODULE-REGION-001 prompt candidate"
+run/main_scene="res://demo.tscn"
+
+[display]
+window/size/viewport_width=1024
+window/size/viewport_height=600
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

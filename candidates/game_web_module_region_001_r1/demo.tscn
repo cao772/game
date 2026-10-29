@@ -1,0 +1,95 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://demo.gd" id="1_demo"]
+[ext_resource type="PackedScene" path="res://interaction_prompt_candidate.tscn" id="2_prompt"]
+
+[node name="StandaloneDemo" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_demo")
+
+[node name="DemoPanel" type="VBoxContainer" parent="."]
+offset_left = 20.0
+offset_top = 18.0
+offset_right = 502.0
+offset_bottom = 572.0
+theme_override_constants/separation = 5
+
+[node name="TitleLabel" type="Label" parent="DemoPanel"]
+layout_mode = 2
+text = "Godot 4 · 交互提示独立技术候选"
+
+[node name="InstructionsLabel" type="Label" parent="DemoPanel"]
+layout_mode = 2
+autowrap_mode = 3
+text = "仅公开占位目标。Tab/Shift+Tab 焦点；PgUp/PgDn 切换；Enter/Space 请求；Esc 隐藏。"
+
+[node name="TargetAButton" type="Button" parent="DemoPanel"]
+layout_mode = 2
+focus_mode = 2
+text = "单目标 A（旧接口）"
+
+[node name="TargetBButton" type="Button" parent="DemoPanel"]
+layout_mode = 2
+focus_mode = 2
+text = "单目标 B（旧接口）"
+
+[node name="MultiTargetButton" type="Button" parent="DemoPanel"]
+layout_mode = 2
+focus_mode = 2
+text = "加载 3 个公开占位目标"
+
+[node name="ReorderButton" type="Button" parent="DemoPanel"]
+layout_mode = 2
+focus_mode = 2
+text = "同步：重排列表并保持目标 ID"
+
+[node name="ReduceButton" type="Button" parent="DemoPanel"]
+layout_mode = 2
+focus_mode = 2
+text = "同步：精简为单目标"
+
+[node name="ReplaceButton" type="Button" parent="DemoPanel"]
+layout_mode = 2
+focus_mode = 2
+text = "同步：替换并优先选目标 E"
+
+[node name="FocusHostButton" type="Button" parent="DemoPanel"]
+layout_mode = 2
+focus_mode = 2
+text = "将键盘焦点转到宿主按钮"
+
+[node name="CycleTargetButton" type="Button" parent="DemoPanel"]
+layout_mode = 2
+focus_mode = 2
+text = "外部切换：下一占位目标"
+
+[node name="StyleButton" type="Button" parent="DemoPanel"]
+layout_mode = 2
+focus_mode = 2
+text = "切换样式：高对比"
+
+[node name="HideButton" type="Button" parent="DemoPanel"]
+layout_mode = 2
+focus_mode = 2
+text = "隐藏提示（清除选择）"
+
+[node name="StatusLabel" type="Label" parent="DemoPanel"]
+layout_mode = 2
+autowrap_mode = 3
+text = "未操作"
+
+[node name="FocusStateLabel" type="Label" parent="DemoPanel"]
+layout_mode = 2
+autowrap_mode = 3
+text = "状态与焦点快照"
+
+[node name="InteractionPromptCandidate" parent="." instance=ExtResource("2_prompt")]
+offset_left = 526.0
+offset_top = 30.0
+offset_right = 1004.0
+offset_bottom = 335.0
