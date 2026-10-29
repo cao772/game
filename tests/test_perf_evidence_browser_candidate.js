@@ -60,7 +60,10 @@ function fakeSeries(options = {}) {
   };
   return Object.assign({
     task_id: "GAME-WEB-CONTINUE-PERF-003",
+    version: "r1",
     schema: "perf-series-report-v1",
+    status: "INCOMPLETE",
+    budget_approval: "UNAPPROVED_PROPOSAL",
     whole_scene_status: "INCOMPLETE",
     full_scene_pass: false, groups: [group],
     missing_run_details: [], group_comparison: null
@@ -284,4 +287,38 @@ test("FB24: series retains per-run engine, renderer, hash and source warnings", 
   assert.equal(row.sceneHash, "a".repeat(64));
   assert.deepEqual(row.warnings, ["缺少脚本CPU"]);
   assert.equal(r.provenanceVerified, false);
+});
+
+test("FB25: malformed summary task or budget approval cannot be treated as within budget", () => {
+  for (const overrides of [
+    { task_id: "other" },
+    { version: "r2" },
+    { budget_approval: "APPROVED" }
+  ]) {
+    const result = importSynthetic(fakeSummary(overrides));
+    assert.ok(result.metrics.every(x => !x.usable));
+    assert.equal(result.fullScenePass, false);
+  }
+});
+
+test("FB26: duplicate metric keys in single summary prevent numeric trust", () => {
+  const src = fakeSummary();
+  src.metrics.push({ ...src.metrics[0] });
+  const r = importSynthetic(src);
+  assert.equal(getMetric(r, "frame_p50_ms").usable, false);
+  assert.ok(r.warnings.some(x => x.includes("重复指标")));
+});
+
+test("FB27: malformed series contract invalidates group-level coverage", () => {
+  const s = fakeSeries({ budget_approval: "APPROVED" });
+  const r = importSynthetic(s);
+  assert.equal(r.groups[0].metrics[0].coverage, "INCOMPLETE");
+  assert.equal(r.groups[0].metrics[0].median, null);
+});
+
+test("FB28: group coverage claim conflicts with reported counts", () => {
+  const s = fakeSeries();
+  s.groups[0].metrics[0].coverage = "PARTIAL";
+  const r = importSynthetic(s);
+  assert.equal(r.groups[0].metrics[0].coverage, "INCOMPLETE");
 });
