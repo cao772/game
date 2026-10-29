@@ -85,7 +85,11 @@ func save_attempt_count() -> int:
 # The original router enforces pause/native window focus; our signal listener
 # adds real text-focus protection before dispatch.
 func request_button_action(action_id: StringName) -> bool:
-    if not _configured or _router == null:
+    if not _configured or _router == null or _runtime_blocked():
+        return false
+    if InputRouterCandidate._focus_is_text_input(
+        get_viewport().gui_get_focus_owner()
+    ):
         return false
     return _router.request_action(action_id)
 
