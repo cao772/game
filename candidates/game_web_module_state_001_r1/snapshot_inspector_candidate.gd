@@ -117,6 +117,12 @@ func _probe(path: String, expected_mode: String) -> Dictionary:
 		return r
 	var raw: Dictionary = parser.data
 	r["raw"] = raw.duplicate(true)
+	if raw.has("mode") and typeof(raw["mode"]) == TYPE_STRING:
+		r["source_mode"] = raw["mode"]
+		if MODES.has(raw["mode"]) and raw["mode"] != expected_mode:
+			r["status"] = "mode_mismatch"
+			r["error"] = "Contents belong to a different mode"
+			return r
 	if not raw.has("version"):
 		r["status"] = "invalid_schema"
 		r["error"] = "Missing version"
@@ -135,12 +141,6 @@ func _probe(path: String, expected_mode: String) -> Dictionary:
 		r["status"] = "unsupported_version"
 		r["error"] = "No approved source-version mapping"
 		return r
-	if raw.has("mode") and typeof(raw["mode"]) == TYPE_STRING:
-		r["source_mode"] = raw["mode"]
-		if MODES.has(raw["mode"]) and raw["mode"] != expected_mode:
-			r["status"] = "mode_mismatch"
-			r["error"] = "Contents belong to a different mode"
-			return r
 	var problem := _schema_error(raw)
 	if not problem.is_empty():
 		r["status"] = "invalid_schema"
@@ -243,6 +243,11 @@ func preview_migration(
 		return report
 	if source["status"] == "mode_mismatch":
 		report["error"] = "Cross-mode preview is prohibited"
+		return report
+	var candidate_source: Dictionary = source["raw"]
+	if not candidate_source.has("mode") or typeof(candidate_source["mode"]) != TYPE_STRING or candidate_source["mode"] != expected_mode:
+		report["status"] = "source_mode_unverified"
+		report["error"] = "Source mode cannot be established"
 		return report
 	var target_problem := _schema_error(proposed_target)
 	if not target_problem.is_empty():
