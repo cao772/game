@@ -322,3 +322,14 @@ test("FB28: group coverage claim conflicts with reported counts", () => {
   const r = importSynthetic(s);
   assert.equal(r.groups[0].metrics[0].coverage, "INCOMPLETE");
 });
+
+test("FB29: claimed subset PASS with missing individual metric must be quarantined", () => {
+  const src = fakeSummary();
+  src.metrics[1].observed = null;
+  src.metrics[1].status = "INCOMPLETE";
+  // Keep stale source aggregate claim PASS deliberately.
+  const r = importSynthetic(src);
+  assert.ok(r.metrics.every(x => !x.usable));
+  assert.ok(r.warnings.some(w => w.includes("已测子集声明")));
+  assert.equal(r.fullScenePass, false);
+});
