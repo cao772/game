@@ -1,0 +1,20 @@
+{
+  "event_id": "EVENT_ALPHA",
+  "trigger": {
+    "signal": "SIGNAL_ALPHA",
+    "conditions": [
+      "FLAG_READY"
+    ]
+  },
+  "actions": [
+    {
+      "action_id": "ACTION_ONE",
+      "next_event_id": "EVENT_BETA"
+    },
+    {
+      "action_id": "ACTION_TWO",
+      "next_event_id": null
+    }
+  ],
+  "on_ignore_event_id": null
+}
