@@ -118,22 +118,31 @@
     overallFlags(source, issues);
     const list = Array.isArray(source.metrics) ? source.metrics : [];
     const byKey = Object.create(null);
+    const duplicateKeys = new Set();
     for (const item of list) {
       if (!dict(item) || typeof item.key !== "string") { issues.push("指标行格式异常"); continue; }
       if (Object.prototype.hasOwnProperty.call(byKey, item.key)) {
-        issues.push(item.key.slice(0, 40) + "：重复指标");
+        issues.push(item.key.slice(0, 40) + "：重复指标，不采信该指标");
+        duplicateKeys.add(item.key);
       }
       byKey[item.key] = item;
     }
-    const sourceClean = source.whole_scene_status === "INCOMPLETE" &&
+    const sourceClean = (
+      ["GAME-WEB-MODULE-PERF-001", "GAME-WEB-MODULE-PERF-002"].includes(source.task_id) &&
+      source.version === "r1" &&
+      source.budget_approval === "UNAPPROVED_PROPOSAL" &&
+      ["PASS", "FAIL", "INCOMPLETE"].includes(source.measured_subset_status) &&
+      source.whole_scene_status === "INCOMPLETE" &&
       source.full_scene_pass === false && result.sampleCount !== null &&
-      result.sampleCount > 0;
+      result.sampleCount > 0
+    );
     if (!sourceClean) issues.push("整体状态或有效样本数缺失，禁止认定任何单项达预算");
     result.metrics = METRICS.map(spec => {
       const row = byKey[spec[0]];
       const status = field(row, "status");
       const sourceBudget = finite(field(row, "budget"));
       const coherent = sourceBudget === spec[3] && sourceClean &&
+        !duplicateKeys.has(spec[0]) &&
         field(row, "budget_status") === "PROPOSAL";
       if (row && sourceBudget !== spec[3]) issues.push(spec[0] + "：预算口径不一致");
       return proposedMetric(spec, field(row, "observed"), status, issues, coherent,
@@ -191,9 +200,13 @@
     const result = baseReport("series", source, null, issues);
     overallFlags(source, issues);
     result.sourceStatus = "DESCRIPTIVE_ONLY";
-    if (source.schema !== "perf-series-report-v1" || source.full_scene_pass !== false ||
-        source.whole_scene_status !== "INCOMPLETE") {
-      issues.push("分组摘要结构/整体状态异常：拒绝将其视为验收结果");
+    const seriesContract = source.task_id === "GAME-WEB-CONTINUE-PERF-003" &&
+      source.version === "r1" && source.schema === "perf-series-report-v1" &&
+      source.status === "INCOMPLETE" &&
+      source.budget_approval === "UNAPPROVED_PROPOSAL" &&
+      source.full_scene_pass === false && source.whole_scene_status === "INCOMPLETE";
+    if (!seriesContract) {
+      issues.push("分组摘要版本、预算声明或整体状态异常；不采信数值覆盖率");
     }
     const groups = Array.isArray(source.groups) ? source.groups.slice(0, 2) : [];
     if (!groups.length) issues.push("没有有效分组");
@@ -209,9 +222,13 @@
       });
       const rawMetrics = Array.isArray(field(g, "metrics")) ? g.metrics : [];
       const metricByKey = Object.create(null);
+      const duplicateMetrics = new Set();
       for (const row of rawMetrics) {
         if (dict(row) && typeof row.key === "string") {
-          if (Object.prototype.hasOwnProperty.call(metricByKey, row.key)) issues.push("分组重复指标");
+          if (Object.prototype.hasOwnProperty.call(metricByKey, row.key)) {
+            issues.push("分组重复指标：" + row.key.slice(0, 40));
+            duplicateMetrics.add(row.key);
+          }
           metricByKey[row.key] = row;
         }
       }
@@ -230,7 +247,15 @@
         const order = measured > 0 && minimum !== null && middle !== null &&
           maximum !== null && minimum <= middle && middle <= maximum;
         const empty = measured === 0 && minimum === null && middle === null && maximum === null;
-        const coherent = validCounts && budgetConsistent && (order || empty);
+        const expectedCoverage = measured === 0 ? "NOT_MEASURED" :
+          measured === total ? "COMPLETE_NUMERIC" : "PARTIAL";
+        const expectedMissingRuns = measured === total ||
+          (Array.isArray(field(m, "missing_runs")) &&
+           m.missing_runs.length === missing);
+        const coherent = seriesContract && n !== null && n > 0 &&
+          !duplicateMetrics.has(spec[0]) && validCounts && budgetConsistent &&
+          field(m, "coverage") === expectedCoverage && expectedMissingRuns &&
+          (order || empty);
         if (!coherent) issues.push((typeof g.name === "string" ? g.name.slice(0, 30) : "组") + "/" + spec[0] + "存在缺测或数值异常");
         const coverage = coherent ? (
           measured === 0 ? "NOT_MEASURED" :
