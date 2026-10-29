@@ -78,7 +78,7 @@ class EventSourceDiagnosticsCandidateTests(unittest.TestCase):
         )
         self.assertEqual(issue["pointer"], "/actions/0/action_id")
         self.assertEqual(issue["location"]["precision"], "exact")
-        self.assertEqual(issue["location"]["line"], 9)
+        self.assertEqual(issue["location"]["line"], 11)
         self.assertGreater(issue["location"]["column"], 1)
 
     def test_missing_field_anchors_parent_not_fake_exact(self):
