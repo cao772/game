@@ -206,6 +206,28 @@ class CheckedEventPreview:
     def event_ids(self) -> list[str]:
         return sorted(self._events)
 
+    def requirements_for(self, event_id: str) -> dict[str, Any]:
+        """Detached synthetic trigger metadata; no runtime condition checks.
+
+        Added for the independent PLAY-EVENT-005 overlay only. It does not
+        change the existing preview(), actions, checker or event runtime.
+        """
+        event = self._events.get(event_id)
+        if event is None:
+            raise PreviewFailure(
+                "UNKNOWN_START_EVENT", "Requested event is not in checked inputs",
+                available=self.event_ids(),
+            )
+        trigger = event.document["trigger"]
+        return {
+            "event_id": event_id,
+            "signal": trigger["signal"],
+            "conditions": list(trigger["conditions"]),
+            "definition": event.location("/event_id"),
+            "signal_source": event.location("/trigger/signal"),
+            "conditions_source": event.location("/trigger/conditions"),
+        }
+
     def options_for(self, event_id: str) -> list[dict[str, Any]]:
         event = self._events.get(event_id)
         if event is None:
