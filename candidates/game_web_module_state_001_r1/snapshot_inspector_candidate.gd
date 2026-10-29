@@ -1,11 +1,11 @@
 extends RefCounted
-## GAME-WEB-MODULE-STATE-001 r1
-## Independent, read-only inspector and manual migration-preview candidate.
-## Source contract: PR #6's unchanged round_snapshot_candidate.gd (STATE r1).
-## No FileAccess.WRITE, remove, rename, mkdir, global mutation, or runtime hooks.
+## GAME-WEB-MODULE-STATE-002 r1 (extends STATE-001 r1, same isolated PR).
+## Standalone read-only snapshot inspection, compatibility and preview.
+## No disk writes, process calls or runtime wiring. NOT_RUN.
 
 const VERSION := 1
-const MAX_BYTES := 1048576 # Candidate inspection guard; not a storage limit.
+const REPORT_VERSION := 1
+const MAX_BYTES := 1048576 # Inspection-only candidate guard, NOT a save limit.
 const FIELDS := [
 	"version", "mode", "round_id", "phase", "door_open", "clock_seconds"
 ]
@@ -13,65 +13,83 @@ const MODES := ["story", "free"]
 const PHASES := ["ready", "observing", "resolved", "deferred"]
 
 
-func _path_error(path: String, expected_mode: String) -> String:
+func _issue(code: String, field: String = "", message: String = "") -> Dictionary:
+	return {"code": code, "field": field, "message": message}
+
+
+func _path_issue(path: String, expected_mode: String) -> Dictionary:
 	if not MODES.has(expected_mode):
-		return "expected_mode must be story or free"
+		return _issue("INVALID_EXPECTED_MODE")
 	if not path.begins_with("user://"):
-		return "Only user:// paths are supported"
+		return _issue("UNSUPPORTED_PATH_SCHEME")
 	var relative := path.trim_prefix("user://")
 	if relative.is_empty() or relative.contains("\\") or relative.contains(":"):
-		return "Unsafe or empty path"
+		return _issue("UNSAFE_PATH")
 	for segment in relative.split("/"):
 		if segment.is_empty() or segment == "." or segment == "..":
-			return "Unsafe path segment"
+			return _issue("UNSAFE_PATH")
 	if path.get_file() != expected_mode + ".round_snapshot.json":
-		return "Filename must match expected_mode"
-	return ""
+		return _issue("FILENAME_MODE_MISMATCH")
+	return _issue("")
 
 
-func _schema_error(value: Variant) -> String:
-	# Intentionally mirrors the validated-field contract in PR #6,
-	# not a new approved shared interface.
+func _schema_issue(value: Variant) -> Dictionary:
+	# Mirrors the six-field STATE r1 proposal from Draft PR #6.
+	# Only emits known field names; unrecognized source keys are not echoed.
 	if typeof(value) != TYPE_DICTIONARY:
-		return "Root must be a JSON object"
+		return _issue("ROOT_NOT_OBJECT")
 	var data: Dictionary = value
-	if data.size() != FIELDS.size():
-		return "Unexpected or missing fields"
 	for field in FIELDS:
 		if not data.has(field):
-			return "Missing field: " + field
-	var vt := typeof(data["version"])
-	if vt != TYPE_INT and vt != TYPE_FLOAT:
-		return "version must be numeric 1"
+			return _issue("MISSING_FIELD", field)
+	if data.size() != FIELDS.size():
+		return _issue("UNEXPECTED_FIELD")
+	var version_type := typeof(data["version"])
+	if version_type != TYPE_INT and version_type != TYPE_FLOAT:
+		return _issue("INVALID_VERSION_TYPE", "version")
 	if not is_finite(float(data["version"])):
-		return "version is non-finite"
+		return _issue("NONFINITE_VERSION", "version")
 	if float(data["version"]) != 1.0:
-		return "Unsupported version"
+		return _issue("UNSUPPORTED_VERSION", "version")
 	if typeof(data["mode"]) != TYPE_STRING or not MODES.has(data["mode"]):
-		return "mode must be story or free"
+		return _issue("INVALID_MODE", "mode")
 	if typeof(data["round_id"]) != TYPE_STRING:
-		return "round_id must be a string"
+		return _issue("INVALID_ROUND_ID_TYPE", "round_id")
 	if data["round_id"].strip_edges().is_empty():
-		return "round_id must not be blank"
+		return _issue("BLANK_ROUND_ID", "round_id")
 	if typeof(data["phase"]) != TYPE_STRING or not PHASES.has(data["phase"]):
-		return "Invalid phase"
+		return _issue("INVALID_PHASE", "phase")
 	if typeof(data["door_open"]) != TYPE_BOOL:
-		return "door_open must be boolean"
-	var clock_type := typeof(data["clock_seconds"])
-	if clock_type != TYPE_INT and clock_type != TYPE_FLOAT:
-		return "clock_seconds must be numeric (not boolean)"
+		return _issue("INVALID_DOOR_OPEN", "door_open")
+	var seconds_type := typeof(data["clock_seconds"])
+	if seconds_type != TYPE_INT and seconds_type != TYPE_FLOAT:
+		return _issue("INVALID_CLOCK_TYPE", "clock_seconds")
 	if not is_finite(float(data["clock_seconds"])):
-		return "clock_seconds must be finite"
+		return _issue("NONFINITE_CLOCK", "clock_seconds")
 	if float(data["clock_seconds"]) < 0.0:
-		return "clock_seconds must be non-negative"
-	return ""
+		return _issue("NEGATIVE_CLOCK", "clock_seconds")
+	return _issue("")
+
+
+func _safe_version_label(value: Variant) -> String:
+	var vt := typeof(value)
+	if vt != TYPE_INT and vt != TYPE_FLOAT:
+		return "invalid_type"
+	if not is_finite(float(value)):
+		return "nonfinite"
+	if absf(float(value)) > 1000000.0:
+		return "numeric_out_of_display_range"
+	if float(value) == 1.0:
+		return "1"
+	return str(value)
 
 
 func _probe(path: String, expected_mode: String) -> Dictionary:
-	# The 'raw' key is internal, never returned by inspect_snapshot().
+	# raw is PRIVATE to this instance and never emitted by report_snapshot.
 	var r := {
 		"status": "invalid_request",
-		"error": "",
+		"error_code": "",
+		"error_field": "",
 		"version_label": "unknown",
 		"source_mode": "",
 		"text_sha256": "",
@@ -79,196 +97,268 @@ func _probe(path: String, expected_mode: String) -> Dictionary:
 		"data": {},
 		"raw": {}
 	}
-	var path_problem := _path_error(path, expected_mode)
-	if not path_problem.is_empty():
-		r["error"] = path_problem
+	var path_issue := _path_issue(path, expected_mode)
+	if not path_issue["code"].is_empty():
+		r["error_code"] = path_issue["code"]
 		return r
 	if DirAccess.dir_exists_absolute(path):
 		r["status"] = "unreadable"
-		r["error"] = "Path names a directory"
+		r["error_code"] = "PATH_IS_DIRECTORY"
 		return r
 	if not FileAccess.file_exists(path):
 		r["status"] = "missing"
-		r["error"] = "Snapshot file does not exist"
+		r["error_code"] = "FILE_MISSING"
 		return r
-	var f := FileAccess.open(path, FileAccess.READ)
-	if f == null:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
 		r["status"] = "unreadable"
-		r["error"] = "Cannot open snapshot"
+		r["error_code"] = "OPEN_FAILED"
 		return r
-	r["byte_length"] = f.get_length()
+	r["byte_length"] = file.get_length()
 	if r["byte_length"] > MAX_BYTES:
-		f.close()
+		file.close()
 		r["status"] = "too_large"
-		r["error"] = "Inspection size guard exceeded"
+		r["error_code"] = "FILE_TOO_LARGE"
 		return r
-	var content := f.get_as_text()
-	f.close()
+	var content := file.get_as_text()
+	file.close()
+	# Historical inspector API hash is of decoded text, not original bytes.
 	r["text_sha256"] = content.sha256_text()
 	var parser := JSON.new()
-	var parse_code := parser.parse(content)
-	if parse_code != OK:
+	if parser.parse(content) != OK:
 		r["status"] = "malformed_json"
-		r["error"] = parser.get_error_message()
+		r["error_code"] = "JSON_PARSE_FAILED"
 		return r
 	if typeof(parser.data) != TYPE_DICTIONARY:
 		r["status"] = "invalid_schema"
-		r["error"] = "Root must be a JSON object"
+		r["error_code"] = "ROOT_NOT_OBJECT"
 		return r
 	var raw: Dictionary = parser.data
 	r["raw"] = raw.duplicate(true)
-	if raw.has("mode") and typeof(raw["mode"]) == TYPE_STRING:
-		r["source_mode"] = raw["mode"]
-		if MODES.has(raw["mode"]) and raw["mode"] != expected_mode:
-			r["status"] = "mode_mismatch"
-			r["error"] = "Contents belong to a different mode"
-			return r
 	if not raw.has("version"):
 		r["status"] = "invalid_schema"
-		r["error"] = "Missing version"
+		r["error_code"] = "MISSING_FIELD"
+		r["error_field"] = "version"
 		return r
-	r["version_label"] = str(raw["version"])
+	r["version_label"] = _safe_version_label(raw["version"])
 	var vt := typeof(raw["version"])
 	if vt != TYPE_INT and vt != TYPE_FLOAT:
 		r["status"] = "invalid_schema"
-		r["error"] = "Invalid version type"
+		r["error_code"] = "INVALID_VERSION_TYPE"
+		r["error_field"] = "version"
 		return r
 	if not is_finite(float(raw["version"])):
 		r["status"] = "invalid_schema"
-		r["error"] = "Non-finite version"
+		r["error_code"] = "NONFINITE_VERSION"
+		r["error_field"] = "version"
+		return r
+	# Establish a valid source mode before claiming version compatibility
+	# or allowing ANY form of manual preview.
+	if not raw.has("mode") or typeof(raw["mode"]) != TYPE_STRING or not MODES.has(raw["mode"]):
+		r["status"] = "invalid_schema"
+		r["error_code"] = "INVALID_MODE"
+		r["error_field"] = "mode"
+		return r
+	r["source_mode"] = raw["mode"] # Always enum-only, never arbitrary input.
+	if raw["mode"] != expected_mode:
+		r["status"] = "mode_mismatch"
+		r["error_code"] = "SOURCE_MODE_MISMATCH"
+		r["error_field"] = "mode"
 		return r
 	if float(raw["version"]) != 1.0:
 		r["status"] = "unsupported_version"
-		r["error"] = "No approved source-version mapping"
+		r["error_code"] = "UNSUPPORTED_VERSION"
+		r["error_field"] = "version"
 		return r
-	var problem := _schema_error(raw)
-	if not problem.is_empty():
+	var issue := _schema_issue(raw)
+	if not issue["code"].is_empty():
 		r["status"] = "invalid_schema"
-		r["error"] = problem
+		r["error_code"] = issue["code"]
+		r["error_field"] = issue["field"]
 		return r
 	r["status"] = "valid"
-	var copy: Dictionary = raw.duplicate(true)
-	copy["version"] = VERSION
-	r["data"] = copy.duplicate(true)
+	var data: Dictionary = raw.duplicate(true)
+	data["version"] = VERSION
+	r["data"] = data
 	return r
 
 
-func inspect_snapshot(path: String, expected_mode: String) -> Dictionary:
-	var result := _probe(path, expected_mode)
-	# Copy only the validated data, not arbitrary corrupt/legacy payload.
+func _compatibility_from_probe(probe: Dictionary) -> Dictionary:
+	var classification := "indeterminate"
+	var reason := probe["error_code"]
+	match probe["status"]:
+		"valid":
+			classification = "compatible_v1"
+			reason = "VALID_V1"
+		"unsupported_version":
+			classification = "unsupported"
+			reason = "NO_APPROVED_MAPPING"
+		"mode_mismatch":
+			classification = "incompatible_mode"
+			reason = "SOURCE_MODE_MISMATCH"
+		"invalid_schema":
+			classification = "invalid"
+		"invalid_request", "missing", "unreadable", "too_large", "malformed_json":
+			classification = "indeterminate"
 	return {
-		"ok": result["status"] == "valid",
-		"status": result["status"],
-		"error": result["error"],
-		"version_label": result["version_label"],
-		"source_mode": result["source_mode"],
+		"classification": classification,
+		"reason_code": reason,
+		"source_version": probe["version_label"],
+		"target_version": VERSION,
+		"automatic_migration_supported": false
+	}
+
+
+func _safe_report(probe: Dictionary, expected_mode: String) -> Dictionary:
+	# Never include raw JSON, ID, user path, field values, diff values or hash.
+	var compatibility := _compatibility_from_probe(probe)
+	return {
+		"report_version": REPORT_VERSION,
+		"task_id": "GAME-WEB-MODULE-STATE-002",
+		"status": probe["status"],
+		"valid": probe["status"] == "valid",
+		"error_code": probe["error_code"],
+		"error_field": probe["error_field"],
+		"version_label": probe["version_label"],
+		"expected_mode": expected_mode if MODES.has(expected_mode) else "invalid",
+		"source_mode": probe["source_mode"],
+		"byte_length": probe["byte_length"],
+		"compatibility": compatibility.duplicate(true),
+		"read_only": true,
+		"contains_snapshot_payload": false,
+		"verified": false
+	}
+
+
+func report_snapshot(path: String, expected_mode: String) -> Dictionary:
+	return _safe_report(_probe(path, expected_mode), expected_mode)
+
+
+func compatibility_snapshot(path: String, expected_mode: String) -> Dictionary:
+	var safe := report_snapshot(path, expected_mode)
+	return safe["compatibility"].duplicate(true)
+
+
+func report_pair(folder: String) -> Dictionary:
+	# Two sequential independent reads; no pair-wide atomic guarantee.
+	return {
+		"story": report_snapshot(folder.path_join("story.round_snapshot.json"), "story"),
+		"free": report_snapshot(folder.path_join("free.round_snapshot.json"), "free"),
+		"atomic_pair": false
+	}
+
+
+func inspect_snapshot(path: String, expected_mode: String) -> Dictionary:
+	# Legacy detailed API: returns a COPY of valid snapshot data only.
+	# For public reporting, use report_snapshot() instead.
+	var probe := _probe(path, expected_mode)
+	return {
+		"ok": probe["status"] == "valid",
+		"status": probe["status"],
+		"error": probe["error_code"],
+		"error_code": probe["error_code"],
+		"error_field": probe["error_field"],
+		"version_label": probe["version_label"],
+		"source_mode": probe["source_mode"],
 		"expected_mode": expected_mode,
-		"text_sha256": result["text_sha256"],
-		"byte_length": result["byte_length"],
-		"data": result["data"].duplicate(true)
+		"text_sha256": probe["text_sha256"],
+		"byte_length": probe["byte_length"],
+		"data": probe["data"].duplicate(true)
 	}
 
 
 func inspect_pair(folder: String) -> Dictionary:
-	# Two independent reads: not an atomic pair or cross-file transaction.
-	var story_path := folder.path_join("story.round_snapshot.json")
-	var free_path := folder.path_join("free.round_snapshot.json")
 	return {
-		"story": inspect_snapshot(story_path, "story"),
-		"free": inspect_snapshot(free_path, "free")
+		"story": inspect_snapshot(folder.path_join("story.round_snapshot.json"), "story"),
+		"free": inspect_snapshot(folder.path_join("free.round_snapshot.json"), "free")
 	}
 
 
-func _changes(source: Dictionary, proposed: Dictionary) -> Array:
-	var keys: Array = []
-	for key in source.keys():
-		if not keys.has(key):
-			keys.append(key)
-	for key in proposed.keys():
-		if not keys.has(key):
-			keys.append(key)
-	keys.sort()
+func _safe_changes(source: Dictionary, target: Dictionary) -> Array:
+	# No field VALUES in output; unknown source key NAMES are not emitted.
+	# Stable, ordered, known-field-only structural differences.
 	var changes: Array = []
-	for key in keys:
-		var from_exists := source.has(key)
-		var to_exists := proposed.has(key)
+	for field in FIELDS:
+		var from_exists := source.has(field)
+		var to_exists := target.has(field)
 		var kind := ""
-		if not from_exists:
+		if not from_exists and to_exists:
 			kind = "add"
-		elif not to_exists:
+		elif from_exists and not to_exists:
 			kind = "remove"
-		elif source[key] != proposed[key]:
-			kind = "change"
+		elif from_exists and to_exists:
+			if typeof(source[field]) != typeof(target[field]) or source[field] != target[field]:
+				kind = "change"
 		if not kind.is_empty():
-			changes.append({
-				"field": key,
-				"kind": kind,
-				"before": source[key] if from_exists else null,
-				"after": proposed[key] if to_exists else null
-			})
+			changes.append({"field": field, "kind": kind})
 	return changes
 
 
-func preview_migration(
-	path: String, expected_mode: String, proposed_target: Variant = null
-) -> Dictionary:
-	# No inferred v0 schema, no automatic repair, no write API.
-	# A caller-provided target must be a complete valid v1 object.
+func preview_migration(path: String, expected_mode: String, proposed_target: Variant = null) -> Dictionary:
+	# No mapping inferred; no write, repair, rename or save method.
 	var source := _probe(path, expected_mode)
+	var compatibility := _compatibility_from_probe(source)
 	var report := {
 		"ok": false,
 		"status": "blocked",
 		"source_status": source["status"],
 		"source_version": source["version_label"],
 		"target_version": VERSION,
-		"expected_mode": expected_mode,
-		"text_sha256": source["text_sha256"],
+		"expected_mode": expected_mode if MODES.has(expected_mode) else "invalid",
+		"text_sha256": source["text_sha256"], # Detailed local API; don't publish.
 		"changes": [],
+		"unrecognized_source_field_count": 0,
+		"compatibility": compatibility,
 		"requires_review": true,
+		"mapping_approved": false,
 		"can_apply": false,
 		"writes": false,
-		"error": source["error"]
+		"error": source["error_code"],
+		"error_code": source["error_code"]
 	}
-	if source["status"] == "valid" and proposed_target == null:
-		report["ok"] = true
-		report["status"] = "no_migration_needed"
-		report["error"] = ""
+	# Non-readable, corrupt, v1-schema-invalid and cross-mode source
+	# cannot be "rescued" by a caller-supplied target.
+	if source["status"] != "valid" and source["status"] != "unsupported_version":
 		return report
 	if proposed_target == null:
-		if source["status"] == "unsupported_version":
+		if source["status"] == "valid":
+			report["ok"] = true
+			report["status"] = "no_migration_needed"
+			report["error"] = ""
+			report["error_code"] = ""
+		else:
 			report["status"] = "mapping_required"
+			report["error"] = "NO_APPROVED_MAPPING"
+			report["error_code"] = "NO_APPROVED_MAPPING"
 		return report
-	if typeof(source["raw"]) != TYPE_DICTIONARY or source["raw"].is_empty():
-		report["error"] = "Source is not a parsable JSON object"
-		return report
-	if source["status"] == "mode_mismatch":
-		report["error"] = "Cross-mode preview is prohibited"
-		return report
-	var candidate_source: Dictionary = source["raw"]
-	if not candidate_source.has("mode") or typeof(candidate_source["mode"]) != TYPE_STRING or candidate_source["mode"] != expected_mode:
-		report["status"] = "source_mode_unverified"
-		report["error"] = "Source mode cannot be established"
-		return report
-	var target_problem := _schema_error(proposed_target)
-	if not target_problem.is_empty():
+	var target_issue := _schema_issue(proposed_target)
+	if not target_issue["code"].is_empty():
 		report["status"] = "invalid_target"
-		report["error"] = target_problem
+		report["error"] = target_issue["code"]
+		report["error_code"] = target_issue["code"]
 		return report
 	if proposed_target["mode"] != expected_mode:
 		report["status"] = "invalid_target"
-		report["error"] = "Target mode does not match expected_mode"
+		report["error"] = "TARGET_MODE_MISMATCH"
+		report["error_code"] = "TARGET_MODE_MISMATCH"
 		return report
-	var source_object: Dictionary = source["raw"]
-	var target_object: Dictionary = proposed_target
-	report["changes"] = _changes(
-		source_object.duplicate(true), target_object.duplicate(true)
-	)
-	report["ok"] = true
+	var raw: Dictionary = source["raw"]
+	var target: Dictionary = proposed_target
+	# Source data from unsupported versions is untrusted; permit
+	# structural comparison of six known fields only, never migration.
+	report["changes"] = _safe_changes(raw, target)
+	var extension_count := 0
+	for key in raw.keys():
+		if not FIELDS.has(key):
+			extension_count += 1
+	report["unrecognized_source_field_count"] = extension_count
+	report["ok"] = true # Preview formed; NOT source compatibility.
 	report["error"] = ""
-	if source["status"] == "valid" and report["changes"].is_empty():
-		report["status"] = "no_changes"
-	elif source["status"] == "valid":
-		report["status"] = "same_version_proposal"
-	else:
+	report["error_code"] = ""
+	if source["status"] == "unsupported_version":
 		report["status"] = "manual_unverified_preview"
+	elif report["changes"].is_empty():
+		report["status"] = "no_changes"
+	else:
+		report["status"] = "same_version_proposal"
 	return report
