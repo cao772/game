@@ -75,3 +75,22 @@ Unresolved owner decisions:
 5. Whether action signal should auto-close (candidate defaults to no).
 
 All automated/manual results are **NOT_RUN** pending Codex verification.
+
+---
+## Extension boundary — GAME-WEB-MODULE-REGION-002 r1
+
+- The multi-target list is explicitly passed as generic placeholders; no
+  discovery of real scene instances, collider IDs, character names or lore.
+- List selection changes UI only. `interaction_requested` remains local
+  and contains only the currently selected generic target ID.
+- Theme configuration is isolated to the prompt's per-node overrides;
+  there is no global theme, InputMap, project setting or external asset
+  modification. Style is ephemeral and not persisted to disk.
+- Keyboard focus states reflect the live Viewport owner; no claim about
+  screen-reader support or OS-level native focus before manual validation.
+  Escape / PageUp / PageDown are consumed only while this prompt owns focus.
+- Integration priorities with Draft PR #6 INPUT/STATE routing, modal
+  stacking, IME, localization and accessibility remain owner decisions.
+  No shared interface is ratified by adding these callable functions.
+- This follow-on changes only files in the existing PR #10 candidate path;
+  main and all other PRs/candidates are untouched. NOT_RUN.

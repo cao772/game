@@ -13,19 +13,20 @@ grow_vertical = 2
 script = ExtResource("1_demo")
 
 [node name="DemoPanel" type="VBoxContainer" parent="."]
-offset_left = 24.0
-offset_top = 24.0
-offset_right = 520.0
-offset_bottom = 240.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 510.0
+offset_bottom = 520.0
 theme_override_constants/separation = 8
 
 [node name="TitleLabel" type="Label" parent="DemoPanel"]
 layout_mode = 2
-text = "Godot 4 独立交互提示 UI · 占位演示"
+text = "Godot 4 · 独立交互提示技术占位"
 
 [node name="InstructionsLabel" type="Label" parent="DemoPanel"]
 layout_mode = 2
-text = "选择占位目标，再使用 Tab / Enter / Space / Esc；不修改原场景。"
+autowrap_mode = 3
+text = "选择单/多目标；在提示中 Tab、Shift+Tab、PgUp、PgDn、Enter、Esc。"
 
 [node name="TargetAButton" type="Button" parent="DemoPanel"]
 layout_mode = 2
@@ -37,6 +38,21 @@ layout_mode = 2
 focus_mode = 2
 text = "显示：占位目标 B"
 
+[node name="MultiTargetButton" type="Button" parent="DemoPanel"]
+layout_mode = 2
+focus_mode = 2
+text = "显示：三个占位目标"
+
+[node name="CycleTargetButton" type="Button" parent="DemoPanel"]
+layout_mode = 2
+focus_mode = 2
+text = "外部切换：下一目标"
+
+[node name="StyleButton" type="Button" parent="DemoPanel"]
+layout_mode = 2
+focus_mode = 2
+text = "切换样式：高对比"
+
 [node name="HideButton" type="Button" parent="DemoPanel"]
 layout_mode = 2
 focus_mode = 2
@@ -47,8 +63,13 @@ layout_mode = 2
 autowrap_mode = 3
 text = "尚未操作"
 
+[node name="FocusStateLabel" type="Label" parent="DemoPanel"]
+layout_mode = 2
+autowrap_mode = 3
+text = "焦点状态：未知"
+
 [node name="InteractionPromptCandidate" parent="." instance=ExtResource("2_prompt")]
-offset_left = 550.0
-offset_top = 30.0
-offset_right = 960.0
-offset_bottom = 210.0
+offset_left = 540.0
+offset_top = 32.0
+offset_right = 1000.0
+offset_bottom = 330.0

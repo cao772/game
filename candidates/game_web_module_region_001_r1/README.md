@@ -101,3 +101,35 @@ evidence; the expected text is **not evidence of execution**.
   draft PRs, shared interfaces or Notion/Drive evidence.
 - Codex/owner to execute tests, inspect output, decide integration and
   archive authorized technical evidence separately. Never auto-merge.
+
+---
+## Addendum — GAME-WEB-MODULE-REGION-002 r1 (same Draft PR #10)
+
+**Development-only incremental update. NOT_RUN.** The original single-target
+`show_for_target(id, label, caption)` and request/visibility signals remain
+available. New candidate-local features:
+
+- `show_for_targets(Array, initial_index = 0)` accepts 1–16 explicit placeholder
+  records with `id` (StringName/String), `label` (non-empty <=64 chars) and
+  optional `action_caption` (non-empty <=40 chars). IDs are unique (<=64 chars).
+  Invalid list/index is rejected atomically; no target/visibility mutation.
+- `select_target(index)`, `cycle_target(-1 | 1)`,
+  `active_target_index()` and `target_count()` switch without dispatching
+  a gameplay action. Visible navigation buttons appear only with 2+ targets.
+  PageUp/PageDown provide optional prompt-focus-only keyboard switching;
+  Tab/Shift+Tab focus the relevant prompt Buttons.
+- `focus_state()` reports a read-only snapshot: `shown`, `role`
+  (`none|previous|next|action|dismiss`), `target_id`, `target_index`,
+  `target_count`. `focus_state_changed(role)` emits only when the
+  current role changes. Prompts reclaim action focus when shown with no
+  prompt control focused; cycling does not steal focus from navigation.
+- `apply_style(dict)` validates keys/types/ranges before touching the
+  widget. `apply_style_preset(&"default" | &"high_contrast")` supplies
+  built-in no-asset samples; `style_snapshot()` returns a deep copy.
+- New generic three-placeholder demo; separate `verify_interaction_prompt_extension_candidate.gd`
+  for future headless checks; supplemental acceptance cases and detailed
+  `docs/module-002-extension.md` usage/style contract.
+
+Previous test file is unchanged. Both r1 and new tests are **NOT_RUN**;
+no Godot parser or visual validation is claimed. Public code stays isolated
+under this candidate directory, and does not establish any shared API.

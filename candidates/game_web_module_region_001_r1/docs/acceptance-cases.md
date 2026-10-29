@@ -58,3 +58,47 @@ Headless logic results do not prove actual native GUI focus or visual quality.
 No change to published game scenes, novel manuscript, roles, worldbuilding,
 shared interfaces, actual save model, or global InputMap is in scope.
 The owner approves both integration and any eventual merge separately.
+
+---
+## GAME-WEB-MODULE-REGION-002 r1 — NEW future cases (NOT_RUN)
+
+### Planned headless addition
+
+```sh
+godot --headless --path . --script res://verify_interaction_prompt_extension_candidate.gd
+```
+
+Expected text if verified later (not observed):
+`PASS GAME-WEB-MODULE-REGION-002 r1 (future headless checks)`, exit 0.
+Review the script and record the exact Godot version before execution.
+Proposed checks: empty/duplicate/oversized targets, initial selection B,
+multi-target navigation and wraparound, invalid selection no-op, selected
+ID in emitted signal, atomic style rejection, high-contrast and default
+preset switching, focus snapshot contract, pause/window gate, 10 cycles,
+and original single-target entry point.
+
+### Planned native GUI cases
+
+| ID | Preparation | Action | Expected observable result |
+| --- | --- | --- | --- |
+| M13 | Open demo | Show three generic targets | Target counter 1/3; previous/next buttons visible; only placeholder labels |
+| M14 | A selected | Use next button or PageDown with focus inside prompt | Active ID becomes B; no interaction request emitted |
+| M15 | C selected | PageDown then PageUp | C → A → C wrapping; action focus retained when switching via keys |
+| M16 | Prompt shown | Use Tab and Shift+Tab repeatedly | Focus visits exactly four prompt buttons with visible focus outline |
+| M17 | Single-target prompt | Use Tab/Shift+Tab | Only action/dismiss are focusable; navigation hidden |
+| M18 | Focus previous or next | Click another target in demo and reopen multi-target prompt | Focus returns to a valid prompt control; focus role matches active native control |
+| M19 | Prompt showing B | Activate action Button | One request for selected ID B, not for stale A |
+| M20 | Prompt visible | Hide with Escape when focused, then show again | Role becomes none when hidden, ID/count clear; re-show captures usable action focus |
+| M21 | Prompt visible | Toggle high contrast/default via demo | Color/size/focus outline changes; active target and signal count stay unchanged |
+| M22 | Prompt visible | Apply invalid style via API | Operation false; previous style visually unchanged (atomic) |
+| M23 | Prompt visible | Apply style padding 4/36, font size 12/30 | No panel overlap/clipping at supported demo viewport; record any failures |
+| M24 | Outside host control has focus | Press Escape, PageDown, 1, 2, 3, R | Prompt does not consume outside keys; no new global mapping |
+| M25 | Prompt visible | Alt+Tab away and back; then pause/unpause | No off-focus/paused request; record focus after return |
+| M26 | Any target list | Replace with invalid/duplicate IDs | Existing target/visibility remains stable; no partial update |
+| M27 | Three targets | Repeat show → switch → request → hide 10 times | No duplicate request signals, stale IDs, or focus state leakage |
+| M28 | Existing r1 tests | Run original test script separately when permitted | Original single-target behavior must remain compatible; no implied PASS now |
+
+The native visual and keyboard-focus cases **must not** be presented as
+passing merely because future headless checks return 0.
+Save screenshots, event counts, Godot version, commit SHA and unexpected
+focus transitions. Any failures should be preserved for review, not edited away.
