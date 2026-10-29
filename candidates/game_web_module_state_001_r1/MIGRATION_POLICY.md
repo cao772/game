@@ -1,62 +1,94 @@
-# Migration-preview policy (proposal only)
+# GAME-WEB-MODULE-STATE-002 r1 · migration preview policy
 
-Task: `GAME-WEB-MODULE-STATE-001 r1`. Canon version: **N/A**.
-Source contract: `GAME-WEB-STATE-001 r1` as copied unchanged into
-[Draft PR #6](https://github.com/cao772/game/pull/6).
-This document **does not approve any legacy schema or future target schema**.
+**Independent source proposal · Canon N/A · NOT_RUN.**
+Continues 001 within [Draft PR #13](https://github.com/cao772/game/pull/13).
+The only known protocol is snapshot v1 in [Draft PR #6](https://github.com/cao772/game/pull/6).
+An old-version schema and author-approved migration rules are **NOT PROVIDED**.
 
-## Authoritative input available
+## Ground truth and missing decisions
 
-The only observed complete protocol is `version: 1` with the six strict
-fields in README. Neither a `version: 0` schema nor a `version: 2`
-schema, approved migration rules, or actual production saves were
-provided. Therefore auto-conversion, default field values, preservation
-of unknown fields, time adjustment and schema upgrade are **unspecified**.
+Known: six exact v1 fields and enum restrictions, story/free filename/content
+isolation, read-only inspection. **Unknown**: actual earlier schema, field
+mappings, renamed properties, backwards compatibility policy, clock rules,
+event/round identity migration, fallback defaults, data retention, rollback
+semantics, release process, and any live save samples.
 
-The synthetic `version: 0` test fixture tests version detection and
-human-supplied comparison **only**. It is not historical evidence.
+Numeric 0 and 2 in synthetic future test fixtures are deliberately invented
+**test inputs only**, not authentic historical or future save versions.
 
-## Candidate preview workflow
+## Fail-closed decision rules
 
-1. Inspect selected path with explicitly chosen expected mode. Check the
-   path's exact mode-specific filename; never search for "any save" and
-   never move a file between the two modes.
-2. Recognize `valid`, `unsupported_version`, `invalid_schema`,
-   `mode_mismatch`, `malformed_json`, missing/unreadable and oversize.
-3. For a fully valid v1 snapshot, report `no_migration_needed` without
-   changes unless the caller explicitly proposes a different complete
-   valid v1 object. Such a diff is **same-version content proposal**.
-4. For an unsupported version, `mapping_required` is the default and
-   **nothing is inferred**. If a reviewer supplies a complete target v1
-   JSON object, preview field differences and label the result
-   `manual_unverified_preview`.
-5. No apply button, save/rename hook, in-memory publisher, or overwrite
-   action exists. `can_apply` and `writes` are both always false.
-6. Do not share runtime difference values publicly: `round_id` and
-   future source-specific keys can be sensitive.
+1. Require explicit `user://` path, safe lexical segments and filename
+   `<expected_mode>.round_snapshot.json` where expected_mode is story/free.
+   This is a lexical filter, **not symlink containment**.
+2. Open read-only, reject >1 MiB candidate inspection input before parsing.
+   Reject unreadable file, directory target, missing file and JSON parse error.
+3. Require JSON object, a numeric finite source version, and a valid
+   source mode equal to expected_mode. Reject otherwise. A foreign-mode
+   file is never previewed even when its version is unsupported.
+4. For version 1, require all six fields, no unknown fields, and all
+   field types/ranges valid. Any malformed v1 content is blocked even
+   if a proposed target looks valid. A valid target must **not repair**
+   an invalid source by implication.
+5. A finite numeric source version !=1 with verified matching mode can
+   be labeled unsupported. Without a target: `mapping_required`.
+   A caller may explicitly provide one **complete validated v1 target**;
+   only a superficial field-structure comparison is produced, and the
+   result is labeled `manual_unverified_preview`. This does not assert
+   schema migration or content correctness.
+6. With a valid v1 source and a complete v1 target, a differing target
+   produces `same_version_proposal`, not a version migration;
+   identical content yields `no_changes`. The target is never written.
+7. Targets must pass full v1 validation and match expected_mode. A target
+   with unexpected fields, invalid types, missing fields or another mode
+   is `invalid_target`, without any change list.
+8. Previews include **only six allowed field names and operation kinds**.
+   Old-version extra key names and all before/after values are excluded.
+   `unrecognized_source_field_count` is diagnostic only.
+9. Every preview returns `requires_review=true`,
+   `mapping_approved=false`, `can_apply=false`, `writes=false`.
+   No apply, backup, repair, overwrite, rename, delete or save API exists.
+10. `ok=true` indicates a **preview description** was formed. It does not
+    mean source compatibility, a correct mapping, an accepted game rule,
+    or a successful migration.
 
-## Decision gates before any future executable migration
+### Outcome table
 
-- **Author/product** must provide explicit source schemas, target schema,
-  verified examples, permitted field mappings, handling for missing /
-  unknown fields, clock policy and mode handling.
-- **Technical reviewer** must specify failure / rollback behavior, write
-  coordination and corruption handling in a separate approved design.
-- **Codex** must first run this standalone test suite and then independently
-  test the proposed mapping with synthetic fixture data. Nothing in this
-  module writes real saves or approves a mapping.
-- **QA** must record Godot version, commit, exact command, exit status,
-  output and any platform differences before marking verified.
+| Source | Target | Result |
+|---|---|---|
+| Fully valid v1 | none | `no_migration_needed` (no changes) |
+| Fully valid v1 | valid same v1 | `no_changes` |
+| Fully valid v1 | valid different v1 | `same_version_proposal` |
+| Verified same-mode unsupported version | none | `mapping_required`, no changes |
+| Verified same-mode unsupported version | valid complete v1 | `manual_unverified_preview`, review only |
+| Any source | invalid target | `invalid_target` only if source is otherwise inspectable |
+| Any invalid path/source mode/schema/JSON/read/size | any | `blocked` |
+| Incompatible source mode plus unsupported version | any | `blocked` (mode takes precedence) |
 
-## Limitations requiring attention
+For exact classification/status/error codes consult
+[REPORT_FORMAT.md](REPORT_FORMAT.md).
 
-- JSON parser behavior may accept some non-strict forms, including
-  duplicate keys; a stricter JSON syntax requirement needs separate design.
-- No multi-file snapshot consistency or concurrent writer lock.
-- Text fingerprint is not a guarantee that source content is unchanged
-  between separate calls.
-- Size cap 1 MiB is candidate-only; it is not an official save limit.
-- The matching v1 rules are duplicated from PR #6, not dynamically bound
-  to a shared codec; changes upstream require explicit review.
-- Invalid source with a supplied valid target produces **review data only**
-  and says nothing about whether the proposed values are correct.
+## What must be decided before a true migration can exist
+
+- Source-version JSON schemas and real **authorized, sanitized** examples.
+- The explicit target version and ownership of schema evolution.
+- Per-field transformation and coercion rules, including clock handling.
+- Whether unknown fields are retained/dropped; what to do on conflicts.
+- Consistency, atomicity, backup/rollback, durability and writer arbitration.
+- Security/privacy classification for runtime data and report retention.
+- QA acceptance, platform-specific behavior and reviewer sign-off.
+
+No defaults are silently selected in this task.
+
+## Risks and limitations
+
+- Even a redacted report may disclose metadata. Internal detailed inspection
+  and preview APIs include local decoded-text hashes; do not post raw output.
+- The Godot parser's treatment of duplicate keys, permissive JSON syntax,
+  invalid UTF-8 and overflow is not a strict RFC guarantee.
+- No locks; concurrent edits between independent reads can produce different
+  results. Not a transactional pair inspection or a cross-process migration.
+- Known v1 schema rules are copied from upstream PR #6, not an approved
+  shared package; rereview on upstream change.
+- Test scripts may create synthetic files **only when Codex later runs them**;
+  this source-development phase has not executed tests.
