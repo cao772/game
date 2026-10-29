@@ -209,8 +209,10 @@ def _context(groups):
         if len(known) != len(values):
             missing.append(field)
     origins = {run["source_origin"] for group in groups for run in group["runs"]}
-    if len(origins) > 1 and "SYNTHETIC" in origins:
-        conflicts.append("synthetic_vs_other_origin")
+    if len(origins) > 1 and (
+        "SYNTHETIC" in origins or "NOT_GPU_BENCHMARK" in origins
+    ):
+        conflicts.append("incompatible_source_origin")
     if conflicts:
         return "CONFLICT", "采样声明不一致：" + ", ".join(conflicts)
     reason = "未独立验证设备、分辨率、帧原始数据及场景哈希绑定"
@@ -263,7 +265,6 @@ def build_series_summary(groups, task_id="GAME-WEB-CONTINUE-PERF-003"):
         raise ValueError("Missing run group")
     output_groups = []
     for group in groups:
-        template_run = group["runs"][0]
         # Fixed ordering/labels/budgets from the reporter, never input manifest.
         from perf_report_candidate import BUDGETS
         template = {"metrics": [
@@ -396,9 +397,23 @@ def html_series_report(summary):
         )
     if not missing:
         missing = ["<li>八项指标的可读取覆盖完整；仍不能证明真实来源或整个场景通过。</li>"]
+    provenance_notes = []
+    for group in summary["groups"]:
+        for run in group["runs"]:
+            for warning in run["warnings"]:
+                provenance_notes.append(
+                    "<li>" + e(group["name"]) + " / " + e(run["id"]) +
+                    "：" + e(warning) + "</li>"
+                )
+    if not provenance_notes:
+        provenance_notes = [
+            "<li>未提供采样真实性证明；无告警不代表真实游戏性能已核实。</li>"
+        ]
     pages.append(
         "<section><h2>逐次缺测与异常说明</h2><ul>" +
-        "".join(missing) + "</ul><p>另有冷启动、场景切换、动态灯、阴影灯、NPC等整场景指标未测。</p>"
+        "".join(missing) + "</ul><h3>来源与校验提示</h3><ul>" +
+        "".join(provenance_notes) + "</ul>"
+        "<p>另有冷启动、场景切换、动态灯、阴影灯、NPC等整场景指标未测。</p>"
         "<p>合成采样、OpenGL/headless/dummy、Windows进程内存与GPU真实跑分不能混同。</p>"
         "</section>"
     )
