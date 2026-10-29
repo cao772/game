@@ -6,11 +6,11 @@ scene, InputMap, story, save core, or user-provided source is modified.
 
 ## Contents
 
-- \`integration_candidate.gd\` — new isolated input-to-snapshot coordinator.
-- \`verify_integration_candidate.gd\` — finite headless SceneTree checks.
-- \`project.godot\` — separate minimal Godot project.
-- \`input_router_candidate.gd\` — isolated copy of provided INPUT r1, unchanged.
-- \`round_snapshot_candidate.gd\` — isolated copy of provided STATE r1, unchanged.
+- `integration_candidate.gd` — new isolated input-to-snapshot coordinator.
+- `verify_integration_candidate.gd` — finite headless SceneTree checks.
+- `project.godot` — separate minimal Godot project.
+- `input_router_candidate.gd` — isolated copy of provided INPUT r1, unchanged.
+- `round_snapshot_candidate.gd` — isolated copy of provided STATE r1, unchanged.
 
 The original sources were supplied in the task, not read from other chats.
 An identical copy of each is needed because main contains no corresponding
@@ -28,43 +28,43 @@ dependencies. The integration candidate imports these copies only.
 
 No gameplay, progression, clock advancement, narrative, or new round identity
 is inferred. **reset_round preserves** version/mode/round_id/clock_seconds;
-repeated reset is idempotent. \`cancel\` is explicitly a non-mutating
+repeated reset is idempotent. `cancel` is explicitly a non-mutating
 acknowledgement pending product semantics. Invalid transitions are rejected.
 
 ## Input and snapshot invariants
 
 - Keyboard uses the unchanged INPUT r1 Node and its
-  \`action_requested(action_id)\` signal.
+  `action_requested(action_id)` signal.
 - A UI button can use
-  \`button.pressed.connect(integration.request_button_action.bind(&"observe"))\`.
-  The original router's \`request_action\` validates the action and blocks
+  `button.pressed.connect(integration.request_button_action.bind(&"observe"))`.
+  The original router's `request_action` validates the action and blocks
   pause/native-window-unfocused events; the integration signal listener
   checks actual viewport text focus as well. In headless tests an injected
-  \`dispatch_action\` exercises the same mutation/save path.
+  `dispatch_action` exercises the same mutation/save path.
 - Echo, key releases, unrelated keys, paused tree, injected loss of focus,
   focused LineEdit/TextEdit or descendants are rejected without mutation.
 - Initial configuration validates seed and path; existing valid snapshot
   overrides seed; corrupt or foreign-mode files are not replaced.
-- Per successful changed action: **one** call to STATE r1 \`save_snapshot\`,
-  then update the private snapshot and emit a copied \`snapshot_changed\`.
+- Per successful changed action: **one** call to STATE r1 `save_snapshot`,
+  then update the private snapshot and emit a copied `snapshot_changed`.
   Failures do not publish a new in-memory state. No-op/cancel/invalid actions
   do not save. The attempt counter counts attempts, **not** successful writes.
 - Single-writer protection is **cooperative in-process, among instances of
   this candidate only**. STATE r1 uses its existing fixed temp filename.
   It is **not** an inter-process lock or concurrency-proof storage format.
-- \`user://<isolated folder>/<mode>.round_snapshot.json\` is the only
+- `user://<isolated folder>/<mode>.round_snapshot.json` is the only
   accepted file shape. The parent folder must exist; the test creates its
   own unique fixture folder and removes only its fixture files.
 
 ## Run (from repo root)
 
-\`\`\`bash
+```bash
 godot --headless --path candidates/game_web_integrate_001_r1 \
   --script res://verify_integration_candidate.gd
 echo $?
-\`\`\`
+```
 
-Expected: \`PASS GAME-WEB-INTEGRATE-001 r1\` and exit status 0; assertion
+Expected: `PASS GAME-WEB-INTEGRATE-001 r1` and exit status 0; assertion
 failure yields 1. A Godot parser failure may return another nonzero code.
 A Godot 4.7.2 executable can be used if available; actual binary/version
 is **not verified** here.
