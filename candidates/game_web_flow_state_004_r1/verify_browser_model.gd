@@ -149,8 +149,7 @@ func _run_cases() -> void:
 	var field_only := true
 	for entry in diff["changed_fields"]:
 		if entry.has("before") or entry.has("after") \
-				or not Model.PHASES.has(entry.get("field", "")) \
-				and not ["door_open", "version", "mode", "round_id", "clock_seconds"].has(entry.get("field", "")):
+				or not ["version", "mode", "round_id", "phase", "door_open", "clock_seconds"].has(entry.get("field", "")):
 			field_only = false
 	_check(field_only, "M19 only known changes")
 
