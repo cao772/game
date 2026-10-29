@@ -1,149 +1,142 @@
-# GAME-WEB-MODULE-STATE-001 r1 / W-STATE
+# W-STATE independent read-only inspection · GAME-WEB-MODULE-STATE-002 r1
 
-**Independent technical candidate · Canon: N/A · NOT_RUN**
+**Draft candidate / Canon N/A / NOT_RUN / NOT_VERIFIED.**
+This continues GAME-WEB-MODULE-STATE-001 r1 **within the same Draft PR #13**
+and in the same isolated directory. No change to main, other candidates,
+source novel, or any approved shared interface.
 
-Read-only round-snapshot inspection and *preview-only* migration planning
-for Godot 4.7.2. This is not an approved shared save interface.
-No original prose, private materials, existing Python save, event runtime,
-or other code under `main` is changed.
+## Verified source baseline (read-only GitHub inspection)
 
-## Actual source and dependency boundary
+- [Draft PR #13](https://github.com/cao772/game/pull/13), source branch:
+  \`codex/game-web-module-state-001-r1\`.
+- Underlying snapshot proposal: [Draft PR #6](https://github.com/cao772/game/pull/6),
+  \`candidates/game_web_integrate_001_r1/round_snapshot_candidate.gd\`,
+  original observed blob \`6734407f432bb8912d5c769e76200448489dc646\`.
+- Snapshot v1 is the **only supplied schema**: exact JSON object
+  \`version\` = numeric 1 (bool rejected), \`mode\` = story/free,
+  \`round_id\` = nonblank string, \`phase\` = ready/observing/resolved/deferred,
+  \`door_open\` = boolean, and finite nonnegative numeric \`clock_seconds\`.
+- No evidence of an approved v0/v2 format, legacy transformation table, clock
+  adjustments, repair strategy, runtime persistence contract, or real user
+  save examples. None is assumed.
 
-Source reviewed: [PR #6, W-INPUT × W-STATE](https://github.com/cao772/game/pull/6),
-file `candidates/game_web_integrate_001_r1/round_snapshot_candidate.gd`
-on branch `codex/game-web-integrate-001-r1`, Git blob
-`6734407f432bb8912d5c769e76200448489dc646`.
+## Files
 
-That file contains the unchanged GAME-WEB-STATE-001 r1 candidate.
-Its protocol is a JSON root object with **exactly six fields**:
-`version` (numeric 1, not boolean), `mode` (`story`/`free`),
-`round_id` (nonblank string), `phase`
-(`ready`/`observing`/`resolved`/`deferred`),
-`door_open` (boolean), `clock_seconds`
-(nonnegative finite numeric, not boolean).
-The file naming rule is `user://.../story.round_snapshot.json`
-or `user://.../free.round_snapshot.json`, matching expected mode.
+| Path | Purpose |
+|---|---|
+| \`snapshot_inspector_candidate.gd\` | RefCounted core; read-only inspect, safe report, v1 compatibility classification, structural preview |
+| \`verify_snapshot_inspector.gd\` | Existing future acceptance suite adjusted for redacted previews; **NOT_RUN** |
+| \`verify_report_boundaries.gd\` | Additional future SceneTree error/report test cases; **NOT_RUN** |
+| \`project.godot\` | Standalone Godot project, no scene/autoload |
+| \`REPORT_FORMAT.md\` | Safe report fields, error code taxonomy, compatibility table |
+| \`MIGRATION_POLICY.md\` | Block/preview matrix, required approvals and missing mappings |
+| \`ACCEPTANCE.md\` | Future commands, evidence format, new coverage |
 
-This module has an **independent duplicate of the validation rules** as a
-read-only implementation, not an imported or modified write codec. This
-permits inspection when the source PR is still Draft and remains isolated
-from the writer's API. Any future change to PR #6 must trigger a fresh
-compatibility review, not an automatic assumption of compatibility.
+No private payload or runtime save is included in this public branch.
 
-## Contents
+## Proposed in-memory API
 
-- `snapshot_inspector_candidate.gd`: RefCounted read-only inspector,
-  version/corruption detection, two-mode scan, manual migration preview.
-- `verify_snapshot_inspector.gd`: finite SceneTree test **source for future
-  execution**; it deliberately writes only synthetic test fixtures.
-- `project.godot`: standalone Godot project.
-- `README.md`: usage, source evidence, API and safety limits.
-- `MIGRATION_POLICY.md`: proposal semantics and approval boundaries.
-- `ACCEPTANCE.md`: future test cases, exit criteria and evidence template.
-
-## API proposal
-
-In another GDScript in this standalone project:
-
-```gdscript
+\`\`\`gdscript
 const Inspector = preload("res://snapshot_inspector_candidate.gd")
 var inspector = Inspector.new()
-var report = inspector.inspect_snapshot(
-    "user://isolated/story.round_snapshot.json", "story"
+
+# Safe metadata report; suitable for deliberate public sharing only after
+# operational review. No source JSON, identifiers, user path, hash or values.
+var report = inspector.report_snapshot(
+    "user://candidate/story.round_snapshot.json", "story"
 )
-var pair = inspector.inspect_pair("user://isolated")
+
+var compatibility = inspector.compatibility_snapshot(
+    "user://candidate/story.round_snapshot.json", "story"
+)
+var pair = inspector.report_pair("user://candidate")
+
+# Legacy rich API: a valid v1 snapshot is returned as a deep copy.
+# Do NOT serialize / publish its data or hashes to public PR/CI logs.
+var detailed = inspector.inspect_snapshot(
+    "user://candidate/story.round_snapshot.json", "story"
+)
+
+# Proposal only. No save, apply, conversion or runtime side effect.
 var preview = inspector.preview_migration(
-    "user://isolated/story.round_snapshot.json", "story"
+    "user://candidate/story.round_snapshot.json", "story"
 )
-```
+\`\`\`
 
-`inspect_snapshot(path, expected_mode)` returns a new dictionary:
-`ok`, `status`, `error`, `version_label`, `source_mode`,
-`expected_mode`, `text_sha256`, `byte_length`, `data`.
+- \`report_snapshot\`: sanitized diagnostic metadata without raw input/round ID,
+  path, source JSON, text checksum, or any snapshot values; structured
+  \`error_code\` and known \`error_field\`, version compatibility classification.
+- \`compatibility_snapshot\`: isolated compatibility subset from the same
+  inspection logic. It performs a new read when called separately.
+- \`report_pair\`: separate story/free safe reports. **Not an atomic pair**.
+- \`inspect_snapshot\` and \`inspect_pair\`: retained original detailed
+  APIs for local inspection, including validated payload and decoded-text
+  SHA-256. They are **not public-safe reporting methods**. Payload is
+  deep-copied only when strict v1 validation succeeds.
+- \`preview_migration\`: legacy method name retained; returns metadata-only
+  changed field/kind tuples. There are no \`before\` or \`after\` values,
+  and unknown field names are suppressed; see MIGRATION_POLICY.
+  SHA-256 in this **detailed preview API** should not be published.
+  This is only an in-memory planning artifact.
 
-- `data` is a deep copy **only for fully valid v1 input**; otherwise `{}`.
-- `version_label` is a diagnostic string, not a schema selector.
-- `text_sha256` hashes the decoded text read by Godot, not an assertion
-  of byte-for-byte provenance or interprocess consistency.
-- `byte_length` is the file size seen before reading content.
+The module never writes, renames, deletes or creates files; never
+executes OS commands. Synthetic fixtures are written by future test
+scripts only, under uniquely named \`user://\` directories.
 
-`inspect_pair(folder)` returns separate `story` and `free` inspection
-results. These are **two sequential reads, not an atomic pair**.
+## Statuses and migration guardrails
 
-`preview_migration(path, expected_mode, proposed_target=null)` returns:
-`ok`, `status`, `source_status`, `source_version`,
-`target_version`, `expected_mode`, `text_sha256`, `changes`,
-`requires_review=true`, `can_apply=false`, `writes=false`, `error`.
+See [REPORT_FORMAT.md](REPORT_FORMAT.md) for the compatibility truth table
+and structured diagnostics. Summary:
 
-- Valid v1 and no target: `no_migration_needed`, empty changes.
-- Unknown finite numeric version and no target: `mapping_required`;
-  there is **no approved old schema to migrate**.
-- With an explicitly supplied complete valid v1 target object of the
-  expected mode, the inspector computes an in-memory field-by-field diff.
-  For invalid-schema or unsupported-version source, this is
-  `manual_unverified_preview`; it is **not a successful migration**.
-- With a valid v1 source, a changed target is a
-  `same_version_proposal`, also **not** a version migration.
-- Corrupt/unreadable/oversize/missing source or cross-mode content:
-  blocked, with no speculative reconstruction.
-- An invalid proposed target is rejected. No method applies a preview.
+- \`valid\` + matching mode -> \`compatible_v1\` (format only, not gameplay).
+- Finite numeric version !=1 + verified same mode -> \`unsupported\`;
+  explicit mapping absent. Default preview: \`mapping_required\`.
+- Other valid mode -> \`incompatible_mode\`, even if version is unsupported.
+- No trustworthy version, invalid/missing mode, malformed JSON, bad v1 schema,
+  missing/unreadable/oversize file -> no positive compatibility claim.
+- Explicit complete valid v1 target: for verified v1 source, only a
+  \`same_version_proposal\`; for unsupported numeric version and matching
+  mode, only \`manual_unverified_preview\`. No target can override a
+  damaged/invalid schema, unsafe path or foreign mode.
+- \`ok: true\` in a preview means **a comparison description was produced**;
+  it never means a migration is supported, approved, applied or safe.
+- Always \`can_apply=false\`, \`mapping_approved=false\`,
+  \`writes=false\`, \`requires_review=true\`.
 
-Differences report `field`, `kind` (`add`/`remove`/`change`),
-`before`, `after`. Treat diff values as potentially sensitive
-**in memory**: do not post runtime reports containing private save data
-to public GitHub, Notion, or Drive. This PR contains only public test
-fixtures and static implementation.
+\`MAX_BYTES = 1048576\` is a **new inspection-only safety cap**,
+not a production save limit or writer capability.
 
-## Inspection status contract (candidate)
+## Known limitations (do not overclaim)
 
-| Status | Meaning |
-|---|---|
-| `valid` | Fully validated protocol v1, correct mode |
-| `invalid_request` | Invalid expected mode/path/name/traversal |
-| `missing` | Requested snapshot absent |
-| `unreadable` | File cannot be opened, or path is a directory |
-| `too_large` | >1 MiB candidate inspection guard |
-| `malformed_json` | Godot JSON parser rejected the input |
-| `invalid_schema` | Parsed JSON but root/fields/types/values invalid |
-| `unsupported_version` | Parsed finite numeric version != 1 |
-| `mode_mismatch` | Parsed source mode differs from expected mode |
+- Upstream PR #6 remains Draft and its duplicated six-field contract is
+  **not automatically synchronized**. Re-review if upstream changes.
+- Godot's JSON parser is not treated as proof of strict RFC 8259 acceptance;
+  duplicate keys/parser extensions/invalid UTF-8 require separate review.
+- \`user://\` path-string filtering is not a symlink or filesystem
+  sandbox. Symlink escape prevention is **not proven**.
+- No interprocess lock, single-snapshot stability under concurrent
+  modification, transactional pair consistency, power-loss guarantee or
+  automatic backup/rollback.
+- \`text_sha256\` (in detailed APIs only) hashes decoded text, not a
+  cryptographically asserted immutable file version.
+- Valid v1 data is syntactically valid, not approved game semantics or
+  proof of clock invariants.
+- The safe report may reveal enum mode, file size and version classification.
+  If metadata itself is sensitive, keep reports private as well.
 
-The guard of 1 MiB is **a new inspection proposal**, not a size restriction
-in the PR #6 writer. The Godot parser's permissive JSON handling (e.g.,
-possible duplicate-key handling) remains a limitation; schema validation
-does not prove strict RFC 8259 conformance.
+## Future Codex execution — **NOT PERFORMED BY THIS TASK**
 
-## Safety and integration boundaries
+From repository root, after explicit authorization to test:
 
-- Inspector uses only `FileAccess.READ` and metadata reads. It has no
-  save, rename, delete, process execution, or directory-creation API.
-- The future **test script** writes temporary synthetic fixtures under
-  its own fresh `user://` directory, then removes only its registered
-  files/directories; this is separate from the read-only module.
-- No automatic repair; no rename or replace; no cross-mode writes.
-- No assumptions about story/free clock progression, chapter transition,
-  character, plot, canon, or event semantics.
-- A file may be changed concurrently while inspected; text hashes only
-  identify the bytes as *decoded on that read*, not a lock or transaction.
-- Unknown old-version layouts are not invented. Explicit caller-supplied
-  v1 targets can be compared but never applied.
-- Malformed input is not treated as a new save; no silent fallback.
+\`\`\`sh
+godot --headless --path candidates/game_web_module_state_001_r1 --script res://verify_snapshot_inspector.gd
+godot --headless --path candidates/game_web_module_state_001_r1 --script res://verify_report_boundaries.gd
+\`\`\`
 
-## Future verification — do not execute during this development task
+Run separately and record **each** exit code, Godot binary/version, commit,
+platform, full output and failures without real saves/private data.
+An expected PASS message in a test script is **not evidence of an actual PASS**.
+See [ACCEPTANCE.md](ACCEPTANCE.md).
 
-From repository root, **Codex later** may run:
-
-```bash
-godot --headless --path candidates/game_web_module_state_001_r1 \
-  --script res://verify_snapshot_inspector.gd
-echo $?
-```
-
-Expected only **if actually observed**: `PASS GAME-WEB-MODULE-STATE-001 r1`
-and status 0. Failed assertions should return nonzero. A Godot parse
-error can also exit nonzero. For the test matrix and reporting template,
-see [ACCEPTANCE.md](./ACCEPTANCE.md).
-
-**Actual state for this PR: SOURCE_WRITTEN; NOT_RUN; NOT_VERIFIED.**
-No CI, Godot execution, Codex acceptance or cross-platform persistence
-has been claimed. Do not mark the PR Ready or merge until verified.
+**Project status: SOURCE_WRITTEN / NOT_RUN / NOT_VERIFIED.**
+Do not merge or mark Ready based on source submission.
