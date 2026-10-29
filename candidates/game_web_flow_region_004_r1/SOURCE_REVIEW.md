@@ -63,3 +63,22 @@ Review PR diff and exact commit hash; then Codex may later
 run the documented future tests and desktop screenshots **only
 when user authorizes execution**. GitHub upload/readback verifies
 source presence, not functional correctness or product approval.
+
+---
+
+## Source read for GAME-WEB-PLAY-REGION-005 r1 continuation
+
+Read real Draft PR #23 HEAD:
+`5ecac707f40bacaaaab10e574b97724ccebaabb6`
+from `codex/game-web-flow-region-004-r1`, base `main`.
+Actual contents inspected: `flow_demo.gd`,
+`flow_model_candidate.gd`, copied `interaction_prompt_candidate.gd`
+and `.tscn`, `synthetic_targets.json`, original two future QA
+scripts and README/DESIGN/ACCEPTANCE.
+
+The original copied PR #10 prompt blobs remain unchanged
+(`89d78c42cb160c930ce1d589d70a58da2854bd7e`,
+`e7ac3524e5abc255699c8f1dd10902c6abaffbd0`).
+New picker/journal/test/docs only touch this isolated flow candidate.
+No story materials or external game state were available or inferred.
+**NOT_RUN**: GitHub source read is not Godot execution.

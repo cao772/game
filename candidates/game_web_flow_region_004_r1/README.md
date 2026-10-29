@@ -128,3 +128,32 @@ not observed results. See `ACCEPTANCE.md` for manual cases and
 - No main merge or modification. No private Notion/Drive uploads.
 - No actual scene integration, authored canon, world state, public
   event bus or save writes. Owner reviews and approves separately.
+
+---
+
+## GAME-WEB-PLAY-REGION-005 r1 — clickable/keyboard-complete demonstration (NOT_RUN)
+
+This is an incremental *candidate* on the same independent PR #23 branch.
+The source read for this edit is the actual prior HEAD
+`5ecac707f40bacaaaab10e574b97724ccebaabb6`.
+
+Additional implementation, contained wholly in this directory:
+- `target_picker_candidate.gd`: finite and deterministic ground-plane
+  picking of public synthetic A/B/C cube locations (0.52m trial radius).
+- `feedback_journal_candidate.gd`: 12-entry in-memory rolling
+  selection/entry/exit/confirmed/rejected feedback record.
+- Expanded `flow_demo.gd`: unhandled left-click -> cube ID selection
+  -> highlight and action focus, with out-of-range refusal. Added previous,
+  next, prompt-focus/world-focus controls, movement suppression while prompt
+  owns focus, text history, and read-only focus/feedback data.
+- Added future-only `verify_play_selection_candidate.gd` and
+  `verify_play_scene_candidate.gd` tests.
+- [Full implementation rationale](PLAY_EXTENSION.md),
+  [integration boundaries](INTEGRATION.md),
+  [future acceptance cases M41–M62](PLAY_ACCEPTANCE.md).
+
+**NOT_RUN:** No Godot import, parser, GUI, code execution, tests, CI,
+screenshot or actual native keyboard focus check occurred in this turn.
+Existing PR #10 pinned prompt files, public fixture, base model and
+r004 scripts are unchanged. No real game scene, manuscript,
+canonical content or shared interface is approved or modified.

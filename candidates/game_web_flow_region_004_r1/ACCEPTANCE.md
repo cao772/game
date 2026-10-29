@@ -131,3 +131,17 @@ file is created or populated by this development task**:
   GUI text legibility or platform-specific parse behavior.
 - Any eventual integration with separate PR #6, #15 or #17 requires
   independent explicit author approval. No automatic merge.
+
+---
+
+## GAME-WEB-PLAY-REGION-005 r1 future-only extension — NOT_RUN
+
+See [PLAY_ACCEPTANCE.md](PLAY_ACCEPTANCE.md) for prospective
+P001–P030 pure checks, S001–S029 scene checks and M41–M62
+desktop/keyboard/mouse visual cases. These are new proposed
+requirements, not results. Do not replace prior F001–F026 and
+G001–G020 suites; future verification needs to cover both baselines.
+
+No Godot parser, headless script, native window, mouse, keyboard,
+CI, performance or screen reader was run by this author.
+Expected `PASS` output inside scripts is test specification only.

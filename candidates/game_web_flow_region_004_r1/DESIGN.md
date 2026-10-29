@@ -119,3 +119,35 @@ Approve/discard the candidate; later optionally decide how to adapt
 synthetic motion to real scene target discovery, real input arbitration,
 UI visual style, approach distance and actual interaction semantics.
 None of those decisions is implied by this code submission.
+
+---
+
+## GAME-WEB-PLAY-REGION-005 r1 — design addendum (NOT_RUN)
+
+Actual PR #23 code was read before editing, and improvements were
+selected without changing original scene/model semantics.
+
+1. **Click selects rather than confirms.** A ray from the fixed trial
+   camera is intersected with a synthetic cube-center plane and sent to
+   a pure nearest-ID picker. Confirmation remains an explicit second
+   step through the pinned prompt. This prevents accidental clicks from
+   mutating the local confirmation count.
+2. **Out-of-range clicks reject visibly.** The picker identifies even an
+   ineligible displayed cube, but the coordinator refuses selection,
+   confirmation or focus transfer until actual model proximity permits.
+3. **Prompt focus has priority over movement.** Background WASD is
+   suspended while the prompt owns keyboard focus; explicit host controls
+   can return focus to the synthetic world and move selection backward
+   or forward. Existing focus/Escape logic in the pinned PR #10 prompt
+   remains unmodified.
+4. **Feedback is local and bounded.** A 12-entry in-memory journal
+   records only coarse synthetic outcomes and the optional placeholder
+   ID. It is neither a shared event API, timestamped game history,
+   save format nor private telemetry.
+5. **All geometry is still synthetic.** The 0.52m click radius, viewport,
+   marker material colors and UI history size are trial proposals. No
+   canonical bedroom/object placement is implied.
+
+See `PLAY_EXTENSION.md` and `INTEGRATION.md` for detailed routing,
+limitations, missing real-scene inputs and the final owner review gate.
+This is **NOT_RUN**, not functional/visual acceptance.
