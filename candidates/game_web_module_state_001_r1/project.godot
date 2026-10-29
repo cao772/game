@@ -1,0 +1,10 @@
+; GAME-WEB-MODULE-STATE-001 r1
+; Isolated candidate only. No main scene, no autoload, no runtime hookup.
+config_version=5
+
+[application]
+config/name="GAME-WEB-MODULE-STATE-001 read-only inspector candidate"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
