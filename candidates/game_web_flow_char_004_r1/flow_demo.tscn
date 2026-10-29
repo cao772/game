@@ -1,7 +1,6 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://flow_demo_candidate.gd" id="1_demo"]
-[ext_resource type="PackedScene" path="res://profile_flow_candidate.tscn" id="2_flow"]
 
 [node name="SyntheticFlowDemo" type="Control"]
 anchors_preset = 15
@@ -11,13 +10,37 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_demo")
 
-[node name="Flow" parent="." instance=ExtResource("2_flow")]
+[node name="Toolbar" type="HBoxContainer" parent="."]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 44.0
+
+[node name="Caption" type="Label" parent="Toolbar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "合成占位导航 · 独立预览"
+
+[node name="RetryFlow" type="Button" parent="Toolbar"]
+layout_mode = 2
+text = "重载组件"
+
+[node name="Host" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = 44.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="Fallback" type="Label" parent="Host"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "等待合成占位浏览组件"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
 
 [node name="ExitNotice" type="Label" parent="."]
 visible = false
@@ -25,8 +48,10 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = 44.0
 grow_horizontal = 2
 grow_vertical = 2
-text = "已收到退出请求（仅演示信号）。"
+text = "已收到退出请求（仅演示信号；未关闭游戏）。"
 horizontal_alignment = 1
 vertical_alignment = 1
+autowrap_mode = 3

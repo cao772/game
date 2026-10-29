@@ -87,3 +87,39 @@ Control scene, but **does not install either into PR #17**. See
 
 Task: GAME-WEB-FLOW-CHAR-004 r1.
 Delivery: SOURCE_SUBMITTED. Verification: **NOT_RUN**.
+
+
+---
+
+## GAME-WEB-PLAY-CHAR-005 r1 — additional source increment (NOT_RUN)
+
+This same Draft PR #21 branch now adds *source only* enhancements:
+scrollable rows with subtitle/tags and a labelled summary excerpt,
+full-length detail preserved through the pinned #14 renderer, breadcrumb
+and narrow-screen header wrapping, restoration of the originating
+list row/scroll position on Back, fixed-fixture Reload, and a genuine
+detail-panel remount on Retry after a resource failure.
+
+The source remains synthetic-only and isolated. See
+[PLAY_005_DESIGN.md](PLAY_005_DESIGN.md) for design decisions,
+[PLAY_005_INTEGRATION.md](PLAY_005_INTEGRATION.md) for reviewed
+host/shell mounting boundaries, and
+[PLAY_005_ACCEPTANCE.md](PLAY_005_ACCEPTANCE.md) for a detailed future
+review matrix. Added future-only
+`verify_profile_play_candidate.gd`.
+
+**Status: SOURCE_SUBMITTED / NOT_RUN.** No Godot, tests, GDScript
+execution, rendering or integration was performed by the authoring
+task. No canon or shared interface is approved.
+
+
+### 005 demonstration resilience update
+
+Unlike the 004 source which preloaded its Flow scene from the Godot
+`ext_resource` graph, `flow_demo.tscn` now has an always-loadable
+static header/host/fallback and `flow_demo_candidate.gd` mounts
+`profile_flow_candidate.tscn` from a fixed local path at runtime.
+Missing/incompatible Flow scenes show a visible error and a manual
+`Reload Component` button. Future scenarios are covered by the
+005 acceptance matrix, including resource restoration and only-one
+instance after repeated reload. This is a **source proposal, NOT_RUN**.

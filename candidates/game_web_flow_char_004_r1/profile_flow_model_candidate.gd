@@ -89,6 +89,7 @@ func visible_summaries() -> Array[Dictionary]:
                 "display_name": entry["display_name"],
                 "subtitle": entry["subtitle"],
                 "status_label": entry["status_label"],
+                "summary": entry["summary"],
                 "tags": (entry["tags"] as Array).duplicate()
             })
     return output

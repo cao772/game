@@ -98,3 +98,30 @@ No private source or raw chats should be added to public GitHub.
 
 **Execution status: NOT_RUN. No code, tests, Godot editor, CI or benchmark
 was run during this request.**
+
+
+---
+
+## GAME-WEB-PLAY-CHAR-005 r1 future acceptance
+
+**All statuses NOT_RUN.** The new candidate source-level checks, native
+manual keyboard/accessibility and missing-resource procedures are fully
+listed in [PLAY_005_ACCEPTANCE.md](PLAY_005_ACCEPTANCE.md) with
+`verify_profile_play_candidate.gd`. Existing
+`verify_profile_flow_candidate.gd` also requires an independent
+regression run after these changes. Writing those scripts is not running
+them; do not record PASS without engine logs and real evidence.
+
+Future-only invocation (not executed here):
+
+    godot --headless --path candidates/game_web_flow_char_004_r1 --script res://verify_profile_play_candidate.gd
+
+**GAME-WEB-PLAY-CHAR-005 r1: NOT_RUN.**
+
+
+### 005 demo source additions
+
+The new future-only `verify_profile_play_candidate.gd` also proposes
+P29–P33 demo resource recovery assertions, while manual G20 reviews
+small-screen fallback and the static retry control. No actual test
+execution occurred; all remain NOT_RUN.
