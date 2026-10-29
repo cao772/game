@@ -9,7 +9,8 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
-from perf_report_candidate import BUDGETS, build_report, html_report, save_pair
+from perf_report_candidate import (BUDGETS, MAX_INPUT_BYTES, build_report, compare_reports,
+                                   html_report, read_object, save_pair)
 
 
 def synthetic_analysis():
@@ -21,7 +22,16 @@ def synthetic_analysis():
         "task_id": "GAME-WEB-PERF-002",
         "version": "r1",
         "error_count": 0,
+        "errors": [],
         "sample_count": 3,
+        "stats": {
+            "frame_ms": {"p50": 12.0, "p95": 16.7, "p99": 24.0},
+            "script_ms": {"p95": 2.0},
+            "ram_gib": {"peak": 1.2},
+            "vram_delta_gib": {"peak": 1.0},
+            "draw_calls": {"peak": 200},
+            "triangles": {"peak": 150000},
+        },
         "status": "incomplete",
         "full_scene_pass": False,
         "percentile_definition": "nearest-rank: ascending, rank=ceil(p*n); no interpolation",
@@ -46,6 +56,7 @@ class ReportCandidateCases(unittest.TestCase):
         src = synthetic_analysis()
         src["checks"]["frame_p99_ms"]["value"] = 24.01
         src["checks"]["frame_p99_ms"]["status"] = "FAIL"
+        src["stats"]["frame_ms"]["p99"] = 24.01
         src["measured_subset_status"] = "FAIL"
         report = build_report(src)
         self.assertEqual(report["measured_subset_status"], "FAIL")
@@ -158,6 +169,103 @@ class ReportCandidateCases(unittest.TestCase):
                 save_pair(second_prefix, "bad", {"bad": True})
             self.assertFalse(Path(str(second_prefix) + ".html").exists())
             self.assertEqual(previous_json.read_text(encoding="utf-8"), "protected")
+
+    def test_two_run_numeric_comparison_is_not_benchmark(self):
+        baseline = build_report(synthetic_analysis())
+        current_src = synthetic_analysis()
+        current_src["checks"]["frame_p99_ms"]["value"] = 23.0
+        current_src["stats"]["frame_ms"]["p99"] = 23.0
+        current = build_report(current_src)
+        comp = compare_reports(current, baseline)
+        frame = next(x for x in comp["rows"] if x["key"] == "frame_p99_ms")
+        self.assertEqual(frame["baseline"], 24.0)
+        self.assertEqual(frame["current"], 23.0)
+        self.assertEqual(frame["delta"], -1.0)
+        self.assertEqual(frame["status"], "NUMERIC_ONLY")
+        self.assertFalse(comp["comparison_is_verified_benchmark"])
+        self.assertEqual(comp["context_status"], "UNVERIFIED")
+
+    def test_compare_missing_is_not_comparable(self):
+        baseline_src = synthetic_analysis()
+        baseline_src["checks"]["script_p95_ms"]["value"] = None
+        baseline_src["checks"]["script_p95_ms"]["status"] = "INCOMPLETE"
+        baseline_src["stats"]["script_ms"]["p95"] = None
+        baseline_src["measured_subset_status"] = "INCOMPLETE"
+        comp = compare_reports(build_report(synthetic_analysis()), build_report(baseline_src))
+        row = next(x for x in comp["rows"] if x["key"] == "script_p95_ms")
+        self.assertIsNone(row["delta"])
+        self.assertEqual(row["status"], "NOT_COMPARABLE")
+
+    def test_compare_declared_scene_hash_conflict(self):
+        src = synthetic_analysis()
+        left = build_report(src, capture={"scene_sha256": "a" * 64, "is_synthetic": True})
+        right = build_report(src, capture={"scene_sha256": "b" * 64, "is_synthetic": True})
+        comp = compare_reports(left, right)
+        self.assertEqual(comp["context_status"], "CONFLICT")
+        self.assertTrue(all(row["delta"] is None for row in comp["rows"]))
+
+    def test_zero_baseline_has_delta_but_undefined_percent(self):
+        src = synthetic_analysis()
+        src["checks"]["draw_calls_peak"]["value"] = 0
+        src["stats"]["draw_calls"]["peak"] = 0
+        baseline = build_report(src)
+        current = build_report(synthetic_analysis())
+        comp = compare_reports(current, baseline)
+        row = next(x for x in comp["rows"] if x["key"] == "draw_calls_peak")
+        self.assertEqual(row["delta"], 200)
+        self.assertIsNone(row["delta_percent"])
+
+    def test_wrong_stats_is_incomplete_even_with_pass_check(self):
+        src = synthetic_analysis()
+        src["stats"]["frame_ms"]["p50"] = 8.0
+        src["measured_subset_status"] = "INCOMPLETE"
+        result = build_report(src)
+        metric = next(x for x in result["metrics"] if x["key"] == "frame_p50_ms")
+        self.assertEqual(metric["status"], "INCOMPLETE")
+        self.assertEqual(result["measured_subset_status"], "INCOMPLETE")
+
+    def test_wrong_version_definition_and_missing_error_details(self):
+        for key, value in (
+            ("version", "r999"),
+            ("percentile_definition", "nearest-rank ceil is not verified"),
+            ("errors", None),
+            ("status", "PASS"),
+        ):
+            src = synthetic_analysis()
+            src[key] = value
+            src["measured_subset_status"] = "INCOMPLETE"
+            result = build_report(src)
+            self.assertEqual(result["measured_subset_status"], "INCOMPLETE")
+            self.assertFalse(any(metric["status"] == "PASS" for metric in result["metrics"]))
+
+    def test_duplicate_json_keys_and_nonfinite_constants_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            file = Path(folder) / "bad.json"
+            for payload in ('{"x": 1, "x": 2}', '{"x": NaN}', '{"x": Infinity}'):
+                file.write_text(payload, encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    read_object(file)
+
+    def test_json_byte_limit_and_non_object(self):
+        with tempfile.TemporaryDirectory() as folder:
+            file = Path(folder) / "bad.json"
+            file.write_text('{"payload":"' + ("x" * MAX_INPUT_BYTES) + '"}', encoding="utf-8")
+            with self.assertRaises(ValueError):
+                read_object(file)
+            file.write_text('[1,2]', encoding="utf-8")
+            with self.assertRaises(ValueError):
+                read_object(file)
+
+    def test_comparison_html_escapes_source_metadata(self):
+        left = build_report(synthetic_analysis(), capture={
+            "is_synthetic": True,
+            "engine_version": '<img src=x onerror=alert(1)>'
+        })
+        left["comparison"] = compare_reports(left, build_report(synthetic_analysis()))
+        output = html_report(left)
+        self.assertNotIn('<img src=x', output)
+        self.assertIn('&lt;img', output)
+        self.assertIn('两次观测数值比较', output)
 
 
 if __name__ == "__main__":
