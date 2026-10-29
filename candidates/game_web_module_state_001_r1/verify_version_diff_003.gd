@@ -109,8 +109,8 @@ func _cases() -> void:
 		_check(_safe(diff), "V012 pair summary is redacted")
 		var expected := true
 		for entry in diff["changed_fields"]:
-			if not Inspector.FIELDS.has(entry["field"]) or
-				entry.has("before") or entry.has("after"):
+			if (not Inspector.FIELDS.has(entry["field"])
+				or entry.has("before") or entry.has("after")):
 				expected = false
 		_check(expected, "V013 only known field names + change types")
 
