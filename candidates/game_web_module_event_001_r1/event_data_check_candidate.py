@@ -18,6 +18,8 @@ from typing import Any
 from event_source_diagnostics_candidate import (
     SourceIndex, SourceIndexError, enhance_issues,
 )
+from event_repair_advice_candidate import attach_review_advice
+from event_report_candidate import render_text_report
 
 ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 MAX_BYTES_PER_FILE = 1024 * 1024
@@ -373,12 +375,16 @@ def check_event_data(inputs: list[str]) -> dict[str, Any]:
     issues, by_code, references_checked = enhance_issues(
         issues, indexes, documents, syntax_locations,
     )
+    advice_summary = attach_review_advice(issues, documents)
     return {
         "task_id": "GAME-WEB-MODULE-EVENT-001",
         "version": "r1",
         "enhancement_task_id": "GAME-WEB-MODULE-EVENT-002",
         "enhancement_version": "r1",
         "diagnostic_format": "2.0-candidate",
+        "continuation_task_id": "GAME-WEB-CONTINUE-EVENT-003",
+        "continuation_version": "r1",
+        "advice_format": "3.0-candidate",
         "status": "FAIL" if issues else "PASS",
         "files_selected": len(paths),
         "event_objects_read": parsed_count,
@@ -386,6 +392,7 @@ def check_event_data(inputs: list[str]) -> dict[str, Any]:
         "references_checked": references_checked,
         "issue_count": len(issues),
         "issue_counts_by_code": by_code,
+        "repair_review_summary": advice_summary,
         "issues": issues,
     }
 
@@ -398,33 +405,22 @@ def main(argv: list[str] | None = None) -> int:
         "inputs", nargs="+", help="JSON files and/or recursive directories"
     )
     parser.add_argument(
-        "--json", action="store_true", help="Print machine-readable JSON report"
+        "--json", action="store_true",
+        help="Print machine-readable JSON report (legacy alias)",
+    )
+    parser.add_argument(
+        "--format", choices=("text", "json"), default=None,
+        help="Diagnostic report format, defaults to text",
     )
     args = parser.parse_args(argv)
+    if args.json and args.format == "text":
+        parser.error("--json and --format text cannot be combined")
     report = check_event_data(args.inputs)
-    if args.json:
+    output_format = "json" if args.json else (args.format or "text")
+    if output_format == "json":
         print(json.dumps(report, indent=2, ensure_ascii=False))
     else:
-        print(
-            "%s: %d file(s), %d event(s), %d issue(s)"
-            % (
-                report["status"], report["files_selected"],
-                report["event_objects_read"], report["issue_count"],
-            )
-        )
-        for issue in report["issues"]:
-            where = issue.get("location")
-            coordinates = (
-                ":%d:%d" % (where["line"], where["column"])
-                if where is not None else ""
-            )
-            print(
-                "%s %s%s%s: %s"
-                % (
-                    issue["code"], issue["file"], coordinates,
-                    issue["pointer"] or "/", issue["detail"],
-                )
-            )
+        sys.stdout.write(render_text_report(report))
     return 0 if report["status"] == "PASS" else 1
 
 
