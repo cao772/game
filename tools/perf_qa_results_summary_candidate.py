@@ -290,7 +290,8 @@ def _evaluate_case(source_type: str, case: Any) -> dict[str, Any]:
         if (reported_scene not in (None, "incomplete")
                 or reported_pass not in (None, False)):
             _append(issues, "scene_claim_conflict")
-        if classification in SUCCESS_CLASSES or classification == "wrong_subset_pass":
+        if (isinstance(classification, str) and
+                (classification in SUCCESS_CLASSES or classification == "wrong_subset_pass")):
             if (reported_scene != "incomplete"
                     or reported_pass is not False):
                 _append(issues, "missing_full_scene_incomplete_claim")
@@ -311,7 +312,7 @@ def _evaluate_case(source_type: str, case: Any) -> dict[str, Any]:
         if isinstance(original, dict) and not original.get("timed_out"):
             raw_claim, parse_issues = _extract_analyzer_claim(original)
             # Contract mismatch/format errors are allowed to have non-JSON.
-            if classification in SUCCESS_CLASSES | {"wrong_subset_pass"}:
+            if isinstance(classification, str) and classification in (SUCCESS_CLASSES | {"wrong_subset_pass"}):
                 issues.extend(parse_issues)
             if isinstance(raw_claim, dict):
                 if raw_claim.get("measured_subset_status") != reported_subset:
@@ -329,10 +330,10 @@ def _evaluate_case(source_type: str, case: Any) -> dict[str, Any]:
                 unmeasured_fields, coverage_issues = _coverage_from_document(
                     raw_claim
                 )
-                if classification in SUCCESS_CLASSES | {"wrong_subset_pass"}:
+                if isinstance(classification, str) and classification in (SUCCESS_CLASSES | {"wrong_subset_pass"}):
                     issues.extend(coverage_issues)
                 checks = raw_claim.get("checks")
-                if (classification in SUCCESS_CLASSES | {"wrong_subset_pass"}
+                if (isinstance(classification, str) and classification in (SUCCESS_CLASSES | {"wrong_subset_pass"})
                         and (not isinstance(checks, dict)
                              or set(checks) != set(MEASURED_METRICS))):
                     _append(issues, "measured_check_fields_unrecognized")
@@ -345,17 +346,17 @@ def _evaluate_case(source_type: str, case: Any) -> dict[str, Any]:
             "invalid_input_rejected": "INCOMPLETE",
             "wrong_subset_pass": "PASS",
         }
-        if (classification in expected_subsets
+        if (isinstance(classification, str) and classification in expected_subsets
                 and reported_subset != expected_subsets[classification]):
             _append(issues, "classification_vs_subset_conflict")
         if classification == "baseline_subset_pass" and case_id != "C01_baseline":
             _append(issues, "baseline_class_on_adversarial_case")
-        if classification == "subset_rejected" and case_id in INVALID_INPUTS | {
-            "C01_baseline"
-        }:
+        if (classification == "subset_rejected" and isinstance(case_id, str)
+                and case_id in (INVALID_INPUTS | {"C01_baseline"})):
             _append(issues, "subset_rejected_case_mismatch")
         if (classification == "invalid_input_rejected"
-                and case_id not in INVALID_INPUTS):
+                and (not isinstance(case_id, str)
+                     or case_id not in INVALID_INPUTS)):
             _append(issues, "invalid_rejection_case_mismatch")
         if classification == "wrong_subset_pass" and case_id == "C01_baseline":
             _append(issues, "wrong_pass_on_valid_baseline")
@@ -403,9 +404,9 @@ def _evaluate_case(source_type: str, case: Any) -> dict[str, Any]:
 
     if issues:
         evaluation = "inconclusive"
-    elif classification in DEFECT_CLASSES:
+    elif isinstance(classification, str) and classification in DEFECT_CLASSES:
         evaluation = "confirmed_defect"
-    elif classification in SUCCESS_CLASSES:
+    elif isinstance(classification, str) and classification in SUCCESS_CLASSES:
         evaluation = "observed_expected_behavior"
     else:
         evaluation = "inconclusive"
