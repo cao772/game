@@ -49,7 +49,7 @@ The new preview scene is an independent MarginContainer with a \`PanelHost\`
 and a neutral \`Fallback\` label. At runtime it checks the *fixed* path
 \`res://character_profile_panel.tscn\` with \`ResourceLoader.exists\`, then
 \`ResourceLoader.load\` as a \`PackedScene\`, and validates the instantiated
-root type and expected candidate methods before adding it to \`PanelHost\`.
+root type, expected candidate methods and required local navigation-child paths before adding it to \`PanelHost\`.
 
 On any rejected resource, the preview keeps its toolbar/status visible,
 turns off the selection/clear controls, shows the fallback, and leaves
