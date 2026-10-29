@@ -133,3 +133,31 @@ available. New candidate-local features:
 Previous test file is unchanged. Both r1 and new tests are **NOT_RUN**;
 no Godot parser or visual validation is claimed. Public code stays isolated
 under this candidate directory, and does not establish any shared API.
+
+---
+
+## GAME-WEB-CONTINUE-REGION-003 r1 — follow-on independent implementation (NOT_RUN)
+
+Read PR #10's actual HEAD before authoring. New code remains exclusively under
+this standalone `candidates/game_web_module_region_001_r1/` directory.
+
+- Stable-ID `synchronize_targets(list, preferred_id = &"")`: live list
+  update preserves the selected ID across reorders; if removed, falls
+  back to a clamped index; invalid/empty input is rejected atomically.
+  This does not dispatch an interaction.
+- `state_snapshot()` and deferred `prompt_state_changed(snapshot)`
+  provide UI state reconciliation, local revision tracking and
+  de-duplicated notifications while retaining all existing signals.
+- Native window focus transitions request focus-state reconciliation.
+  A disappearing navigation row rehomes prompt focus to the action button.
+- Public `placeholder_targets.example.json` + local fixture loader, demo
+  buttons showing reorder/reduce/replace and a live state inspector.
+- New *unexecuted* finite regression script
+  `verify_interaction_prompt_sync_candidate.gd`.
+
+See [design reasoning](docs/module-003-focus-sync.md),
+[future acceptance steps](docs/acceptance-cases.md), and
+[public example data](placeholder_targets.example.json).
+**NOT_RUN**: no Godot import, code execution, test, screenshots, CI or
+performance claims from this development turn. No main merge or interface
+approval. Existing original r1 and r2 QA scripts remain unchanged.

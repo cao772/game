@@ -94,3 +94,25 @@ All automated/manual results are **NOT_RUN** pending Codex verification.
   No shared interface is ratified by adding these callable functions.
 - This follow-on changes only files in the existing PR #10 candidate path;
   main and all other PRs/candidates are untouched. NOT_RUN.
+
+---
+
+## GAME-WEB-CONTINUE-REGION-003 r1 scope note — NOT_RUN
+
+Only a new local `synchronize_targets` method, read-only UI snapshots,
+deferred change notification and public placeholder fixtures were added.
+The existing scene/signal behavior remains **candidate-local** rather
+than a formal shared interface. Reordered IDs are retained by exact
+placeholder identity; removal falls back to index, not narrative meaning.
+External direct editing of `visible`, child button focus/labels or
+multiple simultaneous instances is outside the current method contract.
+
+The demonstration's JSON contains only generic A–E placeholders.
+It has no unpublished text, character, parentage, story conditions,
+event bus, save core, file upload, telemetry or global InputMap hooks.
+The module does not read real scene targets.
+
+Focus return on the native window and actual Tab routing, screen-reader
+accessibility, DPI/IME behavior and possible keyboard ownership conflicts
+with separate Draft PR #6 remain unresolved for later Codex/owner QA.
+Do not merge `main` or interpret the new symbols as an approval.

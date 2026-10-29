@@ -9,6 +9,8 @@ signal placeholder_changed(target_id: StringName)
 signal target_list_changed(target_count: int)
 signal focus_state_changed(role: StringName)
 signal style_changed()
+# Coalesced, read-only local UI state notification; not a shared API.
+signal prompt_state_changed(snapshot: Dictionary)
 
 @onready var _padding: MarginContainer = $Padding
 @onready var _target_label: Label = $Padding/Content/TargetLabel
@@ -27,6 +29,9 @@ var _restore_focus: Control = null
 var _last_focus_role: StringName = &"none"
 var _request_count: int = 0
 var _style: Dictionary = {}
+var _state_revision: int = 0
+var _state_update_queued: bool = false
+var _last_emitted_state: Dictionary = {}
 
 
 func _ready() -> void:
@@ -47,6 +52,10 @@ func _ready() -> void:
     _update_focus_graph()
     _render_style()
     set_process_unhandled_key_input(true)
+    # Native window focus may change without a button focus-entered signal.
+    get_window().focus_entered.connect(_schedule_focus_sync)
+    get_window().focus_exited.connect(_schedule_focus_sync)
+    _last_emitted_state = _state_core()
 
 
 func _valid_text(value: Variant, limit: int) -> bool:
@@ -138,6 +147,7 @@ func show_for_targets(input_targets: Array, initial_index: int = 0) -> bool:
     placeholder_changed.emit(_active_target)
     if not was_shown:
         prompt_visibility_changed.emit(true)
+    _queue_state_emit()
     return true
 
 
@@ -151,6 +161,56 @@ func select_target(index: int) -> bool:
     _active_target = _targets[index]["id"]
     _render_target()
     placeholder_changed.emit(_active_target)
+    _queue_state_emit()
+    return true
+
+
+# Replace the visible list while preserving selection by stable placeholder ID.
+# preferred_id is a hint: if absent, the current ID is kept when available.
+# If removed, the previous index is clamped into the next list. No action fires.
+# An empty/invalid list is rejected atomically, never interpreted as dismissal.
+func synchronize_targets(input_targets: Array, preferred_id: StringName = &"") -> bool:
+    if not is_inside_tree() or not is_prompt_shown():
+        return false
+    var proposed: Array[Dictionary] = _normalize_targets(input_targets)
+    if proposed.is_empty():
+        return false
+
+    var old_id: StringName = _active_target
+    var new_index: int = -1
+
+    if preferred_id != &"":
+        for i in range(proposed.size()):
+            if proposed[i]["id"] == preferred_id:
+                new_index = i
+                break
+
+    if new_index < 0:
+        for i in range(proposed.size()):
+            if proposed[i]["id"] == old_id:
+                new_index = i
+                break
+
+    if new_index < 0:
+        new_index = mini(_active_index, proposed.size() - 1)
+
+    _targets = proposed
+    _active_index = new_index
+    _active_target = proposed[new_index]["id"]
+    _navigation.visible = _targets.size() > 1
+    _update_focus_graph()
+    _render_target()
+
+    # Navigation can disappear while its Button owned focus.
+    # Reacquire action only when there is no valid prompt control focused.
+    if _current_focus_role() == &"none":
+        _action_button.grab_focus()
+    _sync_focus_state()
+
+    target_list_changed.emit(_targets.size())
+    if old_id != _active_target:
+        placeholder_changed.emit(_active_target)
+    _queue_state_emit()
     return true
 
 
@@ -211,6 +271,7 @@ func hide_prompt() -> bool:
     _restore_focus = null
     target_list_changed.emit(0)
     prompt_visibility_changed.emit(false)
+    _queue_state_emit()
     return true
 
 
@@ -234,6 +295,50 @@ func request_count() -> int:
     return _request_count
 
 
+# Snapshot is computed from the current widget state and viewport focus.
+# Revision increments on coalesced state signals, not on every method call.
+func state_snapshot() -> Dictionary:
+    var result: Dictionary = _state_core()
+    result["revision"] = _state_revision
+    return result
+
+
+func _state_core() -> Dictionary:
+    var ids: Array[StringName] = []
+    for item in _targets:
+        ids.append(item["id"])
+    return {
+        "shown": is_prompt_shown(),
+        "target_id": _active_target,
+        "target_index": _active_index,
+        "target_count": _targets.size(),
+        "target_ids": ids,
+        "focus_role": _current_focus_role(),
+        "request_count": _request_count,
+        "style": _style.duplicate(true)
+    }
+
+
+func _queue_state_emit() -> void:
+    if not is_inside_tree() or _state_update_queued:
+        return
+    _state_update_queued = true
+    call_deferred("_flush_state_emit")
+
+
+func _flush_state_emit() -> void:
+    _state_update_queued = false
+    if not is_inside_tree():
+        return
+    var current: Dictionary = _state_core()
+    if current == _last_emitted_state:
+        return
+    _last_emitted_state = current.duplicate(true)
+    _state_revision += 1
+    current["revision"] = _state_revision
+    prompt_state_changed.emit(current.duplicate(true))
+
+
 # Reads actual Viewport focus; a cached signal is not used as a false claim.
 func focus_state() -> Dictionary:
     return {
@@ -247,6 +352,8 @@ func focus_state() -> Dictionary:
 
 func _current_focus_role() -> StringName:
     if not is_inside_tree() or not is_prompt_shown():
+        return &"none"
+    if not get_window().has_focus():
         return &"none"
     var owner: Control = get_viewport().gui_get_focus_owner()
     if owner == _previous_button and _navigation.visible:
@@ -265,6 +372,7 @@ func _publish_focus_role(role: StringName) -> void:
         return
     _last_focus_role = role
     focus_state_changed.emit(role)
+    _queue_state_emit()
 
 
 func _sync_focus_state() -> void:
@@ -310,6 +418,7 @@ func apply_style(options: Dictionary) -> bool:
     _style = proposed
     _render_style()
     style_changed.emit()
+    _queue_state_emit()
     return true
 
 
@@ -414,6 +523,7 @@ func request_interaction(blocked_override: Variant = null) -> bool:
         return false
     _request_count += 1
     interaction_requested.emit(_active_target)
+    _queue_state_emit()
     return true
 
 

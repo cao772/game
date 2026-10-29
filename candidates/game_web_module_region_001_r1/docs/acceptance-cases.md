@@ -102,3 +102,48 @@ The native visual and keyboard-focus cases **must not** be presented as
 passing merely because future headless checks return 0.
 Save screenshots, event counts, Godot version, commit SHA and unexpected
 focus transitions. Any failures should be preserved for review, not edited away.
+
+---
+
+## GAME-WEB-CONTINUE-REGION-003 r1 — future checks (NOT_RUN)
+
+**This is a prospective test plan, not any observed result.** After the
+owner authorizes execution, invoke the *separate* new headless suite:
+
+```sh
+godot --headless --path . --script res://verify_interaction_prompt_sync_candidate.gd
+```
+
+Expected only if it eventually succeeds:
+`PASS GAME-WEB-CONTINUE-REGION-003 r1 (future contract only)`.
+A zero exit status is necessary but cannot prove native focus/visual QA.
+
+Proposed automated coverage: public JSON catalog validity, data-set shapes,
+initial selection B, B preserved after reorder to index 2, invalid updates
+atomic (no signals), removed-target fallback, preferred selection E, one
+request emitted for currently selected ID, style changes isolated from
+selection, state revision advances after a deferred state change,
+coalescing and zero duplicate target actions, hidden snapshot reset, and
+10 show/reorder/request/hide rounds.
+
+### Native/UI manual cases (all PENDING; do not silently mark PASS)
+
+| ID | Reproducible preparation and action | Expected evidence |
+| --- | --- | --- |
+| M29 | Launch `demo.tscn`; load three public placeholders | Three IDs shown; selecting B displays index 2/3; no imported game content |
+| M30 | Select B, press host 'reorder' | B retained by ID even though it moves to index 3; no interaction emission |
+| M31 | B selected, press 'reduce' | B removed, falls back to A index 1/1; navigation row hidden |
+| M32 | Three targets, focus Next, then reduce to one | Focus moves to visible action Button; Tab/Shift+Tab never jumps to hidden navigation |
+| M33 | Multi-list active, press host 'replace' | Preferred E chosen as index 2/2; request sends E only after action |
+| M34 | Prompt focused, PageUp/PageDown/Tab/Shift+Tab | Target cycling and focus traversal behave separately; no double requests |
+| M35 | Prompt focused, Alt+Tab away then return | Inspector reports 'none' while window unfocused; reacquired role matches viewport focus |
+| M36 | Transfer focus to host, press Escape/PageDown | Prompt does not consume host keyboard input; inspector reflects role 'none' |
+| M37 | Toggle preset while B selected and focus inside prompt | Selection, focus policy and request count unchanged; focus outline observable |
+| M38 | Compare state inspector before/after simultaneous refresh and focus change | No stale label or mismatched selected ID, count, role; revision monotonically advances on published changes |
+| M39 | Call synchronize_targets([]) and duplicate IDs via future controlled fixture | Return false; UI state, ID, visibility and revision unchanged |
+| M40 | Run 10 display/reorder/request/hide rounds after Codex approval | Exactly 10 valid action requests; no stale IDs, duplicate dispatch, or stuck focus |
+
+The existing M01–M28 scenarios still apply and must be rerun later.
+For any FAIL/INCOMPLETE preserve raw logs, exact Git HEAD, OS/Godot build,
+native focus evidence, fixture hashes and screenshots. Never infer rendering
+or native accessibility from headless outputs.

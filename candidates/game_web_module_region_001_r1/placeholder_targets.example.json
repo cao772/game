@@ -1,0 +1,59 @@
+{
+  "schema_version": "placeholder-catalog-v1",
+  "description": "PUBLIC PLACEHOLDER DATA ONLY. Not a game level, story, character, scene or approved shared interface.",
+  "sets": {
+    "initial": [
+      {
+        "id": "placeholder_a",
+        "label": "占位目标 A",
+        "action_caption": "确认 A"
+      },
+      {
+        "id": "placeholder_b",
+        "label": "占位目标 B",
+        "action_caption": "确认 B"
+      },
+      {
+        "id": "placeholder_c",
+        "label": "占位目标 C",
+        "action_caption": "确认 C"
+      }
+    ],
+    "reordered": [
+      {
+        "id": "placeholder_c",
+        "label": "占位目标 C（重排）",
+        "action_caption": "确认 C"
+      },
+      {
+        "id": "placeholder_a",
+        "label": "占位目标 A（重排）",
+        "action_caption": "确认 A"
+      },
+      {
+        "id": "placeholder_b",
+        "label": "占位目标 B（重排）",
+        "action_caption": "确认 B"
+      }
+    ],
+    "reduced": [
+      {
+        "id": "placeholder_a",
+        "label": "占位目标 A（精简）",
+        "action_caption": "确认 A"
+      }
+    ],
+    "alternate": [
+      {
+        "id": "placeholder_d",
+        "label": "占位目标 D（替换）",
+        "action_caption": "确认 D"
+      },
+      {
+        "id": "placeholder_e",
+        "label": "占位目标 E（替换）",
+        "action_caption": "确认 E"
+      }
+    ]
+  }
+}
