@@ -2,8 +2,8 @@ config_version=5
 
 [application]
 
-config/name="GAME-WEB-FLOW-SHELL-004 r1 DRAFT NOT_RUN"
-run/main_scene="res://flow_entry.tscn"
+config/name="GAME-WEB-PLAY-SHELL-005 r1 DRAFT NOT_RUN"
+run/main_scene="res://play_005/play_entry.tscn"
 
 [display]
 
