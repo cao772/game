@@ -161,3 +161,53 @@ stdout/stderr, changed file hashes, actual pass/fail counts and input
 immutability. Until then: **NOT_RUN**.
 
 See [acceptance.md](acceptance.md).
+
+
+## GAME-WEB-PLAY-EVENT-005 r1 — conditional navigation overlay (NOT_RUN)
+
+Adds a complete standalone Python overlay to this Draft PR's existing public
+synthetic flow viewer. The original source checker, existing public fixture
+JSON and original preview() semantics remain unchanged.
+
+New files:
+- event_play_preview_candidate.py — injected signal/conditions gate,
+  explicit branch navigation (choose/back/forward/jump), temporary
+  observation state, detached snapshots and structured error echoes.
+- test_event_play_preview_candidate.py — future assertion suite, NOT_RUN.
+- integration_play_event_005.md — dependency chain, documented decisions,
+  condition limitations and future integration boundary.
+- acceptance_play_event_005.md — planned verification matrix/evidence gate.
+
+The existing event_flow_preview_candidate.py gets only a read-only
+requirements_for(event_id) metadata accessor. It has no new event effects.
+
+**Condition semantics are deliberately conservative:** The PR #9 public
+format has trigger.signal and trigger.conditions but has NO authored
+per-action predicates, effect state, replay token contract or shared bus.
+This overlay requires explicit synthetic observed signal and flag IDs
+from the caller. Without matching inputs, choices are displayed as
+configured but are not selectable. It does not invent missing logic.
+
+The state snapshot is ephemeral and strictly a preview cursor/history.
+Recorded navigation can go backward or forward, fork from a prior step,
+and recalculate the visible synthetic branch list. A changed observation
+invalidates stale history as documented. No source write, real event
+runtime, save file or time effect occurs.
+
+Future local CLI sketch (NOT executed here):
+
+    python -B candidates/game_web_flow_event_004_r1/event_play_preview_candidate.py --event-id EVENT_START --format json --command '{"op":"observe","event_id":"EVENT_START","signal":"SIGNAL_START","conditions":["FLAG_READY"]}' --command '{"op":"choose","choice":"ACTION_TO_NEXT"}' candidates/game_web_flow_event_004_r1/fixtures
+
+Run later ONLY after Codex is authorized. It is normal for the linked
+EVENT_NEXT preview to be blocked until a separate synthetic observation
+for that event is provided. CLI returns structured JSON/text error
+messages and an unchanged snapshot for invalid requests.
+
+For detailed integration and acceptance, see
+[integration_play_event_005.md](integration_play_event_005.md) and
+[acceptance_play_event_005.md](acceptance_play_event_005.md).
+
+**Status: NOT_RUN.** No application execution, tests, imports, Python compile,
+CLI, Godot or CI were intentionally performed for EVENT-005. Readback of
+GitHub sources confirms only submitted content, not successful behavior.
+No main merge, private story publication or shared interface approval.
