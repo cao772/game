@@ -373,3 +373,183 @@ func preview_migration(path: String, expected_mode: String, proposed_target: Var
 	else:
 		report["status"] = "same_version_proposal"
 	return report
+
+# CONTINUE-STATE-003 r1: safe version-difference & guarded preview.
+# All added reports contain fixed status codes / known field NAMES only.
+# No payload, round identifier, source path or checksum is returned.
+
+const PROTECTED_FIELDS := [
+	"version", "mode", "round_id", "clock_seconds"
+]
+
+
+func _numeric_relation(left: Variant, right: Variant) -> String:
+	var left_type := typeof(left)
+	var right_type := typeof(right)
+	if (left_type != TYPE_INT and left_type != TYPE_FLOAT):
+		return "unknown"
+	if (right_type != TYPE_INT and right_type != TYPE_FLOAT):
+		return "unknown"
+	if not is_finite(float(left)) or not is_finite(float(right)):
+		return "unknown"
+	if float(left) < float(right):
+		return "lower_numeric_version"
+	if float(left) > float(right):
+		return "higher_numeric_version"
+	return "same_numeric_version"
+
+
+func report_version_delta(
+	path: String, expected_mode: String, reference_version: Variant = 1
+) -> Dictionary:
+	# Reference v1 is the ONLY known schema; no arbitrary target support.
+	var reference_type := typeof(reference_version)
+	var valid_reference := (
+		(reference_type == TYPE_INT or reference_type == TYPE_FLOAT)
+		and is_finite(float(reference_version))
+		and float(reference_version) == float(VERSION)
+	)
+	var report := {
+		"report_version": REPORT_VERSION,
+		"task_id": "GAME-WEB-CONTINUE-STATE-003",
+		"status": "invalid_reference",
+		"error_code": "REFERENCE_NOT_APPROVED_V1",
+		"expected_mode": expected_mode if MODES.has(expected_mode) else "invalid",
+		"reference_version": VERSION,
+		"source_version": "unknown",
+		"numeric_relation": "unknown",
+		"format_compatibility": "indeterminate",
+		"migration_mapping": "not_provided",
+		"can_migrate": false,
+		"read_only": true,
+		"verified": false
+	}
+	if not valid_reference:
+		return report
+	var probe := _probe(path, expected_mode)
+	var compatibility := _compatibility_from_probe(probe)
+	report["status"] = probe["status"]
+	report["error_code"] = probe["error_code"]
+	report["source_version"] = probe["version_label"]
+	report["format_compatibility"] = compatibility["classification"]
+	if probe["status"] == "valid" or probe["status"] == "unsupported_version":
+		report["numeric_relation"] = _numeric_relation(
+			probe["raw"]["version"], VERSION
+		)
+	return report
+
+
+func compare_snapshot_versions(
+	left_path: String, right_path: String, expected_mode: String
+) -> Dictionary:
+	# Independent sequential read per path; never a transaction / lock.
+	var left := _probe(left_path, expected_mode)
+	var right := _probe(right_path, expected_mode)
+	var result := {
+		"report_version": REPORT_VERSION,
+		"task_id": "GAME-WEB-CONTINUE-STATE-003",
+		"status": "blocked",
+		"error_code": "UNCOMPARABLE_SOURCES",
+		"left": _safe_report(left, expected_mode),
+		"right": _safe_report(right, expected_mode),
+		"version_relation": "unknown",
+		"payload_comparison": "unavailable",
+		"changed_fields": [],
+		"changed_field_count": 0,
+		"mapping_approved": false,
+		"can_migrate": false,
+		"atomic_pair": false,
+		"read_only": true,
+		"verified": false
+	}
+	var left_usable := (
+		left["status"] == "valid" or left["status"] == "unsupported_version"
+	)
+	var right_usable := (
+		right["status"] == "valid" or right["status"] == "unsupported_version"
+	)
+	if not left_usable or not right_usable:
+		return result
+	# Both sources have a finite numeric version and a verified matching mode.
+	result["version_relation"] = _numeric_relation(
+		left["raw"]["version"], right["raw"]["version"]
+	)
+	if left["status"] != "valid" or right["status"] != "valid":
+		result["status"] = "unmapped_versions"
+		result["error_code"] = "VERSION_MAPPING_NOT_PROVIDED"
+		return result
+	var changes := _safe_changes(left["data"], right["data"])
+	result["changed_fields"] = changes.duplicate(true)
+	result["changed_field_count"] = changes.size()
+	result["payload_comparison"] = "known_v1_fields_only"
+	result["status"] = "comparable_v1"
+	result["error_code"] = ""
+	return result
+
+
+func preview_migration_safe(
+	path: String, expected_mode: String, proposed_target: Variant = null
+) -> Dictionary:
+	# Strictly safer report-only API than the historical detailed preview:
+	# no text_sha256, raw content, user path, or before/after values.
+	var source := _probe(path, expected_mode)
+	var safe := _safe_report(source, expected_mode)
+	var result := {
+		"report_version": REPORT_VERSION,
+		"task_id": "GAME-WEB-CONTINUE-STATE-003",
+		"status": "blocked",
+		"error_code": source["error_code"],
+		"source_status": source["status"],
+		"compatibility": safe["compatibility"].duplicate(true),
+		"expected_mode": safe["expected_mode"],
+		"changes": [],
+		"changed_field_count": 0,
+		"protected_field_changes": [],
+		"manual_mapping_required": true,
+		"requires_review": true,
+		"mapping_approved": false,
+		"can_apply": false,
+		"writes": false,
+		"contains_snapshot_payload": false,
+		"verified": false
+	}
+	# Unknown schemas are not comparable to v1 for actionable preview.
+	# Never let a proposed target "rescue" invalid source JSON/schema/mode.
+	if source["status"] == "unsupported_version":
+		result["status"] = "mapping_required"
+		result["error_code"] = "VERSION_MAPPING_NOT_PROVIDED"
+		return result
+	if source["status"] != "valid":
+		return result
+	if proposed_target == null:
+		result["status"] = "no_migration_needed"
+		result["error_code"] = ""
+		result["manual_mapping_required"] = false
+		return result
+	var target_issue := _schema_issue(proposed_target)
+	if not target_issue["code"].is_empty():
+		result["status"] = "invalid_target"
+		result["error_code"] = target_issue["code"]
+		return result
+	if proposed_target["mode"] != expected_mode:
+		result["status"] = "invalid_target"
+		result["error_code"] = "TARGET_MODE_MISMATCH"
+		return result
+	var target: Dictionary = proposed_target
+	var changes := _safe_changes(source["data"], target)
+	result["changes"] = changes.duplicate(true)
+	result["changed_field_count"] = changes.size()
+	result["manual_mapping_required"] = false
+	for entry in changes:
+		if PROTECTED_FIELDS.has(entry["field"]):
+			result["protected_field_changes"].append(entry["field"])
+	if not result["protected_field_changes"].is_empty():
+		result["status"] = "protected_field_review_blocked"
+		result["error_code"] = "PROTECTED_FIELDS_DIFFER"
+	elif changes.is_empty():
+		result["status"] = "no_changes"
+		result["error_code"] = ""
+	else:
+		result["status"] = "same_version_review_only"
+		result["error_code"] = ""
+	return result
