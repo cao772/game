@@ -250,12 +250,21 @@
       });
       return {
         name: label(field(g, "name"), 32), nRuns: n, origins, metrics,
-        runDetails: runs.map(x => ({
-          id: label(field(x, "id"), 32),
-          sourceStatus: label(field(x, "analyzer_subset_status"), 40),
-          sourceOrigin: label(field(x, "source_origin"), 64),
-          count: integer(field(x, "sample_count"))
-        }))
+        runDetails: runs.map(x => {
+          const c = field(x, "capture");
+          return {
+            id: label(field(x, "id"), 32),
+            sourceStatus: label(field(x, "analyzer_subset_status"), 40),
+            sourceOrigin: label(field(x, "source_origin"), 64),
+            count: integer(field(x, "sample_count")),
+            engineVersion: label(field(c, "engine_version"), 80),
+            renderer: label(field(c, "renderer"), 80),
+            sceneHash: label(field(c, "scene_sha256"), 84),
+            warnings: Array.isArray(field(x, "warnings")) ?
+              x.warnings.slice(0, 24).filter(w => typeof w === "string")
+                .map(w => w.slice(0, 160)) : []
+          };
+        })
       };
     });
     const uniq = [...new Set(groupOrigins)];
