@@ -176,3 +176,52 @@ The original EVENT-001 acceptance set remains present and unmodified.
 test suites and capture exit codes, platform, precise HEAD SHA, errors,
 skips, and read-only verification before anyone calls the change tested.
 No main merge, story approval, or shared interface approval.
+
+
+## EVENT-003 r1 — readable error reports and manual repair advice (NOT_RUN)
+
+This increment continues the same PR #9; nothing from private EVENT001 or
+other project branches was imported. No user content was changed.
+
+Additional files:
+- event_repair_advice_candidate.py: pure, rule-based review suggestions.
+- event_report_candidate.py: full grouped human error report on stdout.
+- test_event_repair_advice_candidate.py: synthetic future assertions.
+- docs/game-web-continue-event-003-acceptance.md: design tradeoffs,
+  diagnostics contract, and planned acceptance evidence.
+
+The existing checker now attaches a repair_advice object to each issue:
+- suggestion_id, category, title, non-destructive review steps.
+- auto_apply=false, requires_review=true for EVERY error.
+- For missing event references only: up to three possible spelling matches
+  from unique and structurally healthy event IDs in the selected files;
+  these are NEVER confirmed matches or automatic rewrites.
+- Duplicate/ambiguous/structurally invalid target diagnostics preserve
+  related definitions and source line/column anchors from EVENT-002.
+
+JSON reports include repair_review_summary (file counts, advice rule counts,
+manual-review policy, zero applied fixes), continuation_task_id and
+advice_format=3.0-candidate. The previous diagnostic_format and code/pointer
+fields are retained. The text renderer groups issues per file with
+filename:line:column, location precision, pointer, code, related sites and
+steps. It does not echo JSON source values. File paths and identifier values
+may still be sensitive; use only placeholder evidence in public reports.
+
+Output to stdout only, no file creation/repair:
+
+    python -B candidates/game_web_module_event_001_r1/event_data_check_candidate.py --format text candidates/game_web_module_event_001_r1/fixtures
+    python -B candidates/game_web_module_event_001_r1/event_data_check_candidate.py --format json candidates/game_web_module_event_001_r1/fixtures
+
+Legacy --json is retained; --json combined with --format text is rejected.
+Exit 0 means only static candidate checks found no issues, not scene or
+engine certification. Exit 1 means one or more diagnostics; argparse
+conflicts return exit 2.
+
+No code execution, tests, import checks or CI were performed in this
+development request. **NOT_RUN**. Future Codex tests must exercise all
+three synthetic test files, with explicit real exit codes and version
+evidence. Do not merge, replace sources, or approve shared interfaces or
+story content based on this candidate.
+
+See [EVENT-003 future acceptance and design decisions](
+../../docs/game-web-continue-event-003-acceptance.md).
