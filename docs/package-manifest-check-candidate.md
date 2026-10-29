@@ -74,3 +74,26 @@ Common issue codes: ARCHIVE_ERROR, MANIFEST_COUNT, INVALID_MANIFEST, MANIFEST_SC
 - If PR #4 changes version, member ordering or exclusion policy, compatibility must be reviewed explicitly. No Canon or shared interface is approved.
 
 Codex handoff: execute future tests and real PR #4 integration independently, record actual PASS/FAIL/SKIP with environment and commit IDs. Publish only public technical evidence; do not upload private chats, manuscript, personal images, secrets or credentials.
+
+## Continuation: GAME-WEB-CONTINUE-PACK-003 r1 (NOT_RUN)
+
+This branch now also contains a self-contained offline audit delivery module, future
+synthetic acceptance cases, and a strict reference JSON Schema. See
+[offline-manifest-review-delivery.md](offline-manifest-review-delivery.md) for the
+workflow, exit-code contract, security/privacy rationale and limitations.
+
+- New delivery CLI: `python tools/package_manifest_delivery_candidate.py --archive ./source.zip --deliver ./reports/new-audit.zip`
+- Atomic publication: temporary file in destination parent, fsync, hard-link
+  into a **new** destination, cleanup; never overwrite a destination.
+- Audit ZIP contents: `manifest-review.json`, `diagnostics.txt`, `README.txt`.
+  The original game/source members are not included.
+- Duplicate and unsafe-path issues retain their former keys and now optionally
+  include reason rules, related conflicting paths and zero-based entry indexes.
+- SHA256 of input ZIP, before/after verification, is recorded when stable;
+  an ordinary changed or unreadable source is reported as a failure.
+- JSON Schema: `schemas/package-manifest-review-report.schema.json`.
+- Future cases: `tests/test_package_manifest_delivery_candidate.py`.
+
+**Status NOT_RUN:** The continuation only adds and updates source/tests/docs.
+No source code, tests, CLI, or actual archive was executed; previous PR #11
+verification is not being represented as proof for these changes.
