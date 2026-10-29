@@ -53,6 +53,9 @@ class Issue:
     code: str
     path: str
     detail: str
+    rule: str | None = None
+    related_path: str | None = None
+    index: int | None = None
 
 
 @dataclass
@@ -78,8 +81,12 @@ class Result:
         }
 
 
-def _issue(items: list[Issue], code: str, path: str, detail: str) -> None:
-    items.append(Issue(code, path, detail))
+def _issue(
+    items: list[Issue], code: str, path: str, detail: str,
+    *, rule: str | None = None, related_path: str | None = None,
+    index: int | None = None,
+) -> None:
+    items.append(Issue(code, path, detail, rule, related_path, index))
 
 
 def _reserved_component(name: str) -> bool:
@@ -138,6 +145,29 @@ def _path_error(name: object, *, allow_manifest: bool = False) -> str | None:
     if PurePosixPath(name).suffix not in ALLOWED_SUFFIXES:
         return "non-whitelisted extension or non-root project.godot"
     return None
+
+
+def _path_rule(problem: str) -> str:
+    """Stable diagnostic reason identifier for unsafe member names."""
+    if "parent path component" in problem:
+        return "PATH_TRAVERSAL_OR_EMPTY_SEGMENT"
+    if "absolute paths" in problem:
+        return "PATH_ABSOLUTE_OR_BACKSLASH"
+    if "reserved" in problem:
+        return "PATH_WINDOWS_RESERVED"
+    if "control" in problem:
+        return "PATH_CONTROL_CHARACTER"
+    if "excluded directory" in problem:
+        return "PATH_EXCLUDED_DIRECTORY"
+    if "sensitive filename" in problem:
+        return "PATH_SENSITIVE_FILENAME"
+    if "whitelisted" in problem:
+        return "PATH_EXTENSION_NOT_ALLOWED"
+    if "itself" in problem:
+        return "PATH_MANIFEST_SELF_REFERENCE"
+    if "normalized" in problem:
+        return "PATH_NOT_NORMALIZED"
+    return "PATH_INVALID"
 
 
 def _collision_key(name: str) -> str:
@@ -252,18 +282,22 @@ def check_archive(raw_archive: str | Path) -> Result:
             first_by_name: dict[str, zipfile.ZipInfo] = {}
             seen_keys: dict[str, str] = {}
 
-            for info in infos:
+            for member_index, info in enumerate(infos):
                 name = info.filename
                 err = _path_error(name, allow_manifest=True)
                 if err is not None:
-                    _issue(issues, "UNSAFE_PATH", name, err)
+                    _issue(issues, "UNSAFE_PATH", name, err,
+                           rule=_path_rule(err), index=member_index)
                 metadata_error = _member_metadata_error(info)
                 if metadata_error:
                     _issue(issues, "MEMBER_METADATA", name, metadata_error)
                 key = _collision_key(name)
                 if key in seen_keys:
                     _issue(issues, "DUPLICATE_ZIP_MEMBER", name,
-                           f"collides with {seen_keys[key]}")
+                           f"collides with {seen_keys[key]}",
+                           rule=("EXACT_DUPLICATE" if name == seen_keys[key]
+                                 else "UNICODE_CASEFOLD_NFC_COLLISION"),
+                           related_path=seen_keys[key], index=member_index)
                 else:
                     seen_keys[key] = name
                 first_by_name.setdefault(name, info)
@@ -310,13 +344,17 @@ def check_archive(raw_archive: str | Path) -> Result:
                 path = record["path"]
                 path_error = _path_error(path)
                 if path_error:
-                    _issue(issues, "UNSAFE_MANIFEST_PATH", context, path_error)
+                    _issue(issues, "UNSAFE_MANIFEST_PATH", context, path_error,
+                           rule=_path_rule(path_error), index=index)
                     continue
                 listed_order.append(path)
                 key = _collision_key(path)
                 if key in record_keys:
                     _issue(issues, "DUPLICATE_MANIFEST_PATH", path,
-                           f"collides with {record_keys[key]}")
+                           f"collides with {record_keys[key]}",
+                           rule=("EXACT_DUPLICATE" if path == record_keys[key]
+                                 else "UNICODE_CASEFOLD_NFC_COLLISION"),
+                           related_path=record_keys[key], index=index)
                 else:
                     record_keys[key] = path
                 if type(record["size"]) is not int or record["size"] < 0:
