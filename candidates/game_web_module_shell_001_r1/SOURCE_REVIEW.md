@@ -40,3 +40,30 @@ No assumption that any candidate is a stable game-level shared interface.
 
 **Decision for r1:** remain independent; private synthetic shell adapter only.
 Never rename this interface as an existing API or claim integration occurred.
+
+## Continuation review — GAME-WEB-CONTINUE-SHELL-003 r1
+
+Before this continuation, the real Draft PR #17 was read from GitHub at
+head `0e668ef60e1355c0de2a9de75096fdd50a01183c`, base
+`main` / `533b11f50c0d359cd0a5424d5216b0145727699a`.
+Its nine changed files were enumerated, and the **complete contents** of
+`shell_candidate.gd`, `placeholder_adapter_candidate.gd`,
+`shell_demo.tscn`, `verify_shell_candidate.gd`, `project.godot`,
+`README.md`, `DESIGN.md`, `ACCEPTANCE.md` and `SOURCE_REVIEW.md`
+were retrieved. No source was inferred from PR title or description.
+
+Actual r1 methods available were `show_page`, `install_adapter`,
+`remove_adapter`, `has_adapter`, `current_page`, `_adapter_preview`
+and `_on_preview_pressed`. Its navigation had no history, the four
+slots had no explicit assembly/dependency state, and malformed mock action
+replies were not required to carry a `simulated: true` marker.
+The continuation adds these functions only to this shell.
+
+Review of the real #17 source is **source inspection**, not execution,
+Godot syntax certification, CI evidence, visual acceptance or proof of
+upstream PR interoperability. Its prior source remains a Draft; changes
+here are restricted to its existing candidate directory.
+
+**Chosen isolation:** no cross-branch cherry-pick, preload, feature
+probing, live adaptation or API version assumptions. Source PR numbers
+are metadata; executable adapters are synthetic shell-local objects only.
