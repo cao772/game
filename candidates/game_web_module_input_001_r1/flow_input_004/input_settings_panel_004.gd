@@ -186,6 +186,8 @@ func _show_status(message: String) -> void:
 
 func _display_result(result: Dictionary) -> void:
     var prefix := "完成" if result.get("ok", false) else "未执行"
+    if not result.get("ok", false) and result.get("committed", false):
+        prefix = "需复核：磁盘可能已变更"
     _show_status("%s｜%s：%s" % [
         prefix, str(result.get("code", "UNKNOWN")),
         str(result.get("message", ""))
