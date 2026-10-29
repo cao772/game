@@ -152,13 +152,17 @@
       els.errors.appendChild(node("li", entry));
     }
   }
-  function addWarningPanel(parent, warnings) {
+  function addWarningPanel(parent, warnings, limit = 50) {
     const box = node("div", null, "warnings");
     put(box, heading("需复核或缺失", "h3"));
     const list = node("ul");
     if (!warnings.length) list.appendChild(node("li", "暂无额外格式告警；不代表已完成来源验证。"));
-    for (const warning of warnings.slice(0, 50)) {
+    for (const warning of warnings.slice(0, limit)) {
       list.appendChild(node("li", warning));
+    }
+    if (warnings.length > limit) {
+      list.appendChild(node("li", "另有 " + (warnings.length - limit) +
+        " 条未展开，请保留源JSON复核，不应视为已处理。"));
     }
     box.appendChild(list);
     parent.appendChild(box);
@@ -235,7 +239,7 @@
           missing.push(m.name + " / " + item.id + "：" + item.reason + " [" + item.status + "]");
         }
       }
-      if (missing.length) addWarningPanel(box, missing);
+      if (missing.length) addWarningPanel(box, missing, 240);
       parent.appendChild(box);
     }
     if (Array.isArray(report.missingByRun)) {
@@ -437,7 +441,7 @@
             item.reason + " [" + item.diagnostic + "]");
         }
       }
-      if (missing.length) addWarningPanel(els.multiResult, missing);
+      if (missing.length) addWarningPanel(els.multiResult, missing, 110);
       else put(els.multiResult, paragraph("报告字段均可作数值对照，但仍无法证明真实运行条件一致。", "footnote"));
       put(els.multiResult, paragraph("每份报告均只保留自己的帧分位数；跨次中位数不是合并帧P50/P95/P99。",
         "footnote"));
