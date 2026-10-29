@@ -45,9 +45,9 @@ func _fixture(name: String, mode: String, json_text: String) -> String:
 		_assert(false, "fixture-file-open")
 		return ""
 	_files.append(path)
-	var wrote: bool = file.store_string(json_text)
+	file.store_string(json_text)
 	file.flush()
-	var valid := wrote and file.get_error() == OK
+	var valid := file.get_error() == OK
 	file.close()
 	_assert(valid, "fixture-file-write")
 	if not valid:
