@@ -11,7 +11,7 @@
 ## Deliverables
 
 1. tools/perf_qa_results_summary_candidate.py: independent offline, standard-library JSON report aggregator. Does not import or invoke either PR's tool. Read-only on inputs; no shell, subprocess, network or game API. Optional output is an exclusively created new file (no overwrite).
-2. tools/test_perf_qa_results_summary_candidate.py: 20 future synthetic unit acceptance cases, NOT_RUN.
+2. tools/test_perf_qa_results_summary_candidate.py: 25 future synthetic unit acceptance cases, NOT_RUN.
 3. This document: source pins, candidate contract, limitations and acceptance conditions.
 
 The branch is stacked on Draft PR #7 (which itself is stacked on PR #5), not merged into main. No existing analyzer, QA runner, adapter, scene, novel, canon, or shared interface was edited.
@@ -49,7 +49,12 @@ T16 contradictory exit/status inconclusive;
 T17 partially executed suite cannot report complete success;
 T18 unknown extension fields preserved;
 T19 claimed full-scene certification rejected;
-T20 PR5 schema_unrecognized denotes uncertainty, not target failure.
+T20 PR5 schema_unrecognized denotes uncertainty, not target failure;
+T21 timeout requires explicit timeout evidence;
+T22 format_error requires genuinely invalid JSON stdout;
+T23 exception requires trace or signal evidence;
+T24 CLI mismatch stays uncertainty, never an invented functional defect;
+T25 malformed verdict/classification objects do not crash or become a PASS.
 
 Future Codex commands only after explicit authorization (NOT_RUN now):
 - python -m py_compile tools/perf_qa_results_summary_candidate.py tools/test_perf_qa_results_summary_candidate.py
