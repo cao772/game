@@ -117,7 +117,7 @@ func _run_ui() -> void:
 	browser.call("_preview_candidate_pressed")
 	_assert(preview.text.contains("same_version_review_only"),
 		"U16 hypothetical phase preview displayed")
-	_assert(preview.text.contains('"can_apply": false'),
+	_assert(preview.text.contains("不能应用"),
 		"U17 preview explicitly not applicable")
 	_assert(_safe_output(preview.text), "U18 proposal excludes private values")
 
@@ -133,6 +133,15 @@ func _run_ui() -> void:
 		"U21 UI operations preserved byte-identical source")
 	_assert(not FileAccess.file_exists(source + ".tmp"),
 		"U22 UI never generated a save temp file")
+	_assert(browser.get("_status_label") != null,
+		"U23 explicit safe status feedback exists")
+	_assert(not inspected.text.contains("round_id"),
+		"U24 report avoids private round identifier field names")
+	_assert(not preview.text.contains('"before"')
+		and not preview.text.contains('"after"'),
+		"U25 preview does not show before/after values")
+	_assert(not preview.text.contains("user://"),
+		"U26 report does not print the local directory")
 
 	browser.free()
 
