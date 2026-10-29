@@ -140,3 +140,46 @@ of a fixture or evidence of an executed inspection.
   Neither backward nor forward migration rules exist.
 - Everything in this file is **source-only**; tests and Godot 4.7.2
   runtime semantics await Codex verification.
+
+---
+
+## CONTINUE-STATE-003 / report extensions (candidate, NOT_RUN)
+
+Refer to [VERSION_DIFF_POLICY.md](VERSION_DIFF_POLICY.md). The new safe
+methods use only enums, bounded version labels, known field names and
+static error codes. They exclude raw input, file path and text hash.
+
+**`report_version_delta`**: `status`, `error_code`,
+`reference_version=1`, `source_version`,
+`numeric_relation` (lower/same/higher/unknown),
+`format_compatibility`, `migration_mapping=not_provided`,
+`can_migrate=false`, `read_only=true`, `verified=false`.
+Only the known version 1 is a permitted reference. Other references
+return `invalid_reference` / `REFERENCE_NOT_APPROVED_V1`.
+
+**`compare_snapshot_versions`**: `left` and `right` redacted
+snapshot reports, `version_relation`, `status`,
+`error_code`, `payload_comparison`, `changed_fields`,
+`changed_field_count`, `mapping_approved=false`,
+`can_migrate=false`, `atomic_pair=false`, `verified=false`.
+Two fully valid v1 inputs yield `comparable_v1` and field-name-only
+changes. Any unsupported numeric version yields `unmapped_versions`
+and `VERSION_MAPPING_NOT_PROVIDED`, with no payload diff. Other
+non-comparable source statuses yield `blocked` /
+`UNCOMPARABLE_SOURCES`.
+
+**`preview_migration_safe`**: `status`, `error_code`,
+`source_status`, compatibility, changed known fields and kinds,
+`protected_field_changes` (known names only), count, and constant
+`requires_review=true`, `mapping_approved=false`,
+`can_apply=false`, `writes=false`,
+`contains_snapshot_payload=false`, `verified=false`.
+Statuses: `blocked`, `mapping_required`,
+`invalid_target`, `no_migration_needed`, `no_changes`,
+`same_version_review_only`, `protected_field_review_blocked`.
+Unknown versions do not become comparable with an invented target.
+The protected field set is version/mode/round_id/clock_seconds.
+
+The old detailed APIs are retained for future compatibility checks,
+but **are not safe to post publicly as raw report dictionaries**.
+All new outputs are provisional and remain NOT_RUN.
