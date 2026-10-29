@@ -145,11 +145,13 @@ func _run() -> void:
 	_check(diff["requires_review"] and not diff["can_apply"]
 		and not diff["writes"], "Preview cannot apply")
 	target["phase"] = "deferred"
-	var retained_phase := false
+	var redacted := true
 	for change in diff["changes"]:
-		if change["field"] == "phase":
-			retained_phase = change["after"] == "resolved"
-	_check(retained_phase, "Preview retains independent values")
+		if change.has("before") or change.has("after"):
+			redacted = false
+	_check(redacted, "Preview never leaks before/after field values")
+	_check(diff["changes"].size() == 2,
+		"Changes independent of target later mutation")
 
 	# 3. Unsupported version: detect, no guessed automatic mapping.
 	var legacy := _sample("story", "legacy-01")
