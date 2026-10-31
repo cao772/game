@@ -1,0 +1,116 @@
+[
+  {
+    "schema_version": 1,
+    "profile_id": "placeholder-a",
+    "display_name": "占位条目 A",
+    "subtitle": "用于展示长短文本、标签与分组",
+    "summary": "此处仅为测试性文本。内容由调用方注入，组件不包含任何人物、情节或世界观资料。",
+    "status_label": "仅作占位",
+    "tags": [
+      "示例标签一",
+      "示例标签二",
+      "纯文本"
+    ],
+    "sections": [
+      {
+        "section_id": "sample-fields",
+        "heading": "示例字段",
+        "items": [
+          {
+            "label": "字段 A",
+            "value": "示例值 A"
+          },
+          {
+            "label": "字段 B",
+            "value": "这段占位值用于观察自动换行以及可滚动区域的尺寸表现。"
+          }
+        ]
+      },
+      {
+        "section_id": "sample-notes",
+        "heading": "额外演示",
+        "items": [
+          {
+            "label": "字面文本",
+            "value": "[b]这不是富文本[/b]，仅按普通字符显示。"
+          },
+          {
+            "label": "输入来源",
+            "value": "合成占位数据"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "profile_id": "placeholder-b",
+    "display_name": "占位条目 B",
+    "subtitle": "",
+    "summary": "",
+    "status_label": "",
+    "tags": [],
+    "sections": [
+      {
+        "section_id": "empty-section",
+        "heading": "空章节示例",
+        "items": []
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "profile_id": "placeholder-long-c",
+    "display_name": "长文本占位 C｜排版压力示例",
+    "subtitle": "仅含合成字段、段落、长连续字符与混排文本",
+    "summary": "第一段：这是一段用于验证自动换行、滚动、键盘阅读和文本完整性的合成内容。它不描述任何真实人物或作品设定。第一段：这是一段用于验证自动换行、滚动、键盘阅读和文本完整性的合成内容。它不描述任何真实人物或作品设定。第一段：这是一段用于验证自动换行、滚动、键盘阅读和文本完整性的合成内容。它不描述任何真实人物或作品设定。\r\n\r\n第二段：Alpha-Beta-Gamma；ABC123；标点、中文与 English mixed sample. 第二段：Alpha-Beta-Gamma；ABC123；标点、中文与 English mixed sample. 第二段：Alpha-Beta-Gamma；ABC123；标点、中文与 English mixed sample. 第二段：Alpha-Beta-Gamma；ABC123；标点、中文与 English mixed sample. \r\n\r\n第三段：UNBROKEN_Abc0123456789Abc0123456789Abc0123456789Abc0123456789Abc0123456789Abc0123456789Abc0123456789Abc0123456789Abc0123456789Abc0123456789。结束。\r\n\r\n第四段：本段用于确认段落换行和完整显示，不采用省略号截断正文。",
+    "status_label": "纯占位长文本",
+    "tags": [
+      "合成",
+      "换行",
+      "无障碍",
+      "超长序列",
+      "无剧情"
+    ],
+    "sections": [
+      {
+        "section_id": "sample-a",
+        "heading": "字段组一：多段文字",
+        "items": [
+          {
+            "label": "混排段落",
+            "value": "第一行：测试行间排版。\r\n第二行：mixed English 中文 + punctuation. \r\n第三行：普通文字。"
+          },
+          {
+            "label": "连续字符串",
+            "value": "sample_xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09xY09"
+          }
+        ]
+      },
+      {
+        "section_id": "sample-b",
+        "heading": "字段组二：边界",
+        "items": [
+          {
+            "label": "字段二",
+            "value": "纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；纯占位 A；"
+          },
+          {
+            "label": "字段三",
+            "value": "[b]字面字符[/b] <test> & \"quotes\" "
+          }
+        ]
+      },
+      {
+        "section_id": "sample-c",
+        "heading": "字段组三：尾部章节",
+        "items": [
+          {
+            "label": "最后字段",
+            "value": "滚动至末尾可见的合成占位值。"
+          }
+        ]
+      }
+    ]
+  }
+]
