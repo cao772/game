@@ -145,3 +145,17 @@ G001–G020 suites; future verification needs to cover both baselines.
 No Godot parser, headless script, native window, mouse, keyboard,
 CI, performance or screen reader was run by this author.
 Expected `PASS` output inside scripts is test specification only.
+
+---
+
+## GAME-WEB-REGION-006 r1 future acceptance (NOT_RUN)
+
+See [REGION_006_ACCEPTANCE.md](REGION_006_ACCEPTANCE.md):
+N001–N026 pure navigator cases, K001–K014 pure focus-policy cases,
+S601–S624 future scene wiring checks, and M63–M88 desktop keyboard,
+window-loss, safe-resume, focus, navigation and feedback observation.
+
+The earlier F001–F026, G001–G020, P001–P030, S001–S029,
+M41–M62 suites remain relevant and untouched. **None has been
+run by this authoring task.** Future CLI results, native screenshots
+and actual focus evidence are required for any PASS claim.

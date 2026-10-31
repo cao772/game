@@ -106,3 +106,25 @@ behavior must be reported without concealing failures.
 The user approves final integration/acceptance. This candidate
 creates no shared interface and must not be merged into `main`
 automatically.
+
+---
+
+## GAME-WEB-REGION-006 r1 local integration addendum (NOT_RUN)
+
+The exact independent project root stays unchanged:
+`candidates/game_web_flow_region_004_r1/`.
+The scene coordinator now locally preloads two more RefCounted
+policies, `navigation_candidate.gd` and
+`focus_recovery_candidate.gd`; the pinned PR #10 prompt source
+and scene are still unchanged.
+
+Host navigation buttons explicitly start/pause/resume/cancel only
+A/B/C synthetic marker travel; focus loss pauses active movement and
+arms a key-release gate, while focus return may safely re-apply a
+previous prompt Button role only after same-ID/host-focus checks.
+No InputMap, other PR controller, real level, save or event bus is
+linked. See [complete local data and signal flow](REGION_006_INTEGRATION.md).
+
+The two new verification scripts are authored for future authorized
+execution only; never present their expected output as an observed
+result. Status **NOT_RUN**.

@@ -151,3 +151,23 @@ selected without changing original scene/model semantics.
 See `PLAY_EXTENSION.md` and `INTEGRATION.md` for detailed routing,
 limitations, missing real-scene inputs and the final owner review gate.
 This is **NOT_RUN**, not functional/visual acceptance.
+
+---
+
+## GAME-WEB-REGION-006 r1 design continuation — NOT_RUN
+
+The new `REGION_006_DESIGN.md` documents the exact prior PR #23
+source version, trial straight-line navigation, safe stop within the
+existing proximity threshold, deliberate manual continuation after
+OS-window focus loss, one-use target-ID-matched prompt focus recovery,
+WASD release guard and bounded UI-only feedback.
+
+Reasons: real obstacle geometry and approved navigation API do not
+exist in this independent candidate; straight-line synthetic motion
+is honest and measurable. Window return is **not** user intent to
+resume travel; focus restoration does not confirm an action or steal
+focus from a host control. All such rules are technical proposals
+only, not plot, character, game-save or product semantics.
+
+No Godot runtime or tests executed. Native focus/GUI behavior remains
+NOT_RUN and requires later author-authorized validation.

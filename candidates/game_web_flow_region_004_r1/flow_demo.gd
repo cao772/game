@@ -5,11 +5,15 @@ const FlowModel = preload("res://flow_model_candidate.gd")
 const PromptScene = preload("res://interaction_prompt_candidate.tscn")
 const TargetPicker = preload("res://target_picker_candidate.gd")
 const FeedbackJournal = preload("res://feedback_journal_candidate.gd")
+const Navigation = preload("res://navigation_candidate.gd")
+const FocusRecovery = preload("res://focus_recovery_candidate.gd")
 const DATA_PATH := "res://synthetic_targets.json"
 const SPEED := 2.3
 
 var _model = FlowModel.new()
 var _journal = FeedbackJournal.new()
+var _navigation = Navigation.new()
+var _focus_guard = FocusRecovery.new()
 var _prompt
 var _player_mesh: MeshInstance3D
 var _marker_meshes: Dictionary = {}
@@ -20,6 +24,8 @@ var _camera: Camera3D
 var _system_hiding: bool = false
 var _ready_for_demo: bool = false
 var _raw_fixture: Array = []
+var _last_prompt_focus_role: StringName = &"none"
+var _in_nav_step: bool = false
 
 
 func _ready() -> void:
@@ -45,6 +51,9 @@ func _ready() -> void:
     _build_target_markers()
     set_demo_position(Vector2(0.0, 3.0))
     _feedback_label.text = "合成目录已载入；靠近方块可查看操作提示。"
+    # OS window focus notifications are separate from prompt focus changes.
+    get_window().focus_exited.connect(_on_window_unfocused)
+    get_window().focus_entered.connect(_on_window_returned)
 
 
 func _make_box(
@@ -135,12 +144,17 @@ func _build_interface() -> void:
     host.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
     var panel := PanelContainer.new()
-    panel.position = Vector2(16, 16)
-    panel.custom_minimum_size = Vector2(300, 0)
+    panel.position = Vector2(14, 14)
+    panel.size = Vector2(364, 680)
     host.add_child(panel)
+    var scroller := ScrollContainer.new()
+    scroller.custom_minimum_size = Vector2(344, 666)
+    scroller.mouse_filter = Control.MOUSE_FILTER_STOP
+    panel.add_child(scroller)
     var layout := VBoxContainer.new()
+    layout.custom_minimum_size = Vector2(322, 0)
     layout.add_theme_constant_override("separation", 5)
-    panel.add_child(layout)
+    scroller.add_child(layout)
 
     var heading := Label.new()
     heading.text = "灰盒交互流程 / 纯合成占位"
@@ -159,6 +173,12 @@ func _build_interface() -> void:
     _button(layout, "释放键盘焦点到灰盒", _focus_world)
     _button(layout, "确认当前提示目标", _confirm_selection)
     _button(layout, "重新显示已关闭提示", _reopen)
+    _button(layout, "导航接近 A（仅模拟直线）", func(): start_navigation(&"placeholder_a"))
+    _button(layout, "导航接近 B（仅模拟直线）", func(): start_navigation(&"placeholder_b"))
+    _button(layout, "导航接近 C（仅模拟直线）", func(): start_navigation(&"placeholder_c"))
+    _button(layout, "暂停导航", _pause_navigation)
+    _button(layout, "手动继续导航", _resume_navigation)
+    _button(layout, "取消导航", _cancel_navigation)
     _button(layout, "重置合成流程", _reset_demo)
 
     _status_label = Label.new()
@@ -184,6 +204,7 @@ func _build_interface() -> void:
     _prompt.placeholder_changed.connect(_on_prompt_selection_changed)
     _prompt.prompt_visibility_changed.connect(_on_prompt_visibility_changed)
     _prompt.interaction_requested.connect(_on_prompt_confirmed)
+    _prompt.focus_state_changed.connect(_on_prompt_focus_changed)
 
 
 func _process(delta: float) -> void:
@@ -197,6 +218,16 @@ func _process(delta: float) -> void:
         if _prompt.focus_state()["role"] != &"none":
             return
 
+    # A held key after Alt-Tab is never treated as newly pressed.
+    if not _focus_guard.consume_key_release_gate(_all_movement_keys_released()):
+        return
+
+    # Explicit navigation owns motion until arrival, pause or cancellation.
+    # A returned window never resumes it automatically.
+    if _navigation.is_moving():
+        _advance_navigation(delta)
+        return
+
     # No InputMap configuration: this is an isolated trial movement scheme.
     var vector := Vector2.ZERO
     if Input.is_key_pressed(KEY_A):
@@ -209,6 +240,9 @@ func _process(delta: float) -> void:
         vector.y += 1
     if vector == Vector2.ZERO:
         return
+    if _navigation.is_paused():
+        _navigation.cancel("用户按 WASD，取消暂停中的导航")
+        _publish_feedback("navigation", "手动移动已取消暂停的导航。")
     set_demo_position(_model.player_position() + vector.normalized() * SPEED * delta)
 
 
@@ -216,6 +250,9 @@ func _process(delta: float) -> void:
 func set_demo_position(position: Vector2) -> bool:
     if not _ready_for_demo:
         return false
+    if not _in_nav_step and _navigation.is_moving():
+        _navigation.cancel("用户手动更改模拟位置")
+        _publish_feedback("navigation", "手动位置变更已取消自动导航。")
     var result: Dictionary = _model.move_player(position)
     if not result.get("ok", false):
         return false
@@ -223,7 +260,8 @@ func set_demo_position(position: Vector2) -> bool:
     var current: Vector2 = _model.player_position()
     _player_mesh.position = Vector3(current.x, 0.35, current.y)
     if result.get("changed", false):
-        _sync_prompt()
+        if not _in_nav_step:
+            _sync_prompt()
         _update_marker_colors()
         var entered: Array = result.get("entered", [])
         var left: Array = result.get("left", [])
@@ -294,6 +332,8 @@ func select_marker_at(ground: Vector2) -> bool:
 
 
 func _sync_prompt() -> void:
+    if _in_nav_step or _navigation.is_moving():
+        return
     var current: Dictionary = _model.snapshot()
     var eligible: Array[Dictionary] = _model.prompt_entries()
     if eligible.is_empty() or current["dismissed"]:
@@ -326,9 +366,179 @@ func _on_prompt_selection_changed(id: StringName) -> void:
 
 
 func _on_prompt_visibility_changed(shown: bool) -> void:
+    if not shown:
+        _focus_guard.clear_pending()
     if not shown and not _system_hiding and not _model.nearby_ids().is_empty():
         _model.dismiss_prompt()
         _publish_feedback("dismiss", "提示已手动隐藏；离开所有目标或主动重新显示。")
+    _update_status()
+
+
+# Public candidate seam for trial-only navigation; no A* or real scene path.
+func start_navigation(id: StringName) -> bool:
+    if not _ready_for_demo or get_tree().paused or not get_window().has_focus():
+        return false
+    if not _navigation.start_to_target(id, _model.all_targets(), _model.player_position()):
+        _publish_feedback("rejected", "无法导航：目标不属于公开合成目录。", id)
+        return false
+
+    # Suppress the prompt during travel; explicit navigation is not dismissal.
+    if _prompt.is_prompt_shown():
+        _system_hiding = true
+        _prompt.hide_prompt()
+        _system_hiding = false
+    _focus_world()
+
+    if _navigation.state()["mode"] == &"arrived":
+        _model.mark_selected(id)
+        _sync_prompt()
+        _update_marker_colors()
+        _publish_feedback("navigation", "目标已在模拟接近范围内：" + str(id), id)
+    else:
+        _publish_feedback(
+            "navigation", "开始直线导航：" + str(id) + "（仅合成坐标）", id
+        )
+    _update_status()
+    return true
+
+
+func _advance_navigation(delta: float) -> void:
+    var step: Dictionary = _navigation.advance(_model.player_position(), delta)
+    if not step.get("ok", false):
+        return
+    _in_nav_step = true
+    var moved: bool = set_demo_position(step["position"])
+    _in_nav_step = false
+    if not moved:
+        _navigation.cancel("模拟位置更新被拒绝")
+        _publish_feedback("rejected", "合成导航被拒绝，已停止。")
+        return
+
+    if step.get("arrived", false):
+        var reached_id: StringName = step["target_id"]
+        # Arrival chooses the goal by stable ID rather than nearest-list index.
+        if not _model.mark_selected(reached_id):
+            _publish_feedback("rejected", "到达后目标不可交互，保守拒绝。", reached_id)
+        _sync_prompt()
+        _update_marker_colors()
+        _publish_feedback("navigation", "已到达目标接近范围：" + str(reached_id),
+            reached_id)
+        _update_status()
+
+
+func _pause_navigation() -> void:
+    if _navigation.pause_manually():
+        _publish_feedback("navigation", "导航已暂停，需主动继续。")
+    else:
+        _publish_feedback("rejected", "当前没有正在运行的合成导航。")
+    _update_status()
+
+
+func _resume_navigation() -> void:
+    if not get_window().has_focus() or get_tree().paused:
+        _publish_feedback("rejected", "窗口未聚焦或暂停，不允许继续导航。")
+        return
+    if not _all_movement_keys_released():
+        _publish_feedback("rejected", "请先松开 WASD，再主动继续导航。")
+        return
+    if not _focus_guard.consume_key_release_gate(true):
+        _publish_feedback("rejected", "尚未完成窗口恢复输入保护。")
+        return
+    if _navigation.resume_after_focus_return(true):
+        if _prompt.is_prompt_shown():
+            _system_hiding = true
+            _prompt.hide_prompt()
+            _system_hiding = false
+        _focus_world()
+        _publish_feedback("navigation", "用户主动恢复合成导航。")
+    else:
+        _publish_feedback("rejected", "没有可继续的已暂停导航。")
+    _update_status()
+
+
+func _cancel_navigation() -> void:
+    if _navigation.cancel():
+        _sync_prompt()
+        _update_marker_colors()
+        _publish_feedback("navigation", "用户取消合成导航。")
+    else:
+        _publish_feedback("rejected", "当前没有可取消的合成导航。")
+    _update_status()
+
+
+func _all_movement_keys_released() -> bool:
+    return (
+        not Input.is_key_pressed(KEY_W)
+        and not Input.is_key_pressed(KEY_A)
+        and not Input.is_key_pressed(KEY_S)
+        and not Input.is_key_pressed(KEY_D)
+    )
+
+
+func _on_window_unfocused() -> void:
+    # Prior prompt role is cached while the native window was focused.
+    # PR #10's live role can already report 'none' by the time this fires.
+    var shown: bool = _prompt.is_prompt_shown()
+    _focus_guard.capture_window_loss(
+        _last_prompt_focus_role, _prompt.active_target_id(), shown
+    )
+    var stopped: bool = _navigation.pause_for_focus_loss()
+    if stopped:
+        _publish_feedback("focus", "窗口失焦：导航已安全暂停，返回后不会自动继续。")
+    else:
+        _publish_feedback("focus", "窗口失焦：保留选择，等待安全恢复焦点。")
+    _update_status()
+
+
+func _on_window_returned() -> void:
+    _focus_guard.mark_window_returned()
+    _publish_feedback(
+        "focus", "窗口已返回；需要先松开 WASD。暂停的导航须手动继续。"
+    )
+    call_deferred("_restore_focus_after_window_return")
+    _update_status()
+
+
+func _restore_focus_after_window_return() -> void:
+    if not get_window().has_focus() or not _ready_for_demo:
+        return
+    var owner: Control = get_viewport().gui_get_focus_owner()
+    var host_focused: bool = (
+        owner != null
+        and owner != _prompt
+        and not _prompt.is_ancestor_of(owner)
+    )
+    var claim: Dictionary = _focus_guard.claim_focus(
+        _prompt.is_prompt_shown(), _prompt.active_target_id(), host_focused
+    )
+    if not claim.get("restore", false):
+        _update_status()
+        return
+
+    var button: Button = null
+    match claim.get("role", &"action"):
+        &"previous":
+            button = _prompt.get_node("Padding/Content/Navigation/PreviousButton")
+        &"next":
+            button = _prompt.get_node("Padding/Content/Navigation/NextButton")
+        &"dismiss":
+            button = _prompt.get_node("Padding/Content/DismissButton")
+        _:
+            button = _prompt.get_node("Padding/Content/ActionButton")
+
+    # If list shrank from multiple targets, fallback to the action button.
+    if not button.is_visible_in_tree() or button.focus_mode == Control.FOCUS_NONE:
+        button = _prompt.get_node("Padding/Content/ActionButton")
+    button.grab_focus()
+    _publish_feedback("focus", "已恢复相同占位目标的提示焦点（未确认）。")
+    _update_status()
+
+
+func _on_prompt_focus_changed(role: StringName) -> void:
+    # Remember prompt-owned focus even if the OS later clears gui focus.
+    # A focus exit to host while window is active clears the remembered role.
+    if get_window().has_focus():
+        _last_prompt_focus_role = role
     _update_status()
 
 
@@ -389,6 +599,9 @@ func _reopen() -> void:
 
 
 func _reset_demo() -> void:
+    _navigation.reset()
+    _focus_guard.reset()
+    _last_prompt_focus_role = &"none"
     # Reset is in-memory only; never touches files or any real scene.
     if not _ready_for_demo:
         return
@@ -426,6 +639,8 @@ func flow_snapshot() -> Dictionary:
     result["prompt_target"] = _prompt.active_target_id()
     result["focus_role"] = _prompt.focus_state()["role"]
     result["feedback_history"] = _journal.entries()
+    result["navigation"] = _navigation.state()
+    result["focus_recovery"] = _focus_guard.snapshot()
     return result
 
 
@@ -444,6 +659,7 @@ func _update_status() -> void:
     _status_label.text = (
         "位置 x=%.2f z=%.2f\n可接近：%s\n选中：%s | 提示：%s"
         + "\n已确认：%d | 手动隐藏：%s\n控件焦点：%s | 反馈条数：%d"
+        + "\n导航：%s → %s | 回焦待处理：%s"
     ) % [
         p.x, p.y,
         str(state["nearby_ids"]),
@@ -452,5 +668,8 @@ func _update_status() -> void:
         int(state["confirm_count"]),
         str(state["dismissed"]),
         str(_prompt.focus_state()["role"]),
-        _journal.count()
+        _journal.count(),
+        str(_navigation.state()["mode"]),
+        str(_navigation.state()["target_id"]),
+        str(_focus_guard.snapshot()["pending_restore"])
     ]

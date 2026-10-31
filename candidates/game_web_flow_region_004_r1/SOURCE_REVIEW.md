@@ -82,3 +82,23 @@ The original copied PR #10 prompt blobs remain unchanged
 New picker/journal/test/docs only touch this isolated flow candidate.
 No story materials or external game state were available or inferred.
 **NOT_RUN**: GitHub source read is not Godot execution.
+
+---
+
+## GAME-WEB-REGION-006 r1 source review (2026-10-31)
+
+GitHub Draft PR #23 was retrieved live before edits:
+`codex/game-web-flow-region-004-r1` at starting HEAD
+`d1d9d7d8f85dfdc035aae6d1d9f1ddebdfa1ae57`,
+base `main`, open and Draft. Its actual source was read:
+`flow_demo.gd`, `flow_model_candidate.gd`,
+`target_picker_candidate.gd`, `feedback_journal_candidate.gd`,
+pinned `interaction_prompt_candidate.gd`, and existing design,
+integration and QA scripts.
+
+No official real 3D scene, navmesh, target discovery interface
+or author-approved navigation semantics was present in the
+isolated Draft. Therefore only public placeholder A/B/C coordinates
+were used. All edits remain in this same candidate directory.
+No private novel/original file, chat evidence or other PR content
+was imported. **NOT_RUN**; a GitHub read is not a Godot test.

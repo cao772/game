@@ -3,7 +3,8 @@ extends RefCounted
 ## Technical placeholder only. No clock, telemetry, persistence, real events.
 const CAPACITY: int = 12
 const ALLOWED: Array[String] = [
-    "info", "enter", "leave", "selection", "success", "rejected", "dismiss", "reset"
+    "info", "enter", "leave", "selection", "success", "rejected", "dismiss", "reset",
+    "navigation", "focus"
 ]
 
 var _next_sequence: int = 1

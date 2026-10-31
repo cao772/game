@@ -157,3 +157,34 @@ screenshot or actual native keyboard focus check occurred in this turn.
 Existing PR #10 pinned prompt files, public fixture, base model and
 r004 scripts are unchanged. No real game scene, manuscript,
 canonical content or shared interface is approved or modified.
+
+---
+
+## GAME-WEB-REGION-006 r1 — navigation + native-focus recovery proposal (NOT_RUN)
+
+Authored from the actual Draft PR #23 HEAD
+`d1d9d7d8f85dfdc035aae6d1d9f1ddebdfa1ae57`, on the existing
+`codex/game-web-flow-region-004-r1` branch.
+Source remains entirely within this standalone candidate directory.
+
+- `navigation_candidate.gd`: explicit A/B/C synthetic straight-line
+  approach navigation; 2.0 m/s trial speed, 0.10 s frame cap, approach
+  at 1.20m; pause, manual resume, cancellation and deterministic state.
+- `focus_recovery_candidate.gd`: one-shot prompt-role restoration
+  after native-window loss, target-ID validation, host-focus protection
+  and WASD-all-keys-released gate.
+- `flow_demo.gd`: adds navigation and focus recovery to the existing
+  independent marker/prompt/feedback workflow; bounded scrollable host
+  panel and visible navigation/focus statuses.
+- `feedback_journal_candidate.gd`: adds coarse `navigation` and
+  `focus` statuses to the previous in-memory-only bounded log.
+- New future-only `verify_region_006_pure_candidate.gd` and
+  `verify_region_006_scene_candidate.gd`; nothing executed.
+- Full [design choices](REGION_006_DESIGN.md),
+  [standalone integration](REGION_006_INTEGRATION.md), and
+  [future acceptance matrix](REGION_006_ACCEPTANCE.md).
+
+**NOT_RUN**: no Godot execution, tests, screenshots or CI. The
+existing synthetic target fixture, original prompt copy from PR #10,
+main scene and other PR branches remain unchanged. No actual gameplay
+target, plot, save, InputMap or approved shared API is introduced.
