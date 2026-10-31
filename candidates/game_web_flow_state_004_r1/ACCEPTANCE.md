@@ -224,3 +224,93 @@ echo "presenter_exit=$?"
 
 The author remains the sole final acceptor. No shared save interface or
 story canon approval is implied by the candidate.
+
+---
+
+## GAME-WEB-STATE-006 r1 — future acceptance (NOT_RUN)
+
+This continuation was **source authored only**. No Godot, tests,
+script parsing, app window or CI execution was performed.
+
+### Additional synthetic suite, to run later only if authorized
+
+```sh
+godot --headless --path candidates/game_web_flow_state_004_r1 \
+  --script res://verify_diagnostics_006.gd
+echo "diagnostics_006_exit=$?"
+```
+
+`verify_diagnostics_006.gd` declares **D01–D51** future checks,
+all synthetic in memory (no file fixtures in this new suite):
+
+| Group | IDs | Required result |
+|---|---|---|
+| Valid v1 inspection | D01–D05 | informational only, non-atomic and no action |
+| Absent/unreadable fingerprint | D06–D08 | missing/unavailable status, no payload stability proof |
+| Corrupt / foreign / unsupported | D09–D14 | blocked or review required; no guessed mapping |
+| Valid-v1 equal/same source | D15–D18 | empty known diff is not byte equality; same source flagged |
+| V1 field differences | D19–D24 | known names only, no duplicates/unknown keys/before-after, protected field warning |
+| Unsupported or stale comparison | D25–D28 | blocked, source/mapping warning, no migration |
+| Hypothetical preview | D29–D35 | review-only, protected fields block, missing mapping blocks |
+| Unexpected arbitrary source | D36–D38 | unknown kind fails closed, no arbitrary data echo |
+| Presenter readable severity | D39–D42 | Chinese risk/field hints; private marker filtered |
+| Blocked comparison / preview | D43–D47 | no field diff display or apply; explicit reason |
+| Malicious status & input | D48–D51 | unknown codes suppressed; invalid local path rejected |
+
+The existing `verify_browser_ui.gd` now also describes **U27–U32**
+future cases: risk label exists, missing-file review warning,
+mode change clears risk, A=B same-source notice, read-only reminder,
+and privacy of repeated-source comparisons.
+
+The existing `verify_browser_model.gd` and
+`verify_report_presenter_005.gd` remain future test sources.
+If they fail due to behavior changes, record the failure and fix the
+candidate only after an authorized test round; do not claim PASS now.
+
+### Required later evidence and negative cases
+
+1. Record actual Godot version, platform, commit, each command,
+   stdout/stderr, exact exit code and file-write diff evidence.
+2. Test that previewing an unknown schema never renders known
+   field differences nor invokes save/write/rename/migration.
+3. Verify story/free isolation, A=B same-source warning and that
+   similar-looking but aliased paths are **not** claimed distinct.
+4. Confirm strict error/notice allowlists suppress arbitrary raw data
+   even in malicious synthetic dictionaries.
+5. Verify missing/oversize/unreadable snapshot does not receive
+   a false "payload observed stable" claim.
+6. Check frontend layout at target and smaller resolutions, keyboard
+   navigation, long notices and safe context invalidation.
+7. Inspect symlink escape, duplicate JSON keys, invalid encoding,
+   replacement between reads and concurrent writer races separately.
+   These are **not proven safe** and may require additional design.
+
+All of the above are **future expectations, not observed results**.
+The original status remains `NOT_RUN / NOT_VERIFIED`.
+No legacy migration map, provenance or author-approved shared interface
+was supplied.
+
+### Future evidence record
+
+```json
+{
+  "task_id": "GAME-WEB-STATE-006",
+  "version": "r1",
+  "repository": "cao772/game",
+  "pr": 20,
+  "head": "TO_RECORD_AFTER_LAST_COMMIT",
+  "branch": "codex/game-web-flow-state-004-r1",
+  "godot_version": "NOT_RUN",
+  "platform": "NOT_RUN",
+  "diagnostics_suite": {"status": "NOT_RUN", "exit_code": null},
+  "model_suite": {"status": "NOT_RUN", "exit_code": null},
+  "ui_suite": {"status": "NOT_RUN", "exit_code": null},
+  "presenter_suite": {"status": "NOT_RUN", "exit_code": null},
+  "static_and_privacy_review": "NOT_VERIFIED",
+  "known_legacy_mapping": "NOT_PROVIDED",
+  "main_modified": false,
+  "shared_api_approved": false,
+  "canon_approved": false,
+  "status": "NOT_RUN"
+}
+```
