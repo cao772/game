@@ -167,10 +167,11 @@ func compare_folders(left_folder: String, right_folder: String, mode: String) ->
 	if left_report.get("status", "") != before_a.get("status", "") \
 		or right_report.get("status", "") != before_b.get("status", ""):
 		return _stale_result("version_difference")
-	result["consistency"] = "no_payload_to_verify" \
-		if before_a.get("text_sha256", "").is_empty() \
-		or before_b.get("text_sha256", "").is_empty() \
-		else "best_effort_observed_same"
+	if before_a.get("text_sha256", "").is_empty() \
+		or before_b.get("text_sha256", "").is_empty():
+		result["consistency"] = "no_payload_to_verify"
+	else:
+		result["consistency"] = "best_effort_observed_same"
 	return _decorate(result, "comparison", left_folder == right_folder)
 
 
