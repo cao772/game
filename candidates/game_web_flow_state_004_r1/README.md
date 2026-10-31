@@ -144,3 +144,35 @@ migration exists. Future verification commands and evidence templates
 are in [ACCEPTANCE.md](ACCEPTANCE.md).
 
 **All suites: NOT_RUN. Author is the final acceptor.**
+
+---
+
+## STATE-006 r1 continuation: comparison and anomaly handling (NOT_RUN)
+
+This increment follows current PR #20 starting HEAD
+`962822db414c3335eccc08cb22ede36d1f802d52` and stays on the
+same independent Draft branch. Read the actual browser model, view,
+presenter and existing test/docs before editing.
+
+- New **`snapshot_diagnostics_candidate.gd`** pure RefCounted
+  severity/notice policy: inspection, comparison and preview diagnostics
+  with fixed codes and allowlisted field names only.
+- Model now attaches `diagnostics` to all read-only reports,
+  explicitly warns about the **same A/B source**, and distinguishes
+  unavailable content fingerprints from best-effort repeated reads.
+- Presenter shows safe Chinese anomaly explanations and suppresses
+  differences for blocked / unsupported-version comparisons or previews.
+- View adds a persistent, neutral-risk label (informational / needs
+  review / blocked). Context changes invalidate old messages; no
+  save/restore/apply/migration action was added.
+- [DIAGNOSTICS_POLICY.md](DIAGNOSTICS_POLICY.md) is the detailed
+  decision matrix, design rationale and threat-model limits.
+- [verify_diagnostics_006.gd](verify_diagnostics_006.gd) provides
+  **51 future-only** synthetic pure-report checks; the old UI suite
+  gains U27–U32 for same-source comparisons and severity handling.
+  See [ACCEPTANCE.md](ACCEPTANCE.md).
+
+**All functionality and tests remain NOT_RUN / NOT_VERIFIED.**
+Only v1 protocol is known; legacy mappings, clock rules and final author
+approval are not provided. The project is standalone and the inspector
+dependency remains the unchanged pinned PR #13 blob.
