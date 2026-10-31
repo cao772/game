@@ -143,6 +143,23 @@ func _run_ui() -> void:
 	_assert(not preview.text.contains("user://"),
 		"U26 report does not print the local directory")
 
+	# STATE-006: distinguish unavailable sources, repeated source and risk.
+	var risk: Label = browser.get("_risk_label")
+	_assert(risk != null, "U27 diagnostic severity indicator exists")
+	_assert(risk.text.contains("需要人工复核"),
+		"U28 missing free snapshot requires review")
+	mode.select(0)
+	browser.call("_on_mode_changed", 0)
+	_assert(risk.text.contains("重新手动检查"),
+		"U29 mode change invalidates risk message")
+	browser.call("_compare_pressed")
+	_assert(compared.text.contains("同一来源"),
+		"U30 duplicate A/B source explicitly disclosed")
+	_assert(compared.text.contains("只读"),
+		"U31 comparison reminds read-only boundary")
+	_assert(_safe_output(compared.text),
+		"U32 duplicate source display redacted")
+
 	browser.free()
 
 
