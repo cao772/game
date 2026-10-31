@@ -211,3 +211,44 @@ For detailed integration and acceptance, see
 CLI, Godot or CI were intentionally performed for EVENT-005. Readback of
 GitHub sources confirms only submitted content, not successful behavior.
 No main merge, private story publication or shared interface approval.
+
+
+## GAME-WEB-EVENT-006 r1 — condition diagnosis and safe-prefix rollback (NOT_RUN)
+
+A further isolated **synthetic developer preview** extension on this same
+Draft PR #18 branch. No original story data, main changes, PR #9 updates,
+Godot scene integration, shared API or real event executor changes.
+
+New:
+- event_preview_diagnostics_006_candidate.py: in-memory, pure functions for
+  condition reason codes and source locations, deterministic navigation
+  breadcrumbs and human-oriented error presentation.
+- test_event_preview_diagnostics_006_candidate.py: synthetic prospective
+  acceptance tests (NOT_RUN).
+- integration_event_006.md: design decisions, dependencies, CLI examples,
+  explicit tradeoffs and restrictions.
+- acceptance_event_006.md: unexecuted acceptance and evidence matrix.
+
+Updated only within this directory:
+- event_play_preview_candidate.py: adds condition_diagnostics, navigation
+  breadcrumbs, error_view and navigation_effect to returned data; introduces
+  rollback command with integer cursor and safe-prefix history invalidation.
+
+Existing back/forward/jump retain redo; new rollback discards recorded
+future steps. If changed observations invalidate an already selected
+event, only the prefix before that event's earliest dependent step remains.
+All changes are in-memory. Neither the source checker nor the original
+static event flow previewer nor the existing synthetic JSON fixtures were
+modified in this round.
+
+Future rollback example (DO NOT RUN YET):
+
+    python -B candidates/game_web_flow_event_004_r1/event_play_preview_candidate.py --event-id EVENT_START --format json --command '{"op":"observe","event_id":"EVENT_START","signal":"SIGNAL_START","conditions":["FLAG_READY"]}' --command '{"op":"choose","choice":"ACTION_TO_NEXT"}' --command '{"op":"rollback","cursor":0}' candidates/game_web_flow_event_004_r1/fixtures
+
+Rejected commands include the unchanged snapshot and error_view containing
+review-only guidance. Conditions are still caller-injected synthetic values,
+not live game conditions. No authored per-action gates or gameplay effects
+exist in this public placeholder format, and none were inferred.
+
+**STATUS NOT_RUN:** no Python, Godot, CLI or tests were executed. GitHub
+commit/readback establishes presence of source only, not correctness.
