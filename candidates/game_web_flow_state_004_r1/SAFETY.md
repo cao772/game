@@ -99,3 +99,35 @@ but their raw results are never passed to the UI/presenter.
 
 Nothing here elevates the prototype, snapshots, names or field
 semantics to authoritative game canon or an approved shared interface.
+
+---
+
+## STATE-006 r1: additional disclosure and anomaly boundaries
+
+A new pure `snapshot_diagnostics_candidate.gd` provides fixed notice
+codes and risk labels. No file access is added to that layer. The
+presenter maps only recognized codes to static Chinese messages.
+Unknown statuses, arbitrary error text, unexpected field names, raw
+before/after values and unrecognized notice strings are never echoed.
+
+The policy returns an empty known-field difference list on **blocked,
+unknown-version or otherwise noncomparable** reports. The presenter
+independently blocks the display of field differences for those
+statuses, preventing a malformed report from looking comparable.
+
+Changing A/B inputs or story/free mode clears old reports and risk
+messages. A=B is explicitly flagged as two reads of one named source,
+not evidence of an independent backup; different lexical strings can
+still alias via filesystem links.
+
+Unfingerprinted missing/unreadable/oversized input is classified
+`no_payload_to_verify`. Fingerprinted first/last observations are
+**best effort only**. A read may race, file identity is not guaranteed,
+and no cross-process synchronization or locking has been built.
+
+No private source data/attachments, production saves, screenshots,
+novel text or conversation transcripts are committed. Only
+allowlisted public technical source and synthetic future tests.
+
+**Status: NOT_RUN / NOT_VERIFIED.** This is neither a security
+certification nor permission to migrate or to access live saves.
