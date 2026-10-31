@@ -112,3 +112,28 @@ the author gives final acceptance.
 migration rules, timeline and save-core integration contracts,
 cross-project safe read policy. Treat all as unavailable; do not
 infer defaults, promote candidate to Canon or implement conversion.
+
+---
+
+## STATE-006 r1 integration delta (not performed)
+
+The module remains a standalone, optional Godot project.
+`snapshot_browser_model_candidate.gd` now loads
+`snapshot_diagnostics_candidate.gd` (additional relative
+`res://` dependency). A future approved embedding must copy that
+file **alongside** the pre-existing browser/model/presenter/pinned
+inspector and adjust all `res://` references consistently.
+
+Only the view may format human-readable issue messages; it must keep
+using the presenter allowlist. The diagnostics instance is pure and
+may not call the game's save core or request a writer.
+The new `diagnostics` dictionary is **module-local candidate
+presentation metadata**, not an approved external interface.
+
+For future integration validation: compare A and B within the same
+selected story/free mode, examine `no_payload_to_verify` and
+`source_unstable`, assert that A=B reports the same-source
+warning and that unknown schemas cannot show v1 field differences.
+
+No embedding was done; nothing changed in `main`, PR #13,
+live story chronology or save semantics. **NOT_RUN.**
