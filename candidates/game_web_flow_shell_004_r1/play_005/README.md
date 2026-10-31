@@ -99,3 +99,24 @@ source review GitHub PR #24/#18/#19/#20/#21/#23;
 branch `codex/game-web-flow-shell-004-r1`;
 status SOURCE_SUBMITTED / NOT_RUN / DRAFT;
 author approval PENDING; main not merged.
+
+
+## SHELL-006 r1 continuation (new, NOT_RUN)
+
+This README describes the original PLAY-SHELL-005 r1 baseline. The later
+`play_006/` continuation introduces a **new, expressly unapproved and
+non-canonical** target→event mapping for *three public synthetic IDs*:
+`placeholder_a→EVENT_START`, `placeholder_b→EVENT_NEXT`,
+`placeholder_c→EVENT_END`. There is **still no approved gameplay mapping,
+event bus or saving**. The explicit region-confirmation button now checks
+both public fixture catalogues, requires a validated proposed mapping,
+and rejects unknown/missing entries instead of defaulting to START.
+
+The new bounded previous-module stack preserves the local event preview
+when coming back from the read-only save browser, reconstructs the synthetic
+region on back, and clears provenance on main-menu return. All UI/compiler/
+test status remains **NOT_RUN**.
+
+Authoritative continuation: [play_006/README.md](../play_006/README.md),
+[design](../play_006/DESIGN.md),
+[future acceptance](../play_006/ACCEPTANCE.md).

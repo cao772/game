@@ -73,3 +73,21 @@ implicit save restoration or fallback to game state.
   permissions, keyboard priority, and Godot version targets.
 - Native UI behavior, viewport scaling, accessibility, resource import,
   keyboard focus, and performance. Every one remains NOT_RUN.
+
+
+## Amendment — SHELL-006 r1: explicit *candidate* mapping, not canon
+
+The earlier statement "no mapping exists" described PLAY-SHELL-005
+before SHELL-006. The new `play_006/synthetic_target_event_map.json`
+**proposes** three relationships only between public placeholder IDs and
+existing public EVENT_* fixture IDs. These relationships remain unapproved,
+non-canonical and have no gameplay or save effects.
+
+The region→event button now uses strict fixed-file validation, an actual
+`flow_snapshot()` confirmation and atomic staging of a fresh local event
+preview; invalid candidates are BLOCKED with no default substitution.
+Back-navigation reconstructs region, preserves event trace only when
+returning from saves, and clears mapping state upon main-menu return.
+
+Implementation and rationale:
+[play_006/DESIGN.md](../play_006/DESIGN.md). **NOT_RUN**.

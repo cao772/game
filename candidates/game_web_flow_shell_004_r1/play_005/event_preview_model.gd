@@ -83,6 +83,23 @@ func load_fixtures() -> Dictionary:
     _last_error = ""
     return {"ok": true, "candidate_only": true, "checker_status": "NOT_RUN"}
 
+## GAME-WEB-SHELL-006 r1 private seam. A fixed public fixture ID only.
+## No event bus, scene effect, persistence or approved shared contract.
+func has_event(event_id: String) -> bool:
+    return not event_id.is_empty() and _catalog.has(event_id)
+
+
+func start_at(event_id: String) -> bool:
+    # Validate before changing current event/trace; never default unknown IDs
+    # to EVENT_START.
+    if not has_event(event_id):
+        return false
+    _at = event_id
+    _trace.clear()
+    _last_error = ""
+    return true
+
+
 func reset() -> bool:
     if not _catalog.has(START):
         return false

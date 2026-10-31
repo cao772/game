@@ -7,11 +7,13 @@ signal synthetic_region_confirmation(target_id: StringName)
 signal synthetic_event_choice(action_id: String)
 
 const EventModel = preload("res://play_005/event_preview_model.gd")
+const TargetEventBridge = preload("res://play_006/target_event_bridge_candidate.gd")
 const InputBackend = preload("res://play_005/vendor/input/input_settings_ui_backend_004.gd")
 const REGION_SCENE := "res://play_005/vendor/region/main.tscn"
 const STATE_SCENE := "res://play_005/vendor/state/snapshot_browser.tscn"
 const CHAR_SCENE := "res://play_005/vendor/char/profile_flow_candidate.tscn"
 const MODULES := ["region", "event", "saves", "characters", "input_19"]
+const NAV_HISTORY_LIMIT := 16
 const LABELS := {
     "region": "合成灰盒 / 场景交互",
     "event": "公开占位事件 / 选择",
@@ -31,6 +33,9 @@ var _event_choice: OptionButton = null
 var _selected_action: OptionButton = null
 var _selected_key: OptionButton = null
 var _event_model = EventModel.new()
+var _target_bridge = TargetEventBridge.new()
+var _history: Array[String] = []
+var _event_context: Dictionary = {}
 var _input_backend = InputBackend.new()
 var _active: String = ""
 var _region: Node3D = null
@@ -65,10 +70,39 @@ func event_state() -> Dictionary:
 
 
 func return_menu() -> void:
+    # A new visit must never inherit the last synthetic target/event route.
     _remove_screen()
     _active = ""
+    _history.clear()
+    _event_context.clear()
+    _last_region_confirm = &""
+    _target_bridge.clear()
+    _event_model.reset()
     _flow.show()
     page_changed.emit("menu")
+
+
+func return_previous() -> bool:
+    if _history.is_empty():
+        return_menu()
+        return false
+    var previous: String = _history.pop_back()
+    if not _open_module(previous, false, true):
+        return_menu()
+        return false
+    return true
+
+
+func navigation_snapshot() -> Dictionary:
+    return {
+        "active": _active,
+        "history": _history.duplicate(),
+        "mapped_context": _event_context.duplicate(true),
+        "mapping": _target_bridge.status(),
+        "last_confirmed": str(_last_region_confirm),
+        "candidate_only": true,
+        "approval": "NOT_APPROVED"
+    }
 
 
 func _remove_screen() -> void:
@@ -126,6 +160,10 @@ func _make_screen(title: String) -> void:
     top.add_child(heading)
     _button(top, "ReturnMenu", "返回主菜单",
         Callable(self, "return_menu"))
+    var previous_button := _button(
+        top, "ReturnPrevious", "返回上一模块", Callable(self, "return_previous")
+    )
+    previous_button.disabled = _history.is_empty()
     _stage = VBoxContainer.new()
     _stage.name = "PlayContent"
     _stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -160,11 +198,31 @@ func _mount_control(path: String) -> Dictionary:
 
 
 func open_module(id: String) -> bool:
-    if not MODULES.has(id):
+    # Ordinary menu/explicit button entry uses a clean event preview.
+    return _open_module(id, true, false)
+
+
+func _open_module(
+    id: String, remember_origin: bool, restore_preview: bool
+) -> bool:
+    if not MODULES.has(id) or not is_inside_tree() or get_tree().paused:
         return false
-    if get_tree().paused:
-        return false
+    if id == _active:
+        return true
+    if remember_origin and not _active.is_empty():
+        _history.append(_active)
+        if _history.size() > NAV_HISTORY_LIMIT:
+            _history.remove_at(0)
     _remove_screen()
+    if id == "region":
+        # Returning to the region reconstructs its synthetic scene.
+        # Old event provenance must not be mistaken for a new confirmation.
+        _event_context.clear()
+        _last_region_confirm = &""
+        _target_bridge.clear()
+    elif id == "event" and not restore_preview:
+        # Direct menu entry is not mapped and always starts EVENT_START.
+        _event_context.clear()
     _active = id
     _flow.hide()
     _make_screen(LABELS[id])
@@ -172,7 +230,7 @@ func open_module(id: String) -> bool:
         "region":
             _build_region()
         "event":
-            _build_event()
+            _build_event(restore_preview)
         "saves":
             _build_saves()
         "characters":
@@ -217,43 +275,84 @@ func _build_region() -> void:
     _status.text = "源自 PR #23 的隔离副本。先在灰盒中交互确认；按钮只读取确认 ID。"
 
 
-func _follow_region() -> void:
-    if not is_instance_valid(_region):
-        _status.text = "BLOCKED：区域实例缺失"
+func _follow_region(blocked_override: Variant = null) -> void:
+    # Only explicit button action can request this proposed mapping.
+    # The optional focus override is future-test-only; pause still blocks.
+    if get_tree().paused or not is_inside_tree():
+        _status.text = "BLOCKED：演示已暂停或离开场景树"
+        return
+    var unfocused: bool = not get_window().has_focus()
+    if blocked_override != null:
+        unfocused = bool(blocked_override)
+    if unfocused:
+        _status.text = "BLOCKED：窗口无焦点，已拒绝进入占位事件"
+        return
+    if not is_instance_valid(_region) or not _region.has_method("flow_snapshot"):
+        _status.text = "BLOCKED：PR #23 区域实例或候选接口缺失"
         return
     var value: Variant = _region.call("flow_snapshot")
     if typeof(value) != TYPE_DICTIONARY:
         _status.text = "BLOCKED：区域快照类型不符"
         return
-    var snapshot: Dictionary = value
-    if not bool(snapshot.get("loaded", false)) \
-            or int(snapshot.get("confirm_count", 0)) < 1 \
-            or str(snapshot.get("last_confirmed", "")).is_empty():
-        _status.text = "尚无确认过的合成目标。请先完成灰盒交互；不会自动触发事件。"
+    # Stage a NEW event model. Invalid mapping or missing fixture must not
+    # overwrite a prior local preview/trace (transactional navigation).
+    var proposed_model = EventModel.new()
+    var loaded: Dictionary = proposed_model.load_fixtures()
+    if not bool(loaded.get("ok", false)):
+        _status.text = "BLOCKED：公开事件 fixture 不可用：" \
+            + str(loaded.get("reason", "未知错误"))
         return
-    _last_region_confirm = StringName(str(snapshot["last_confirmed"]))
+    var prepared: Dictionary = _target_bridge.prepare(proposed_model)
+    if not bool(prepared.get("ok", false)):
+        _status.text = "BLOCKED：占位映射校验失败：" \
+            + str(prepared.get("reason", "未知原因"))
+        return
+    var match_result: Dictionary = _target_bridge.resolve(value)
+    if not bool(match_result.get("ok", false)):
+        _status.text = "BLOCKED：" + str(match_result.get("reason", "占位目标未映射"))
+        return
+    var event_id: String = str(match_result["event_id"])
+    if not proposed_model.start_at(event_id):
+        _status.text = "BLOCKED：映射事件 ID 无法打开；拒绝默认回退"
+        return
+    var previous_model = _event_model
+    _event_model = proposed_model
+    _event_context = match_result.duplicate(true)
+    # Only after all checks do we change the page. Failure retains region.
+    if not _open_module("event", true, true):
+        _event_model = previous_model
+        _event_context.clear()
+        _target_bridge.clear()
+        _status.text = "BLOCKED：未能切换到占位事件页面"
+        return
+    _last_region_confirm = StringName(str(match_result["target_id"]))
     synthetic_region_confirmation.emit(_last_region_confirm)
-    # No mapping from target IDs to PR #18 events is approved.
-    # This is explicit menu navigation to a separate fixture graph.
-    open_module("event")
 
 
-func _build_event() -> void:
+func _build_event(restore_preview: bool = false) -> void:
     _stage.add_child(_make_label(
-        "PR #18：只读 Python 3.12+ 预览器依赖 PR #9 校验器，未在 Godot 执行。"
-        + "此页只读取完全相同的三个公开 JSON fixture，以独立 GDScript "
-        + "显示可选动作；checker_status 永远是 NOT_RUN。"))
-    var loaded: Dictionary = _event_model.load_fixtures()
-    if not loaded.get("ok", false):
-        _blocked(str(loaded.get("reason", "事件数据不可用")))
-        return
+        "PR #18：仅公开占位事件预览；Python 3.12+ 校验依赖 PR #9，"
+        + "本入口没有执行该校验。映射由 SHELL-006 显式提供、未批准且非正史。"))
+    if restore_preview:
+        if not bool(_event_model.state().get("ok", false)):
+            _blocked("已有事件状态不可用；禁止重置为默认事件并冒充映射结果")
+            return
+        if not _event_context.is_empty() \
+                and not _event_model.has_event(str(_event_context.get("event_id", ""))):
+            _blocked("映射事件已失效；拒绝加载默认事件")
+            return
+    else:
+        var loaded: Dictionary = _event_model.load_fixtures()
+        if not bool(loaded.get("ok", false)):
+            _blocked(str(loaded.get("reason", "事件数据不可用")))
+            return
     var selector := OptionButton.new()
     selector.name = "EventChoices"
     _event_choice = selector
     _stage.add_child(selector)
     _button(_stage, "ChooseEvent", "确认选项（仅修改本页临时预览路径）",
         Callable(self, "_choose_event"))
-    _button(_stage, "ResetEvent", "从 EVENT_START 重新预览",
+    _button(_stage, "ResetEvent", "从当前占位入口重新预览",
         Callable(self, "_reset_event"))
     _button(_stage, "GoSaves", "前往只读存档浏览（不写入事件）",
         Callable(self, "open_module").bind("saves"))
@@ -276,7 +375,14 @@ func _render_event() -> void:
     for item in steps:
         path_lines.append(str(item["from"]) + " [" + str(item["choice"])
             + "] → " + ("TERMINAL" if item["to"] == "" else str(item["to"])))
-    _status.text = "事件：" + ("TERMINAL" if state["terminal"] else str(state["event_id"])) \
+    var mapping_line: String = "入口：手动菜单 → EVENT_START（无目标映射）"
+    if not _event_context.is_empty():
+        mapping_line = "占位映射（未批准、非正史）：" \
+            + str(_event_context.get("target_id", "")) + " → " \
+            + str(_event_context.get("event_id", "")) + "\n理由：" \
+            + str(_event_context.get("mapping_reason", ""))
+    _status.text = mapping_line + "\n事件：" \
+        + ("TERMINAL" if state["terminal"] else str(state["event_id"])) \
         + " | Python 校验：NOT_RUN | 不产生任何游戏状态变化\n" \
         + ("\n".join(path_lines) if not path_lines.is_empty() else "等待选择")
     _event_choice.disabled = _event_choice.item_count == 0
@@ -301,8 +407,9 @@ func _choose_event() -> void:
 
 
 func _reset_event() -> void:
-    if not _event_model.reset():
-        _status.text = "BLOCKED：事件模型未加载"
+    var entry: String = str(_event_context.get("event_id", EventModel.START))
+    if not _event_model.start_at(entry):
+        _status.text = "BLOCKED：占位事件入口缺失；未进行默认回退"
         return
     _render_event()
 
@@ -317,8 +424,9 @@ func _build_saves() -> void:
         return
     var browser: Node = attached["node"]
     if not browser.has_method("_inspect_pressed"):
-        _status.text = "BLOCKED：PR #20 的浏览入口与核对结果不一致"
+        _stage.remove_child(browser)
         browser.queue_free()
+        _blocked("PR #20 的只读浏览接口缺失；不读取存档")
         return
     _instance = browser
     _status.text = "固定只读候选组件已装配；没有预填个人目录，也不承诺存在任何存档。"
@@ -333,13 +441,15 @@ func _build_characters() -> void:
     var widget: Node = attached["node"]
     if not widget.has_method("load_placeholder_profiles") \
             or not widget.has_signal("exit_requested"):
-        _status.text = "BLOCKED：PR #21 合成资料装配接口缺失"
+        _stage.remove_child(widget)
         widget.queue_free()
+        _blocked("PR #21 合成资料接口缺失；没有真实人物回退")
         return
     widget.connect("exit_requested", Callable(self, "return_menu"))
     if not bool(widget.call("load_placeholder_profiles")):
-        _status.text = "BLOCKED：合成资料未通过候选加载器；没有使用真实角色数据"
+        _stage.remove_child(widget)
         widget.queue_free()
+        _blocked("PR #21 合成资料未通过候选加载器；没有真实人物回退")
         return
     _instance = widget
     _status.text = "仅本地合成资料；列表/详情状态由 PR #21 隔离副本管理。"
