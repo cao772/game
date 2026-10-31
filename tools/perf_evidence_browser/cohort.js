@@ -117,6 +117,9 @@
           number(metric.budget) !== null;
         const missingReason = !metric ? "没有该指标" :
           usable ? "" : (metric.reason || "缺失或输入冲突");
+        const missingCategory = !metric || metric.diagnostic === "NOT_MEASURED" ?
+          "NOT_MEASURED" : metric.missingKind === "INVALID_VALUE" ?
+          "INVALID_VALUE" : "INCONSISTENT_INPUT";
         const conflictBudget = Boolean(
           usable && baselineMetric && number(baselineMetric.budget) !== number(metric.budget)
         );
@@ -131,6 +134,7 @@
           canUse: Boolean(usable),
           diagnostic: metric ? metric.diagnostic : "NOT_MEASURED",
           reason: conflictBudget ? "预算定义冲突" : missingReason,
+          missingCategory: usable ? null : missingCategory,
           delta: d,
           deltaPercent: ratio,
           comparison: d === null ? "NOT_COMPARABLE" : "NUMERIC_ONLY"
@@ -143,7 +147,8 @@
         { min: number(Math.min(...values)), median: median(values), max: number(Math.max(...values)) } :
         { min: null, median: null, max: null };
       const missing = cells.filter(x => !x.canUse).map(x => ({
-        id: x.id, filename: x.filename, diagnostic: x.diagnostic, reason: x.reason
+        id: x.id, filename: x.filename, diagnostic: x.diagnostic,
+        category: x.missingCategory, reason: x.reason
       }));
       return {
         key,
@@ -176,7 +181,8 @@
           id: r.id, filename: r.name,
           items: rows.flatMap(row =>
             row.missing.filter(x => x.id === r.id).map(x => ({
-              key: row.key, label: row.name, diagnostic: x.diagnostic, reason: x.reason
+              key: row.key, label: row.name, diagnostic: x.diagnostic,
+              category: x.category, reason: x.reason
             }))
           )
         }))
