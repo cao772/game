@@ -8,6 +8,7 @@
 <title>性能证据浏览器 · 独立候选</title>
 <link rel="stylesheet" href="./style.css">
 <script src="./model.js" defer></script>
+<script src="./trace.js" defer></script>
 <script src="./cohort.js" defer></script>
 <script src="./app.js" defer></script>
 </head>
@@ -63,6 +64,16 @@
         <div id="detail" aria-live="polite">
           <p class="empty big">从左侧选择一份已导入报告，查看指标、来源与缺测信息。</p>
         </div>
+      </section>
+      <section class="panel" aria-labelledby="trace-heading">
+        <div class="panel-head"><h2 id="trace-heading">来源追踪与缺测分类</h2>
+          <span class="pill muted">仅为报告内声明 · 未独立验真</span></div>
+        <p class="small">按所选报告显示证据链阶段、缺测分类、未核实信息及全场景待测项。缺少关联哈希不会编造链接或填零。</p>
+        <div id="trace-details" aria-live="polite">
+          <p class="empty">请选择左侧报告后查看来源链路。</p>
+        </div>
+        <h3>本会话证据质量总览（不是跑分统计）</h3>
+        <div id="trace-overview"><p class="empty">暂无报告。</p></div>
       </section>
       <section class="panel" aria-labelledby="compare-heading">
         <div class="panel-head"><h2 id="compare-heading">两份报告的数值对照</h2>
