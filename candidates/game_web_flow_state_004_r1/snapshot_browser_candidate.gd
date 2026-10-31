@@ -18,6 +18,7 @@ var _inspect_output: TextEdit
 var _compare_output: TextEdit
 var _preview_output: TextEdit
 var _status_label: Label
+var _risk_label: Label
 
 
 func _ready() -> void:
@@ -140,6 +141,11 @@ func _build_interface() -> void:
 		stack,
 		"当前：尚未检查。操作需手动触发；更改路径、模式会清除旧报告。"
 	)
+	_risk_label = _make_label(
+		stack,
+		"风险提示：尚无可评估结果，所有报告均只读、尚未验收。"
+	)
+
 	_tabs = TabContainer.new()
 	_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	stack.add_child(_tabs)
@@ -174,18 +180,38 @@ func _reset_reports() -> void:
 	_preview_output.text = "尚未预览（任何结果都不能应用）。"
 	if _status_label != null:
 		_status_label.text = "上下文已变更：原报告清空，等待手动检查。"
+	if _risk_label != null:
+		_risk_label.text = "风险提示：请重新手动检查；旧报告不再有效。"
 
 
 func _show(
-	output: TextEdit, formatted: String, tab_index: int, is_blocked: bool
+	output: TextEdit, formatted: String, tab_index: int, is_blocked: bool,
+	risk_level: String = "informational"
 ) -> void:
-	# Only the allowlisted presenter is permitted to format display data.
+	# Formatted text is generated exclusively from allowlisted codes.
 	output.text = formatted
 	_tabs.current_tab = tab_index
 	if is_blocked:
-		_status_label.text = "当前操作已阻断；源文件未修改。"
+		_status_label.text = "操作被阻断或需要进一步检查；本界面无写入操作。"
 	else:
-		_status_label.text = "只读报告已更新；源文件未修改，结果不构成迁移批准。"
+		_status_label.text = "只读报告已生成；不代表快照已冻结或迁移获批。"
+	match risk_level:
+		"blocked":
+			_risk_label.text = "风险判定：已阻断；禁止将此结果作为迁移依据。"
+		"review_required":
+			_risk_label.text = "风险判定：需要人工复核；不能执行存档修改。"
+		_:
+			_risk_label.text = "风险判定：仅供查看；不存在保存或迁移操作。"
+
+
+func _risk(result: Dictionary) -> String:
+	var diagnostic: Variant = result.get("diagnostics", {})
+	if typeof(diagnostic) != TYPE_DICTIONARY:
+		return "blocked"
+	var value: Variant = diagnostic.get("level", "blocked")
+	if value == "blocked" or value == "review_required":
+		return value
+	return "informational"
 
 
 func _on_folder_changed(_new_value: String) -> void:
@@ -200,12 +226,14 @@ func _on_phase_changed(_index: int) -> void:
 	if _preview_output != null:
 		_preview_output.text = "假设字段已改变，请重新点击预览。"
 		_status_label.text = "假设字段已修改：旧预览作废。"
+		_risk_label.text = "风险提示：假设字段变动，先前预览不再有效。"
 
 
 func _on_door_changed(_checked: bool) -> void:
 	if _preview_output != null:
 		_preview_output.text = "假设字段已改变，请重新点击预览。"
 		_status_label.text = "假设字段已修改：旧预览作废。"
+		_risk_label.text = "风险提示：假设字段变动，先前预览不再有效。"
 
 
 func _inspect_pressed() -> void:
@@ -213,7 +241,7 @@ func _inspect_pressed() -> void:
 		_left_folder.text, _current_mode()
 	)
 	var blocked := result.has("status")
-	_show(_inspect_output, _presenter.inspection(result), 0, blocked)
+	_show(_inspect_output, _presenter.inspection(result), 0, blocked, _risk(result))
 
 
 func _compare_pressed() -> void:
@@ -222,7 +250,7 @@ func _compare_pressed() -> void:
 	)
 	_show(
 		_compare_output, _presenter.comparison(result), 1,
-		result.get("status", "") != "comparable_v1"
+		result.get("status", "") != "comparable_v1", _risk(result)
 	)
 
 
@@ -234,7 +262,7 @@ func _preview_none_pressed() -> void:
 		_preview_output, _presenter.preview(result), 2,
 		["blocked", "mapping_required", "invalid_request", "source_unstable"].has(
 			result.get("status", "")
-		)
+		), _risk(result)
 	)
 
 
@@ -247,5 +275,6 @@ func _preview_candidate_pressed() -> void:
 		_preview_output, _presenter.preview(result), 2,
 		["blocked", "mapping_required", "invalid_request",
 			"source_unstable", "invalid_target",
-			"protected_field_review_blocked"].has(result.get("status", ""))
+			"protected_field_review_blocked"].has(result.get("status", "")),
+		_risk(result)
 	)
