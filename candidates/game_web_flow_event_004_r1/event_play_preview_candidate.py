@@ -19,6 +19,9 @@ from typing import Any
 from event_flow_preview_candidate import (
     CheckedEventPreview, MAX_CHOICES, PreviewFailure,
 )
+from event_preview_diagnostics_006_candidate import (
+    breadcrumbs, explain_gate, first_changed_step, present_error,
+)
 
 TASK_ID = "GAME-WEB-PLAY-EVENT-005"
 VERSION = "r1"
@@ -116,6 +119,7 @@ class SyntheticPlaySession:
         result = {
             "task_id": TASK_ID,
             "version": VERSION,
+            "diagnostic_extension": "GAME-WEB-EVENT-006/r1",
             "candidate_only": True,
             "preview_status": status,
             "start_event_id": self._start,
@@ -127,6 +131,8 @@ class SyntheticPlaySession:
             "navigation_history": copy.deepcopy(self._history),
             "selected_path": path,
             "condition_gate": gate,
+            "condition_diagnostics": explain_gate(gate),
+            "navigation": breadcrumbs(self._start, self._history, self._cursor),
             "configured_choices": configured,
             "available_choices": copy.deepcopy(configured) if ready else [],
             "observations": copy.deepcopy(self._observations),
@@ -143,14 +149,17 @@ class SyntheticPlaySession:
     def _rejected(
         self, operation: str, code: str, message: str, **details: Any,
     ) -> dict[str, Any]:
-        # Errors are returned, not thrown; no history or observation mutation.
+        # Errors are returned with the exact unchanged detached snapshot.
+        snapshot = self.snapshot()
+        error = _failure(code, message, **details)
         return {
             "ok": False,
             "status": "REJECTED",
             "operation": operation,
             "changed": False,
-            "error": _failure(code, message, **details),
-            "snapshot": self.snapshot(),
+            "error": error,
+            "error_view": present_error(error, snapshot),
+            "snapshot": snapshot,
         }
 
     def _accepted(
@@ -205,27 +214,41 @@ class SyntheticPlaySession:
         if existing == replacement:
             return self._accepted(operation, changed=False)
 
-        # A previously chosen step may have been validated against the
-        # observation being changed. Erase the full route rather than
-        # retain a stale or misleading trace. Otherwise retain the
-        # verified prefix and discard redo steps only.
-        touched_past = any(
-            item["from_event_id"] == event_id
-            for item in self._history[:self._cursor]
+        # Keep only the prefix preceding the first selection gated by
+        # this event. Earlier steps are independent of its changed input.
+        # A redo-only or unrelated observation discards redo but keeps the
+        # selected prefix. This is preview navigation, NOT game rollback.
+        old_cursor = self._cursor
+        old_length = len(self._history)
+        rollback_at = first_changed_step(
+            self._history, self._cursor, event_id,
         )
-        if touched_past:
-            self._history = []
-            self._cursor = 0
+        if rollback_at is not None:
+            self._history = self._history[:rollback_at]
+            self._cursor = rollback_at
+            policy = "rollback_to_safe_prefix"
         else:
             self._history = self._history[:self._cursor]
+            policy = (
+                "discard_redo" if old_length > old_cursor
+                else "observation_only"
+            )
 
         if replacement is None:
             self._observations.pop(event_id, None)
         else:
             self._observations[event_id] = replacement
         return self._accepted(
-            operation, history_reset=touched_past,
-            redo_cleared=not touched_past,
+            operation, history_reset=(rollback_at == 0),
+            redo_cleared=(rollback_at is None),
+            navigation_effect={
+                "policy": policy,
+                "previous_cursor": old_cursor,
+                "previous_history_length": old_length,
+                "current_cursor": self._cursor,
+                "discarded_steps": old_length - len(self._history),
+                "affected_event_id": event_id,
+            },
         )
 
     def apply(self, command: Any) -> dict[str, Any]:
@@ -246,6 +269,7 @@ class SyntheticPlaySession:
             "back": {"op", "steps"},
             "forward": {"op", "steps"},
             "jump": {"op", "cursor"},
+            "rollback": {"op", "cursor"},
         }
         if type(op) is not str or op not in allowed_fields:
             return self._rejected(
@@ -303,6 +327,7 @@ class SyntheticPlaySession:
                     "Preview has reached the 24 explicit selection limit",
                 )
             # Mutate ONLY this in-memory navigation record after validation.
+            overwritten = len(self._history) - self._cursor
             self._history = self._history[:self._cursor]
             self._history.append({
                 "from_event_id": current,
@@ -312,7 +337,47 @@ class SyntheticPlaySession:
                 "gate_at_selection": copy.deepcopy(gate),
             })
             self._cursor += 1
-            return self._accepted(op)
+            return self._accepted(
+                op,
+                navigation_effect={
+                    "policy": "replace_redo_branch" if overwritten else "append",
+                    "discarded_steps": overwritten,
+                    "current_cursor": self._cursor,
+                },
+            )
+
+        if op == "rollback":
+            new_cursor = command["cursor"]
+            if type(new_cursor) is not int:
+                return self._rejected(
+                    op, "INVALID_CURSOR", "Cursor must be an integer"
+                )
+            if new_cursor > self._cursor:
+                return self._rejected(
+                    op, "ROLLBACK_FORWARD_FORBIDDEN",
+                    "Rollback cannot move forward through history",
+                    current_cursor=self._cursor,
+                )
+            if new_cursor < 0:
+                return self._rejected(
+                    op, "CURSOR_OUT_OF_RANGE",
+                    "Rollback cursor must be nonnegative",
+                    current_cursor=self._cursor,
+                )
+            previous = len(self._history)
+            previous_cursor = self._cursor
+            self._history = self._history[:new_cursor]
+            self._cursor = new_cursor
+            return self._accepted(
+                op,
+                changed=(previous != new_cursor or previous_cursor != new_cursor),
+                navigation_effect={
+                    "policy": "truncate_to_cursor",
+                    "previous_cursor": previous_cursor,
+                    "current_cursor": new_cursor,
+                    "discarded_steps": previous - new_cursor,
+                },
+            )
 
         if op in ("back", "forward"):
             steps = command["steps"]
@@ -339,8 +404,17 @@ class SyntheticPlaySession:
                 history_length=len(self._history),
             )
         changed = new_cursor != self._cursor
+        previous_cursor = self._cursor
         self._cursor = new_cursor
-        return self._accepted(op, changed=changed)
+        return self._accepted(
+            op, changed=changed,
+            navigation_effect={
+                "policy": "navigate_without_truncation",
+                "previous_cursor": previous_cursor,
+                "current_cursor": new_cursor,
+                "discarded_steps": 0,
+            },
+        )
 
 
 def _parse_command(text: str) -> dict[str, Any]:
@@ -372,11 +446,43 @@ def render_text(envelope: dict[str, Any]) -> str:
             "State SHA256: " + snapshot["state_snapshot_sha256"],
         ])
         gate = snapshot["condition_gate"]
+        diagnosis = snapshot.get("condition_diagnostics")
         if gate and not gate["ready"]:
             lines.append(
                 "Gate blocked: signal_matches=%s missing_conditions=%s"
                 % (gate["signal_matches"], ",".join(gate["missing_conditions"]))
             )
+        if diagnosis:
+            lines.append(
+                "Condition diagnosis: %s"
+                % (", ".join(diagnosis["reason_codes"]) or "READY")
+            )
+            for reason in diagnosis["reasons"]:
+                source = reason.get("source")
+                if source:
+                    location = source.get("location")
+                    label = (
+                        "%s:%s:%s"
+                        % (source["file"], location["line"], location["column"])
+                        if location else source["file"]
+                    )
+                    lines.append(
+                        "  %s at %s %s"
+                        % (reason["code"], label, source["pointer"])
+                    )
+            lines.append("Next: " + diagnosis["next_step"])
+        navigation = snapshot.get("navigation")
+        if navigation:
+            lines.append("Route positions:")
+            for point in navigation["positions"]:
+                lines.append(
+                    "  %d %s %s"
+                    % (
+                        point["cursor"],
+                        point["event_id"] or "(terminal)",
+                        "selected" if point["selected_prefix"] else "redo",
+                    )
+                )
         for item in snapshot["available_choices"]:
             lines.append(
                 "  available %s -> %s"
@@ -390,16 +496,44 @@ def render_text(envelope: dict[str, Any]) -> str:
                 index + 1, result["operation"], result["status"],
             )
         )
+        effect = result.get("navigation_effect")
+        if effect:
+            lines.append(
+                "   navigation: %s discarded=%s cursor=%s"
+                % (
+                    effect["policy"],
+                    effect["discarded_steps"],
+                    effect["current_cursor"],
+                )
+            )
         if not result["ok"]:
             lines.append(
                 "   ERROR %s: %s"
                 % (result["error"]["code"], result["error"]["message"])
             )
+            view = result.get("error_view")
+            if view:
+                lines.append(
+                    "   guidance: %s — %s"
+                    % (view["title"], view["suggestion"])
+                )
+                for site in view["related_sources"]:
+                    source = site["source"]
+                    lines.append(
+                        "   source: %s %s"
+                        % (source["file"], source["pointer"])
+                    )
     if envelope.get("error") is not None:
         lines.append(
             "ERROR %s: %s"
-            % (envelope["error"]["code"], envelope["error"]["message"])
+            % (
+                envelope["error"]["code"],
+                envelope["error"].get("message", envelope["error"].get("detail", "")),
+            )
         )
+        view = envelope.get("error_view")
+        if view:
+            lines.append("guidance: " + view["suggestion"])
     lines.append("No gameplay state, source data or save files were modified.")
     return "\n".join(lines) + "\n"
 
@@ -426,6 +560,7 @@ def main(argv: list[str] | None = None) -> int:
             "version": VERSION,
             "status": "REJECTED",
             "error": exc.to_dict(),
+            "error_view": present_error(exc.to_dict()),
             "operations": [],
             "no_runtime_effects": True,
         }
@@ -447,18 +582,23 @@ def main(argv: list[str] | None = None) -> int:
             "snapshot": session.snapshot(),
             "no_runtime_effects": True,
         }
+        envelope["error_view"] = present_error(
+            envelope["error"], envelope["snapshot"],
+        )
     else:
         operations: list[dict[str, Any]] = []
         for raw in args.command:
             parsed = _parse_command(raw)
             if not parsed["ok"]:
+                snapshot = session.snapshot()
                 operations.append({
                     "ok": False,
                     "status": "REJECTED",
                     "operation": "(invalid_json)",
                     "changed": False,
                     "error": parsed["error"],
-                    "snapshot": session.snapshot(),
+                    "error_view": present_error(parsed["error"], snapshot),
+                    "snapshot": snapshot,
                 })
                 break
             applied = session.apply(parsed["command"])
