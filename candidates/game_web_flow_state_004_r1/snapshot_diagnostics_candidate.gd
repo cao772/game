@@ -160,14 +160,21 @@ func build(kind: String, report: Dictionary, same_source: bool = false) -> Dicti
 		severity = "blocked"
 		_add_unique(notes, "UNKNOWN_DIAGNOSTIC")
 
+	# No known field differences may be surfaced for blocked/unmapped cases.
+	var safe_changes: Array = []
+	if kind == "comparison" and status == "comparable_v1":
+		safe_changes = _known_changes(report.get("changed_fields", []))
+	elif kind == "preview" and [
+		"same_version_review_only", "protected_field_review_blocked", "no_changes"
+	].has(status):
+		safe_changes = _known_changes(report.get("changes", []))
+
 	return {
 		"task_id": "GAME-WEB-STATE-006",
 		"kind": kind if ["inspection", "comparison", "preview"].has(kind) else "unknown",
 		"level": severity,
 		"notice_codes": notes.duplicate(true),
-		"known_changed_fields": _known_changes(
-			report.get("changed_fields", report.get("changes", []))
-		),
+		"known_changed_fields": safe_changes.duplicate(true),
 		"same_source_reference": same_source if kind == "comparison" else false,
 		"verified": false,
 		"can_apply": false,
