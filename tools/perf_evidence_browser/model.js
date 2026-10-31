@@ -41,6 +41,9 @@
   function proposedMetric(spec, observed, sourceStatus, issues, canRead, note) {
     const [key, name, unit, ceiling] = spec;
     const actual = finite(observed);
+    // Keep missing/null separate from present-but-invalid numeric data.
+    const missingKind = observed === null || observed === undefined ?
+      "NOT_MEASURED" : actual === null ? "INVALID_VALUE" : null;
     const budget = ceiling; // explicitly an unapproved proposal, NEVER observed
     const usable = canRead && actual !== null && GOOD_SOURCE_STATES.has(sourceStatus);
     const expected = actual === null ? null : (actual <= ceiling ? "PASS" : "FAIL");
@@ -59,7 +62,8 @@
     }
     return { key, name, unit, budget, budgetKind: "UNAPPROVED_PROPOSAL",
       observed: actual, sourceStatus: label(sourceStatus, 24),
-      diagnostic, reason, usable: diagnostic === "WITHIN_PROPOSAL" || diagnostic === "OVER_PROPOSAL" };
+      missingKind, diagnostic, reason,
+      usable: diagnostic === "WITHIN_PROPOSAL" || diagnostic === "OVER_PROPOSAL" };
   }
   function normalizeOrigin(capture, fallback) {
     const origin = field(capture, "origin");
