@@ -510,7 +510,7 @@
       for (const record of result.missingOverview.missingByRecord) {
         for (const item of record.items) {
           missing.push(record.filename + " / " + item.label + "：" +
-            item.reason + " [" + item.diagnostic + "]");
+            item.reason + " [" + item.category + " / " + item.diagnostic + "]");
         }
       }
       if (missing.length) addWarningPanel(els.multiResult, missing, 110);
