@@ -1,0 +1,14 @@
+; GAME-WEB-FLOW-STATE-004 r1 -- standalone UI proposal, NOT_RUN.
+config_version=5
+
+[application]
+config/name="Snapshot read-only browser candidate (W-STATE-004)"
+run/main_scene="res://snapshot_browser.tscn"
+
+[display]
+window/size/viewport_width=1200
+window/size/viewport_height=760
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
