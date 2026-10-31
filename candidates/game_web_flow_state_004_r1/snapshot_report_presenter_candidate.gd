@@ -246,7 +246,10 @@ func comparison(report: Dictionary) -> String:
 		lines.append("数字版本关系不可判定")
 	lines.append("")
 	lines.append("差异字段（只显示名称和变化类型）：")
-	lines.append(_changes(report.get("changed_fields", [])))
+	if report.get("status", "") == "comparable_v1":
+		lines.append(_changes(report.get("changed_fields", [])))
+	else:
+		lines.append("  不可比较：不显示任何字段差异。")
 	lines.append("")
 	lines.append("未知版本不作字段语义比较；两次读取并非事务。")
 	lines.append("")
@@ -261,9 +264,14 @@ func preview(report: Dictionary) -> String:
 		"状态：只读预览，不能应用、不能保存、不能恢复。",
 		"已批准迁移映射：无",
 		"",
-		"候选差异（仅字段名称）：",
-		_changes(report.get("changes", [])),
-		""
+		"候选差异（仅字段名称）："
+	]
+	var status: Variant = report.get("status", "")
+	if ["no_changes", "same_version_review_only", "protected_field_review_blocked"].has(status):
+		lines.append(_changes(report.get("changes", [])))
+	else:
+		lines.append("  当前结果不可展示候选差异。")
+	lines.append("")
 	]
 	if report.get("status", "") == "mapping_required":
 		lines.append("尚无旧版本结构和合法映射，禁止猜测转换。")
