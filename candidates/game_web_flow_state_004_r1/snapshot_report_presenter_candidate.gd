@@ -49,6 +49,33 @@ const ALLOWED_ERROR_CODES := [
 	"LEFT_INVALID_FOLDER", "RIGHT_INVALID_FOLDER",
 	"LEFT_INVALID_EXPECTED_MODE", "RIGHT_INVALID_EXPECTED_MODE"
 ]
+const NOTICE_MESSAGES := {
+	"READ_ONLY": "只读操作：无保存或迁移入口。",
+	"NO_ATOMICITY": "多次读取不构成文件锁或原子快照。",
+	"SOURCE_UNSTABLE": "检测到来源变化或不可继续读取，请重新检查。",
+	"INVALID_REQUEST": "路径、模式或候选字段不符合约束。",
+	"FILE_UNAVAILABLE": "所选模式快照缺失或不可读取；不会自动切换到其他模式。",
+	"CORRUPT_OR_INVALID": "文件损坏、过大或不符合已知格式；不能自行修复。",
+	"MODE_MISMATCH": "来源模式与所选模式不同；禁止混用。",
+	"VERSION_MAPPING_ABSENT": "版本结构未知，未提供已批准的迁移映射。",
+	"V1_FORMAT_ONLY": "v1 格式有效并不保证游戏状态、历史时钟或剧情语义有效。",
+	"DIFF_PRESENT": "检测到已知字段差异，仅展示字段名称和变化类型。",
+	"NO_KNOWN_DIFF": "未发现已知 v1 字段差异，但不证明两次读取完全相同。",
+	"PROTECTED_DIFFERENCE": "存在标识、模式或时钟相关差异；不得视为可执行修改。",
+	"UNCOMPARABLE": "无法安全进行字段语义比较。",
+	"SAME_SOURCE_SELECTED": "目录 A 与 B 相同：本次为同一来源的重复读取，不是备份比对。",
+	"PREVIEW_NEVER_APPLIES": "迁移预览只能查看，永远不会应用或覆盖。",
+	"NO_PAYLOAD_VERIFICATION": "缺少可验证的内容指纹，无法证明文件内容稳定。",
+	"METADATA_ONLY": "结果仅包含脱敏的技术元数据。",
+	"UNKNOWN_DIAGNOSTIC": "出现未识别的诊断状态，不能宣称成功。",
+	"AUTHOR_REVIEW_REQUIRED": "该候选不能批准任何状态迁移，需作者最终验收。"
+}
+const LEVEL_LABELS := {
+	"informational": "信息",
+	"review_required": "需人工复核",
+	"blocked": "已阻断"
+}
+
 const COMPATIBILITY := {
 	"compatible_v1": "已知 v1 格式匹配（仅格式）",
 	"unsupported": "未知版本，不能推断可迁移",
@@ -95,7 +122,9 @@ func _label(value: Variant) -> String:
 		return "未知"
 	if value == "1":
 		return "1"
-	if value == "unknown" or value == "nonfinite" 			or value == "invalid_type" 			or value == "numeric_out_of_display_range":
+	if value == "unknown" or value == "nonfinite" \
+			or value == "invalid_type" \
+			or value == "numeric_out_of_display_range":
 		return value
 	if value.length() > 20:
 		return "未知"
@@ -123,6 +152,25 @@ func _section(title: String, value: Dictionary) -> String:
 	return "\n".join(lines)
 
 
+func _diagnostic_lines(report: Dictionary) -> String:
+	var info: Variant = report.get("diagnostics", {})
+	if typeof(info) != TYPE_DICTIONARY:
+		return "判定：无完整诊断信息；不得据此执行操作。"
+	var level: Variant = info.get("level", "blocked")
+	if typeof(level) != TYPE_STRING or not LEVEL_LABELS.has(level):
+		level = "blocked"
+	var lines: PackedStringArray = [
+		"安全判定：" + LEVEL_LABELS[level] + "（仅供查看）"
+	]
+	var codes: Variant = info.get("notice_codes", [])
+	if typeof(codes) == TYPE_ARRAY:
+		for code in codes:
+			# No raw issue strings or arbitrary values are interpolated.
+			if typeof(code) == TYPE_STRING and NOTICE_MESSAGES.has(code):
+				lines.append("  • " + NOTICE_MESSAGES[code])
+	return "\n".join(lines)
+
+
 func _changes(value: Variant) -> String:
 	if typeof(value) != TYPE_ARRAY:
 		return "  无可展示的差异"
@@ -143,8 +191,9 @@ func _changes(value: Variant) -> String:
 
 
 func inspection(report: Dictionary) -> String:
-	if report.get("status", "") == "invalid_request" 			or report.get("status", "") == "source_unstable":
-		return _section("检查已阻断", report) + "\n结果不可作为存档状态证据。"
+	if report.get("status", "") == "invalid_request" \
+			or report.get("status", "") == "source_unstable":
+		return _section("检查已阻断", report) + "\n结果不可作为存档状态证据。\n" + _diagnostic_lines(report)
 	var check: Variant = report.get("inspection", {})
 	var version: Variant = report.get("version_delta", {})
 	if typeof(check) != TYPE_DICTIONARY or typeof(version) != TYPE_DICTIONARY:
@@ -171,6 +220,8 @@ func inspection(report: Dictionary) -> String:
 			lines.append("  数字版本关系：不可判定")
 	lines.append("")
 	lines.append("仅格式诊断；多次读取不构成原子快照。")
+	lines.append("")
+	lines.append(_diagnostic_lines(report))
 	return "\n".join(lines)
 
 
@@ -198,6 +249,8 @@ func comparison(report: Dictionary) -> String:
 	lines.append(_changes(report.get("changed_fields", [])))
 	lines.append("")
 	lines.append("未知版本不作字段语义比较；两次读取并非事务。")
+	lines.append("")
+	lines.append(_diagnostic_lines(report))
 	return "\n".join(lines)
 
 
@@ -220,4 +273,6 @@ func preview(report: Dictionary) -> String:
 		lines.append("源文件前后读取不一致，本次结果必须作废。")
 	else:
 		lines.append("此报告不构成状态转移或正史批准。")
+	lines.append("")
+	lines.append(_diagnostic_lines(report))
 	return "\n".join(lines)
