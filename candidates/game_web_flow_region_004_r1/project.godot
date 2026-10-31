@@ -1,0 +1,15 @@
+; GAME-WEB-FLOW-REGION-004 r1 independent Godot 4 synthetic demo.
+; NOT_RUN, no global InputMap edit, no plugin or external material.
+config_version=5
+
+[application]
+config/name="Synthetic Graybox Interaction Flow (NOT_RUN)"
+run/main_scene="res://main.tscn"
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=720
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
