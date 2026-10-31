@@ -7,6 +7,7 @@
 
   const model = window.PerfEvidenceModel;
   const cohort = window.PerfEvidenceCohort;
+  const trace = window.PerfEvidenceTrace;
   const byId = id => document.getElementById(id);
   const state = { reports: [], selected: null, sequence: 0, errors: [], multiSelected: new Set(), seenFiles: new Set(), busy: false };
   const els = {
@@ -21,7 +22,8 @@
     compare: byId("compare"), result: byId("compare-result"),
     multiBaseline: byId("multi-baseline"), multiCompare: byId("multi-compare"),
     multiClear: byId("multi-clear"), multiCount: byId("multi-count"),
-    multiResult: byId("multi-result")
+    multiResult: byId("multi-result"),
+    traceDetails: byId("trace-details"), traceOverview: byId("trace-overview")
   };
 
   function node(tag, text, className) {
@@ -92,6 +94,7 @@
     els.unknown.textContent = String(all.filter(x =>
       x.provenance !== "SYNTHETIC" && x.provenance !== "DECLARED_REAL_UNVERIFIED").length);
     els.clear.disabled = all.length === 0;
+    renderTraceOverview();
   }
   function renderList() {
     clear(els.list);
@@ -301,9 +304,73 @@
     ]));
     put(parent, paragraph(m.note, "footnote"));
   }
+  function renderTraceOverview() {
+    clear(els.traceOverview);
+    if (!trace || !state.reports.length) {
+      els.traceOverview.appendChild(paragraph(
+        trace ? "当前会话未导入报告，暂无来源与缺测统计。" : "来源分类模块未加载，无法追踪证据。",
+        "empty"));
+      return;
+    }
+    const summary = trace.traceSelection(state.reports);
+    const rows = Object.entries(summary.byCategory).map(([name, count]) => [
+      name, trace.DESCRIPTIONS[name] || "待复核", String(count)
+    ]);
+    put(els.traceOverview, paragraph(
+      "报告总数 " + summary.count + "；以下统计是报告内字段缺口和未核实声明的数量，不是已测性能值。",
+      "footnote"), table(["分类", "含义", "发现次数"], rows),
+      paragraph(summary.warning, "footnote"));
+  }
+  function renderTraceDetails(report) {
+    clear(els.traceDetails);
+    if (!report || !trace) {
+      els.traceDetails.appendChild(paragraph(
+        "从左侧选择一份报告以展开来源链路与缺测类别。", "empty"));
+      return;
+    }
+    const evidence = trace.traceReport(report);
+    const meta = evidence.report;
+    put(els.traceDetails, heading("所选报告的来源声明", "h3"),
+      table(["字段", "报告内声明（均未验真）"], [
+        ["报告", meta.fileLabel],
+        ["类型/来源任务", meta.kind + " / " + meta.reportTaskId],
+        ["来源类别", meta.sourceClass],
+        ["引擎/渲染后端", meta.declaredEngine + " / " + meta.declaredRenderer],
+        ["显示服务", meta.declaredDisplay],
+        ["场景哈希（未独立核对）", meta.declaredSceneSha256],
+        ["原始CSV哈希/进程身份/独立重复采样", "均未得到可靠绑定"]
+      ]));
+    put(els.traceDetails, heading("证据链阶段", "h3"),
+      table(["阶段", "可核实状态", "保守解释"], evidence.chain.map(x => [
+        x.stage, x.state, x.explanation
+      ])));
+    const gaps = evidence.classifiedMissing.map(x => [
+      x.group, x.label, x.category,
+      x.available === null || x.total === null ? "未提供" : x.available + "/" + x.total,
+      x.details.length ? x.details.map(d =>
+        d.id + "：" + d.reason + " [" + d.status + "]").join("；") : x.explanation
+    ]);
+    put(els.traceDetails, heading("逐指标缺测分类", "h3"));
+    if (gaps.length) {
+      put(els.traceDetails, table(["组", "指标", "类别", "有效覆盖", "原因与对应run"], gaps));
+    } else {
+      put(els.traceDetails, paragraph(
+        "八项报告数值可能齐全，但来源真实性、全场景性能及未测参数仍未通过验证。", "footnote"));
+    }
+    const extra = evidence.contextIssues.map(x => [x.category, x.explanation]);
+    put(els.traceDetails, heading("来源及场景范围的缺口", "h3"),
+      table(["类别", "未核实或待测说明"], [
+        ...extra,
+        ...evidence.outOfScope.map(x => [x.category, x.label + "：未独立采集或验证"])
+      ]));
+    put(els.traceDetails, paragraph(
+      "本模块没有读取原始CSV、验证其哈希、检查Godot真实进程或GPU指标。声明≠实测核验；完整场景始终INCOMPLETE。",
+      "footnote"));
+  }
   function renderDetail() {
     clear(els.detail);
     const report = state.reports.find(x => x.browserId === state.selected);
+    renderTraceDetails(report);
     if (!report) {
       els.detail.appendChild(paragraph("从左侧选择一份已导入报告，查看指标、来源与缺测信息。", "empty big"));
       return;
@@ -400,6 +467,7 @@
     try {
       const result = cohort.compareMany(selected, Number(els.multiBaseline.value));
       const c = result.context;
+      const selectedTrace = trace.traceSelection(selected);
       put(els.multiResult,
         paragraph("对照状态：" + c.status + "；" + c.note, "summary"),
         paragraph(c.evidenceNote + "。完整场景保持 INCOMPLETE，原始证据未独立校验。",
@@ -408,6 +476,10 @@
           result.missingOverview.untrustedOrMissing) + "/" +
           result.missingOverview.totalMetricCells +
           " 个数字字段具备报告内可对照状态；这不等于有这么多项真实实测。", "footnote"));
+      put(els.multiResult, heading("本次选中报告的缺测分类概览", "h3"),
+        table(["类别", "解释", "发现数"],
+          Object.entries(selectedTrace.byCategory).map(([name, value]) =>
+            [name, trace.DESCRIPTIONS[name] || "待复核", String(value)])));
       const sourceRows = result.records.map(item => [
         item.id === result.baselineId ? item.name + "（基准）" : item.name,
         ORIGINS[item.provenance] || item.provenance,
@@ -453,7 +525,7 @@
   }
 
   async function importFiles(files) {
-    if (!model || !cohort) {
+    if (!model || !cohort || !trace) {
       els.status.textContent = "依赖模块未加载完整，拒绝导入和任何伪数据显示。";
       return;
     }
@@ -552,8 +624,8 @@
   els.compare.addEventListener("click", compareClicked);
   els.multiCompare.addEventListener("click", renderMultiClicked);
   els.multiClear.addEventListener("click", resetMultiSelection);
-  if (!model || !cohort) {
-    els.status.textContent = "模型模块未载入；无法解析报告（不得展示伪结果）。";
+  if (!model || !cohort || !trace) {
+    els.status.textContent = "依赖模块未全部载入；拒绝解析报告或展示伪结果。";
     els.files.disabled = true;
   } else {
     overview(); rebuildComparators(); rebuildMultiSelection(); renderList();
