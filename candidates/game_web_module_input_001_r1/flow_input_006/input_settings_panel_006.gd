@@ -93,8 +93,9 @@ func _arrange_tab_order() -> void:
         button.focus_previous = button.get_path_to(prior_button)
         if button.tooltip_text.is_empty():
             button.tooltip_text = button.text
-        if not button.focus_entered.is_connected(_on_control_focused):
+        if not button.has_meta("input006_focus_hook"):
             button.focus_entered.connect(_on_control_focused.bind(button))
+            button.set_meta("input006_focus_hook", true)
 
 
 func _on_control_focused(button: Button) -> void:
@@ -113,7 +114,7 @@ func _focus_first() -> void:
 
 func _return_to_origin() -> void:
     if is_instance_valid(_focus_origin) and _focus_origin.is_inside_tree() \
-            and _focus_origin.visible and not _focus_origin.is_disabled():
+            and _focus_origin.visible and _focus_origin.focus_mode != Control.FOCUS_NONE:
         _focus_origin.grab_focus()
     _focus_origin = null
 
@@ -371,7 +372,8 @@ func _commit_undo(persist: bool) -> Dictionary:
             or str(_undo_plan.get("scope", "")) != expected_scope \
             or str(latest.get("scope", "")) != expected_scope \
             or str(_undo_plan.get("path", "")) != str(latest.get("path", "")) \
-            or str(_undo_plan["after"]) != str(latest["after"]):
+            or change_planner.digest(_undo_plan["after"]) != \
+                change_planner.digest(latest["after"]):
         _reset_pending()
         _undo_plan.clear()
         return _finish_custom({
@@ -507,7 +509,7 @@ func open_for_router(router: Node = null) -> Dictionary:
 
 func _restore_outer_focus() -> void:
     if is_instance_valid(_return_focus) and _return_focus.is_inside_tree() \
-            and _return_focus.visible and not _return_focus.is_disabled():
+            and _return_focus.visible and _return_focus.focus_mode != Control.FOCUS_NONE:
         _return_focus.grab_focus()
     _return_focus = null
 
