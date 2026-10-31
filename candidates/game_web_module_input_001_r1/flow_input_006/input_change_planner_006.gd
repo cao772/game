@@ -40,11 +40,10 @@ func preview_swap(settings, action_id: StringName, occupied_keycode: int) -> Dic
     # No intermediate invalid mapping ever becomes live.
     var target: Dictionary = current.duplicate(true)
     for entry in target["bindings"]:
-        match str(entry["action_id"]):
-            action:
-                entry["keycode"] = owner_code
-            owner:
-                entry["keycode"] = prior_code
+        if str(entry["action_id"]) == action:
+            entry["keycode"] = owner_code
+        elif str(entry["action_id"]) == owner:
+            entry["keycode"] = prior_code
     var inspected: Dictionary = settings.bindings.inspect_profile(target)
     if not inspected["ok"]:
         return _reject("INVALID_SWAP", str(inspected["error"]))
