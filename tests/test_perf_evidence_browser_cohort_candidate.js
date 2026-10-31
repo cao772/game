@@ -234,3 +234,28 @@ test("PB19: UI explains missing metrics and retains per-run provenance warnings"
   assert.match(app, /缺测与口径说明/);
   assert.match(app, /另有 /);
 });
+
+test("PB20: cross-report missing gaps carry category as well as reason", () => {
+  const a = sample(1);
+  const b = sample(2, 10, "SYNTHETIC", { missing: "script_p95_ms" });
+  const result = cohort.compareMany([a, b], 1);
+  const row = metric(result, "script_p95_ms");
+  assert.equal(row.missing[0].category, "NOT_MEASURED");
+  assert.equal(result.missingOverview.missingByRecord[1].items[0].category,
+    "NOT_MEASURED");
+  assert.equal(row.median, null);
+  assert.equal(result.fullScenePass, false);
+});
+
+test("PB21: malformed positive numeric metric is incompatible, not a zero substitute", () => {
+  const a = sample(1), b = sample(2);
+  b.metrics[0].observed = 9;
+  b.metrics[0].usable = false;
+  b.metrics[0].diagnostic = "INCOMPLETE";
+  b.metrics[0].reason = "budget or source claim inconsistent";
+  const result = cohort.compareMany([a, b], 1);
+  const row = metric(result, "frame_p50_ms");
+  assert.equal(row.nReportedUsable, 1);
+  assert.equal(row.missing[0].category, "INCONSISTENT_INPUT");
+  assert.equal(row.cells[1].delta, null);
+});
