@@ -3,23 +3,30 @@ extends Control
 ## No arbitrary resource path or shell control. NOT_RUN.
 
 const FLOW_SCENE_PATH := "res://profile_flow_candidate.tscn"
+const PageSamples = preload("res://synthetic_page_factory_candidate.gd")
 
 var _flow: Control = null
 
 @onready var _host: MarginContainer = $Host
 @onready var _fallback: Label = $Host/Fallback
 @onready var _retry: Button = $Toolbar/RetryFlow
+@onready var _page_samples: Button = $Toolbar/PageSamplesButton
 @onready var _exit_notice: Label = $ExitNotice
 
 
 func _ready() -> void:
     _retry.pressed.connect(reload_flow)
+    _page_samples.pressed.connect(_on_page_samples)
+    _page_samples.disabled = true
+    _page_samples.focus_mode = Control.FOCUS_ALL
+    _page_samples.tooltip_text = "载入十四条程序生成的纯合成分页样本"
     _retry.focus_mode = Control.FOCUS_ALL
     _retry.tooltip_text = "重新读取固定的本地合成资料导航组件"
     reload_flow()
 
 
 func _set_failure(message: String) -> void:
+    _page_samples.disabled = true
     _fallback.text = message
     _fallback.visible = true
     _exit_notice.visible = false
@@ -69,6 +76,7 @@ func reload_flow() -> bool:
     _flow.connect("exit_requested", Callable(self, "_on_exit_requested"))
     _fallback.visible = false
     _exit_notice.visible = false
+    _page_samples.disabled = false
     # Fixed synthetic fixture only; failures are visibly handled within Flow.
     _flow.call("load_placeholder_profiles")
     return true
@@ -78,3 +86,8 @@ func _on_exit_requested() -> void:
     if _flow != null and is_instance_valid(_flow):
         _flow.hide()
     _exit_notice.show()
+
+
+func _on_page_samples() -> void:
+    if _flow != null and is_instance_valid(_flow) and _flow.is_inside_tree():
+        _flow.call("set_profiles", PageSamples.build(14))

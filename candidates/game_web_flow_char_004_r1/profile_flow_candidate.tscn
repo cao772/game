@@ -89,6 +89,30 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
+[node name="Pagination" type="HBoxContainer" parent="Layout/Body/ListSide"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="PreviousPageButton" type="Button" parent="Layout/Body/ListSide/Pagination"]
+layout_mode = 2
+text = "上一页"
+disabled = true
+focus_mode = 2
+
+[node name="PageLabel" type="Label" parent="Layout/Body/ListSide/Pagination"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "第 1 / 1 页"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="NextPageButton" type="Button" parent="Layout/Body/ListSide/Pagination"]
+layout_mode = 2
+text = "下一页"
+disabled = true
+focus_mode = 2
+
 [node name="EmptyList" type="Label" parent="Layout/Body/ListSide"]
 layout_mode = 2
 text = "暂无占位资料"
@@ -117,9 +141,22 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
+[node name="FallbackScroll" type="ScrollContainer" parent="Layout/Body/DetailSide"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+focus_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="FullText" type="Label" parent="Layout/Body/DetailSide/FallbackScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 3
+text = "占位全文降级阅读区域。"
+
 [node name="DetailFallback" type="Label" parent="Layout/Body/DetailSide"]
 layout_mode = 2
-size_flags_vertical = 3
 text = "从左侧列表选择一条合成占位资料。"
 horizontal_alignment = 1
 vertical_alignment = 1

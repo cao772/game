@@ -125,3 +125,22 @@ The new future-only `verify_profile_play_candidate.gd` also proposes
 P29–P33 demo resource recovery assertions, while manual G20 reviews
 small-screen fallback and the static retry control. No actual test
 execution occurred; all remain NOT_RUN.
+
+
+---
+
+## GAME-WEB-CHAR-006 r1 future verification additions
+
+See [CHAR_006_ACCEPTANCE.md](CHAR_006_ACCEPTANCE.md) and the new
+\`verify_profile_paging_candidate.gd\`. All its documented pagination,
+boundary, off-page ID, focus restore, synthetic resource fallback and
+read-only degraded-detail cases are **NOT_RUN**.
+
+Before any release or merge the independent reviewer must verify this
+new suite *and* all prior 004/005 suites, then perform native keyboard,
+long-text, missing PackedScene, malformed fixed synthetic fixture and
+large-font/IME checks in a disposable copy. Require exact commit/engine
+version, expected versus observed, logs, exit codes and screenshots.
+Do not promote to PASS based on source inspection or expected output.
+
+The user requested development only; **no tests were run**.

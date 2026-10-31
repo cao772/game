@@ -5,11 +5,13 @@ extends RefCounted
 const Contract = preload("res://profile_contract_candidate.gd")
 const MAX_PROFILES := 24
 const MAX_QUERY_CHARS := 80
+const PAGE_SIZE := 6
 
 var _profiles: Array[Dictionary] = []
 var _by_id: Dictionary = {}
 var _selected_id: String = ""
 var _query: String = ""
+var _page_index: int = 0
 
 
 func replace_profiles(source: Variant) -> Dictionary:
@@ -36,6 +38,7 @@ func replace_profiles(source: Variant) -> Dictionary:
     _by_id = by_id
     _selected_id = ""
     _query = ""
+    _page_index = 0
     return {"ok": true, "error": ""}
 
 
@@ -65,6 +68,7 @@ func set_query(input_text: String) -> bool:
     # A changed search always returns to the list, never leaves a hidden
     # stale detail selection or invents a cross-page history stack.
     _selected_id = ""
+    _page_index = 0
     return true
 
 
@@ -95,12 +99,75 @@ func visible_summaries() -> Array[Dictionary]:
     return output
 
 
+
+func filtered_count() -> int:
+    var total := 0
+    for profile in _profiles:
+        if _matches(profile):
+            total += 1
+    return total
+
+
+func page_count() -> int:
+    return maxi(1, int(ceili(float(filtered_count()) / float(PAGE_SIZE))))
+
+
+func page_index() -> int:
+    return _page_index
+
+
+func set_page(index: int) -> bool:
+    if index < 0 or index >= page_count():
+        return false
+    if index == _page_index:
+        return true
+    _page_index = index
+    _selected_id = ""
+    return true
+
+
+func page_state() -> Dictionary:
+    return {
+        "page_index": _page_index,
+        "page_number": _page_index + 1,
+        "page_count": page_count(),
+        "page_size": PAGE_SIZE,
+        "filtered": filtered_count(),
+        "total": _profiles.size(),
+        "has_previous": _page_index > 0,
+        "has_next": _page_index + 1 < page_count()
+    }
+
+
+func page_summaries() -> Array[Dictionary]:
+    var all_matching: Array[Dictionary] = visible_summaries()
+    var start_index: int = _page_index * PAGE_SIZE
+    var result: Array[Dictionary] = []
+    for i in range(start_index, mini(start_index + PAGE_SIZE, all_matching.size())):
+        result.append(all_matching[i].duplicate(true))
+    return result
+
+
+func _page_of(identity: String) -> int:
+    var position := 0
+    for profile in _profiles:
+        if _matches(profile):
+            if profile["profile_id"] == identity:
+                return int(position / PAGE_SIZE)
+            position += 1
+    return -1
+
+
 func open_detail(identity: String) -> bool:
     if not _by_id.has(identity):
         return false
     var candidate: Dictionary = _profiles[_by_id[identity]]
     if not _matches(candidate):
         return false
+    var destination := _page_of(identity)
+    if destination < 0:
+        return false
+    _page_index = destination
     _selected_id = identity
     return true
 

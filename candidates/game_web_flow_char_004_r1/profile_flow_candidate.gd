@@ -11,6 +11,7 @@ const Model = preload("res://profile_flow_model_candidate.gd")
 const FixtureLoader = preload("res://placeholder_fixture_loader_candidate.gd")
 const PanelFactory = preload("res://preview_panel_resource_candidate.gd")
 const TextLayout = preload("res://profile_text_layout_candidate.gd")
+const Degraded = preload("res://profile_degraded_candidate.gd")
 const DETAIL_SCENE_PATH := "res://character_profile_panel.tscn"
 const COMPACT_BREAKPOINT := 700.0
 const LIST_EXCERPT_CHARS := 150
@@ -22,6 +23,9 @@ var _compact := false
 var _suppress_search := false
 var _list_scroll_position := 0
 var _return_focus_id := ""
+var _page_focus: Dictionary = {}
+var _fixture_degraded := false
+var _detail_degraded := false
 
 @onready var _back: Button = $Layout/Header/BackButton
 @onready var _exit: Button = $Layout/Header/ExitButton
@@ -34,10 +38,15 @@ var _return_focus_id := ""
 @onready var _list_scroll: ScrollContainer = $Layout/Body/ListSide/ListScroll
 @onready var _list: VBoxContainer = $Layout/Body/ListSide/ListScroll/Rows
 @onready var _count: Label = $Layout/Body/ListSide/ResultCount
+@onready var _previous: Button = $Layout/Body/ListSide/Pagination/PreviousPageButton
+@onready var _next: Button = $Layout/Body/ListSide/Pagination/NextPageButton
+@onready var _page_label: Label = $Layout/Body/ListSide/Pagination/PageLabel
 @onready var _empty_list: Label = $Layout/Body/ListSide/EmptyList
 @onready var _detail_host: MarginContainer = $Layout/Body/DetailSide/DetailHost
 @onready var _detail_fallback: Label = $Layout/Body/DetailSide/DetailFallback
 @onready var _retry: Button = $Layout/Body/DetailSide/RetryButton
+@onready var _fallback_scroll: ScrollContainer = $Layout/Body/DetailSide/FallbackScroll
+@onready var _fallback_text: Label = $Layout/Body/DetailSide/FallbackScroll/FullText
 
 
 func _ready() -> void:
@@ -46,8 +55,10 @@ func _ready() -> void:
     _reload_samples.pressed.connect(_on_reload_samples)
     _search.text_changed.connect(_on_query_changed)
     _retry.pressed.connect(_on_retry)
+    _previous.pressed.connect(_on_previous_page)
+    _next.pressed.connect(_on_next_page)
     resized.connect(_on_resized)
-    for control in [_back, _exit, _reload_samples, _retry, _search]:
+    for control in [_back, _exit, _reload_samples, _retry, _search, _previous, _next]:
         control.focus_mode = Control.FOCUS_ALL
     _search.max_length = Model.MAX_QUERY_CHARS
     _search.placeholder_text = "搜索合成条目的名称、标签或状态"
@@ -56,6 +67,13 @@ func _ready() -> void:
     _exit.tooltip_text = "向外部容器发出退出请求，本模块不会改变其路由"
     _reload_samples.tooltip_text = "重新读取固定的合成占位文件；不会读取私密文件"
     _retry.tooltip_text = "重新加载本地详情展示场景，不会更改占位资料"
+    _previous.tooltip_text = "查看上一页合成资料"
+    _next.tooltip_text = "查看下一页合成资料"
+    _fallback_scroll.focus_mode = Control.FOCUS_ALL
+    _fallback_scroll.tooltip_text = "降级全文阅读区；可使用键盘或鼠标滚动"
+    _fallback_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    _fallback_text.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+    _fallback_text.clip_text = false
     _refresh_ui()
 
 
@@ -111,8 +129,12 @@ func _support_label(text_value: String) -> Label:
 
 func _rebuild_rows() -> void:
     _clear_rows()
-    var visible: Array[Dictionary] = _model.visible_summaries()
-    _count.text = "显示 %d / 共 %d 条合成占位资料" % [visible.size(), _model.count()]
+    var visible: Array[Dictionary] = _model.page_summaries()
+    var paging: Dictionary = _model.page_state()
+    _count.text = "本页 %d 条 · 筛选 %d / 总计 %d" % [visible.size(), paging["filtered"], paging["total"]]
+    _page_label.text = "第 %d / %d 页" % [paging["page_number"], paging["page_count"]]
+    _previous.disabled = not paging["has_previous"]
+    _next.disabled = not paging["has_next"]
     _empty_list.visible = visible.is_empty()
     _empty_list.text = "暂无占位资料" if _model.count() == 0 else "没有匹配的占位条目"
     for entry in visible:
@@ -135,6 +157,7 @@ func _rebuild_rows() -> void:
         button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
         button.custom_minimum_size.y = 44
         button.pressed.connect(_on_record_pressed.bind(identity))
+        button.focus_entered.connect(_on_record_focused.bind(identity))
         container.add_child(button)
 
         if not str(entry["subtitle"]).is_empty():
@@ -149,6 +172,62 @@ func _rebuild_rows() -> void:
             container.add_child(_support_label(_excerpt(str(entry["summary"]))))
         _list.add_child(container)
         _rows[identity] = button
+
+
+func _on_record_focused(identity: String) -> void:
+    _page_focus[str(_model.page_index())] = identity
+
+
+func _change_page(direction: int) -> bool:
+    if _model.route() != "list":
+        return false
+    var destination := _model.page_index() + direction
+    if not _model.set_page(destination):
+        return false
+    _list_scroll_position = 0
+    _return_focus_id = ""
+    _refresh_ui()
+    call_deferred("_restore_list_focus", str(_page_focus.get(str(destination), "")),
+        destination, 0)
+    return true
+
+
+func _on_previous_page() -> void:
+    _change_page(-1)
+
+
+func _on_next_page() -> void:
+    _change_page(1)
+
+
+func _restore_list_focus(identity: String, page_index: int, position: int) -> void:
+    if not is_node_ready() or _model.route() != "list":
+        return
+    if _model.page_index() != page_index:
+        return
+    var control: Control = _search
+    if _rows.has(identity) and is_instance_valid(_rows[identity]):
+        control = _rows[identity]
+    elif not _rows.is_empty():
+        var first_key: String = str(_rows.keys()[0])
+        control = _rows[first_key]
+    if control.visible and control.is_inside_tree():
+        control.grab_focus()
+    _list_scroll.scroll_vertical = position
+
+
+func _show_degraded_detail(profile: Dictionary, reason: String) -> void:
+    _detail_degraded = true
+    _detail_host.visible = false
+    if _detail != null and is_instance_valid(_detail):
+        _detail.hide()
+    _detail_fallback.text = reason + "；下方仍可查看完整只读文本。"
+    _detail_fallback.visible = true
+    _fallback_text.text = TextLayout.visible_text(Degraded.full_text(profile))
+    _fallback_text.autowrap_mode = TextLayout.wrap_mode(_fallback_text.text)
+    _fallback_scroll.visible = true
+    _fallback_scroll.scroll_vertical = 0
+    _retry.visible = true
 
 
 func _has_property(value: Object, key: String) -> bool:
@@ -195,26 +274,24 @@ func _render_detail() -> bool:
         _detail_fallback.visible = true
         _detail_fallback.text = "从列表选择一条合成占位资料"
         _retry.visible = false
+        _fallback_scroll.visible = false
+        _detail_degraded = false
         if _detail != null and is_instance_valid(_detail):
             _detail.hide()
         return true
     if not _ensure_detail_panel():
-        _detail_host.visible = false
-        _detail_fallback.visible = true
-        _retry.visible = true
-        _message("详情资源不可用；请返回列表或尝试重新加载", true)
+        _show_degraded_detail(profile, "原资料面板资源缺失或无效")
+        _message("当前为完整只读降级详情，可重试原组件", true)
         return false
     var accepted: bool = _detail.call("set_profile", profile)
     if not accepted:
-        _detail_host.visible = false
-        _detail_fallback.text = "资料展示组件拒绝本条占位记录。"
-        _detail_fallback.visible = true
-        _retry.visible = true
-        _detail.hide()
-        _message("详情未加载；原始占位记录未被修改", true)
+        _show_degraded_detail(profile, "原资料面板拒绝占位资料")
+        _message("当前为完整只读降级详情；原始资料未修改", true)
         return false
     _detail_host.visible = true
+    _detail_degraded = false
     _detail.show()
+    _fallback_scroll.visible = false
     _detail_fallback.visible = false
     _retry.visible = false
     return true
@@ -240,6 +317,8 @@ func set_profiles(source: Variant) -> bool:
         return false
     _return_focus_id = ""
     _list_scroll_position = 0
+    _page_focus.clear()
+    _fixture_degraded = false
     if is_node_ready():
         _suppress_search = true
         _search.text = ""
@@ -253,14 +332,26 @@ func set_profiles(source: Variant) -> bool:
 
 
 func load_placeholder_profiles() -> bool:
-    # Fixed, synthetic-only path; failure preserves the last valid injection.
-    var result: Dictionary = FixtureLoader.read_known_fixture()
-    if not result["ok"]:
-        if is_node_ready():
-            _message("占位资源读取失败；已保留原有列表：" + str(result["error"]), true)
-        collection_rejected.emit(str(result["error"]))
-        return false
-    return set_profiles(result["data"])
+    return apply_placeholder_result(FixtureLoader.read_known_fixture())
+
+
+func apply_placeholder_result(result: Dictionary) -> bool:
+    # Deterministic future fault-injection seam; never accepts file paths.
+    if result.get("ok", false) == true and result.has("data"):
+        return set_profiles(result["data"])
+    var explanation: String = str(result.get("error", "资源未能读取"))
+    if _model.count() == 0:
+        if set_profiles([Degraded.stub_profile()]):
+            _fixture_degraded = true
+            if is_node_ready():
+                _message("固定占位资源缺失；使用内置合成降级条目：" + explanation, true)
+    elif is_node_ready():
+        if _fixture_degraded:
+            _message("固定占位资源仍缺失；继续保留内置合成降级条目：" + explanation, true)
+        else:
+            _message("占位资源缺失；保留上次已验证列表：" + explanation, true)
+    collection_rejected.emit(explanation)
+    return false
 
 
 func _on_reload_samples() -> void:
@@ -275,6 +366,7 @@ func _on_query_changed(value: String) -> void:
         return
     _return_focus_id = ""
     _list_scroll_position = 0
+    _page_focus.clear()
     _message("占位资料筛选仅在当前有效列表中进行")
     _refresh_ui()
     route_changed.emit("list", "")
@@ -304,11 +396,8 @@ func go_back() -> bool:
     if is_node_ready():
         _message("已返回占位资料列表")
         _refresh_ui()
-        _list_scroll.set_deferred("scroll_vertical", _list_scroll_position)
-        var target: Control = _search
-        if _rows.has(_return_focus_id):
-            target = _rows[_return_focus_id]
-        target.grab_focus()
+        call_deferred("_restore_list_focus", _return_focus_id,
+            _model.page_index(), _list_scroll_position)
     route_changed.emit("list", "")
     return true
 
@@ -330,7 +419,10 @@ func route_copy() -> Dictionary:
         "route": _model.route(),
         "selected_id": _model.selected_id(),
         "query": _model.query(),
-        "total": _model.count()
+        "total": _model.count(),
+        "page": _model.page_state(),
+        "fixture_degraded": _fixture_degraded,
+        "detail_degraded": _detail_degraded
     }
 
 
@@ -339,4 +431,23 @@ func current_profile_copy() -> Dictionary:
 
 
 func visible_rows_copy() -> Array[Dictionary]:
+    # Preserve 004 behavior: complete filtered list, not only this page.
     return _model.summaries_copy()
+
+
+func current_page_rows_copy() -> Array[Dictionary]:
+    return _model.page_summaries()
+
+
+func set_page_number(number: int) -> bool:
+    if _model.route() != "list":
+        return false
+    var destination := number - 1
+    if destination == _model.page_index():
+        return true
+    if not _model.set_page(destination):
+        return false
+    _refresh_ui()
+    if is_node_ready():
+        _list_scroll.scroll_vertical = 0
+    return true

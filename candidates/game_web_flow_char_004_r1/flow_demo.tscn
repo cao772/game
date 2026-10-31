@@ -24,6 +24,11 @@ text = "合成占位导航 · 独立预览"
 layout_mode = 2
 text = "重载组件"
 
+[node name="PageSamplesButton" type="Button" parent="Toolbar"]
+layout_mode = 2
+text = "分页样本（14 条）"
+disabled = true
+
 [node name="Host" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15

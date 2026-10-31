@@ -123,3 +123,40 @@ Missing/incompatible Flow scenes show a visible error and a manual
 `Reload Component` button. Future scenarios are covered by the
 005 acceptance matrix, including resource restoration and only-one
 instance after repeated reload. This is a **source proposal, NOT_RUN**.
+
+
+---
+
+## GAME-WEB-CHAR-006 r1 — paged list + focus + resource degradation (NOT_RUN)
+
+The same Draft PR #21 branch now includes a third source increment. It adds
+6-record list pagination with native Previous/Next and page/filtered/total
+counts, per-page focus bookmarks and original-row focus restoration after
+Back, plus a full-length scrollable **plain-text degraded detail** when the
+pinned Godot panel PackedScene cannot be used. Invalid/missing synthetic
+JSON on an initially empty collection now yields one visibly labelled
+hard-coded synthetic fallback *while still returning false*; failed
+reload with a preexisting list leaves the earlier list intact. No character
+or story data is inferred or imported.
+
+The standalone demonstration offers a local **14 synthetic records**
+button (6+6+2 page layout) without changing the original three-record
+JSON fixture. It remains an isolated Godot source project, with no global
+bindings, saves, shell calls or newly approved interface.
+
+Primary links:
+- [CHAR_006_DESIGN.md](CHAR_006_DESIGN.md) — detailed decisions, source
+  inventory, degradation semantics, focus/page ownership and unknowns.
+- [CHAR_006_ACCEPTANCE.md](CHAR_006_ACCEPTANCE.md) — 30 future headless
+  and 14 future native/manual acceptance scenarios, all NOT_RUN.
+- \`verify_profile_paging_candidate.gd\` — newly authored future tests.
+- \`profile_degraded_candidate.gd\` and
+  \`synthetic_page_factory_candidate.gd\` — two synthetic-only helpers.
+
+Future-only invocation (not executed here):
+
+    godot --headless --path candidates/game_web_flow_char_004_r1 --script res://verify_profile_paging_candidate.gd
+
+**Status: SOURCE_SUBMITTED / NOT_RUN.** No Godot parser, runtime, tests,
+CI, UI, performance or accessibility verification was performed by this
+authoring window. No modifications outside this PR's candidate directory.
