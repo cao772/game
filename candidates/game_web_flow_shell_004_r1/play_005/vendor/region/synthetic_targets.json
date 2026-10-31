@@ -1,0 +1,32 @@
+{
+  "schema_version": "synthetic-targets-v1",
+  "description": "PUBLIC SYNTHETIC PLACEHOLDER COORDINATES ONLY. No world lore, NPC, identity, original scene or gameplay data.",
+  "trial_parameters": {
+    "enter_radius_m": 1.55,
+    "exit_radius_m": 1.85,
+    "layout": "standalone flat XZ trial plane, not a novel room"
+  },
+  "targets": [
+    {
+      "id": "placeholder_a",
+      "label": "合成方块 A",
+      "action_caption": "确认 A",
+      "x": -1.2,
+      "z": 0
+    },
+    {
+      "id": "placeholder_b",
+      "label": "合成方块 B",
+      "action_caption": "确认 B",
+      "x": 0,
+      "z": 0
+    },
+    {
+      "id": "placeholder_c",
+      "label": "合成方块 C",
+      "action_caption": "确认 C",
+      "x": 1.2,
+      "z": 0
+    }
+  ]
+}

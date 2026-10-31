@@ -1,0 +1,24 @@
+{
+  "schema_version": "shell-synthetic-target-event-map-v1",
+  "candidate_only": true,
+  "approval": "NOT_APPROVED",
+  "status": "PROPOSAL_NOT_CANON",
+  "description": "仅为独立技术演示明确指定公开占位目标到公开占位事件的入口；不表示因果、剧情、世界观或正式游戏事件。",
+  "entries": [
+    {
+      "target_id": "placeholder_a",
+      "event_id": "EVENT_START",
+      "reason": "占位 A → 起始预览节点；为测试多分支与忽略操作的人工映射"
+    },
+    {
+      "target_id": "placeholder_b",
+      "event_id": "EVENT_NEXT",
+      "reason": "占位 B → 中间预览节点；为测试非起点进入的人工映射"
+    },
+    {
+      "target_id": "placeholder_c",
+      "event_id": "EVENT_END",
+      "reason": "占位 C → 终点预览节点；为测试单项选择及结束的人工映射"
+    }
+  ]
+}

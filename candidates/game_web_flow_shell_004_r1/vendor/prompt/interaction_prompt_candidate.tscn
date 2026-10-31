@@ -1,0 +1,62 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://vendor/prompt/interaction_prompt_candidate.gd" id="1_prompt"]
+
+[node name="InteractionPromptCandidate" type="PanelContainer"]
+visible = false
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 440.0
+offset_bottom = 272.0
+script = ExtResource("1_prompt")
+
+[node name="Padding" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Content" type="VBoxContainer" parent="Padding"]
+layout_mode = 2
+theme_override_constants/separation = 7
+
+[node name="TargetLabel" type="Label" parent="Padding/Content"]
+layout_mode = 2
+text = "目标：未指定"
+
+[node name="PositionLabel" type="Label" parent="Padding/Content"]
+layout_mode = 2
+text = "占位目标 0 / 0"
+
+[node name="HintLabel" type="Label" parent="Padding/Content"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Tab / Shift+Tab 焦点；PgUp / PgDn 切换；Esc 隐藏"
+
+[node name="Navigation" type="HBoxContainer" parent="Padding/Content"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 7
+
+[node name="PreviousButton" type="Button" parent="Padding/Content/Navigation"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 2
+text = "上一目标"
+
+[node name="NextButton" type="Button" parent="Padding/Content/Navigation"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 2
+text = "下一目标"
+
+[node name="ActionButton" type="Button" parent="Padding/Content"]
+layout_mode = 2
+focus_mode = 2
+text = "交互"
+
+[node name="DismissButton" type="Button" parent="Padding/Content"]
+layout_mode = 2
+focus_mode = 2
+text = "隐藏提示"
