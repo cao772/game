@@ -61,7 +61,7 @@ const NOTICE_MESSAGES := {
 	"V1_FORMAT_ONLY": "v1 格式有效并不保证游戏状态、历史时钟或剧情语义有效。",
 	"DIFF_PRESENT": "检测到已知字段差异，仅展示字段名称和变化类型。",
 	"NO_KNOWN_DIFF": "未发现已知 v1 字段差异，但不证明两次读取完全相同。",
-	"PROTECTED_DIFFERENCE": "存在标识、模式或时钟相关差异；不得视为可执行修改。",
+	"PROTECTED_DIFFERENCE": "受保护字段（标识、模式或时钟）有差异；不得视为可执行修改。",
 	"UNCOMPARABLE": "无法安全进行字段语义比较。",
 	"SAME_SOURCE_SELECTED": "目录 A 与 B 相同：本次为同一来源的重复读取，不是备份比对。",
 	"PREVIEW_NEVER_APPLIES": "迁移预览只能查看，永远不会应用或覆盖。",
