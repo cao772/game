@@ -196,3 +196,33 @@ gameplay rule or a shared interface.
 
 See [INTEGRATION.md](INTEGRATION.md) and [SAFETY.md](SAFETY.md).
 No code/test execution or real-user-save access occurred. `NOT_RUN`.
+
+---
+
+## STATE-006 r1 design continuation: comparisons and exception indicators
+
+The new [DIAGNOSTICS_POLICY.md](DIAGNOSTICS_POLICY.md) records the full
+decision matrix. Ordinary design choices were resolved locally:
+
+- A **separate pure diagnostics layer** is preferred to editing the
+  upstream inspector, because PR #13 is still Draft and its exact
+  pinned blob must remain unchanged here.
+- **Static anomaly codes with allowlisted Chinese messages** are
+  preferred to displaying exception text or serializing report
+  dictionaries; source values cannot silently become UI output.
+- Comparison requires **two fully valid v1 sources**. A numeric version
+  label is diagnostic, not proof that fields have identical semantics.
+- **Same lexical source** is made explicit so selecting A=B is not
+  mistaken for comparing a real backup. Symlink aliasing remains unknown.
+- Missing/unreadable data is marked `no_payload_to_verify`, so
+  a repeated status does not imply observed source-byte stability.
+- UI uses one neutral risk label and detailed notices inside the
+  existing three tabs, avoiding additional complexity and action
+  affordances that might suggest migration can be applied.
+- Blocked comparisons and previews show **no field changes**, even
+  if malformed, injected or untrusted metadata contains apparent
+  change entries.
+- No writer, backup, repair, export or migration API is introduced.
+
+These choices describe source-only prototypes, NOT_RUN and not an
+approved game/save contract.
