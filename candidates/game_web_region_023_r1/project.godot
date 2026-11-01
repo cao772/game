@@ -1,0 +1,14 @@
+; REGION-023 | independently reviewed synthetic-only patch candidate | NOT_RUN
+config_version=5
+
+[application]
+config/name="Region 023 Synthetic Gateway Review Candidate (NOT_RUN)"
+run/main_scene="res://main.tscn"
+
+[display]
+window/size/viewport_width=1360
+window/size/viewport_height=820
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
