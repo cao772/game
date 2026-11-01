@@ -1,0 +1,14 @@
+; GAME-WEB-REGION-017 r1. Standalone synthetic scene. NOT_RUN.
+config_version=5
+
+[application]
+config/name="Region 017 Synthetic A/B/C (NOT_RUN)"
+run/main_scene="res://main.tscn"
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=760
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
