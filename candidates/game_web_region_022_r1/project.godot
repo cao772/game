@@ -1,0 +1,14 @@
+; REGION-022 | independent Godot 4 synthetic-only candidate | NOT_RUN
+config_version=5
+
+[application]
+config/name="Region 022 Synthetic Validation and Interaction (NOT_RUN)"
+run/main_scene="res://main.tscn"
+
+[display]
+window/size/viewport_width=1360
+window/size/viewport_height=820
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
