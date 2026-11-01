@@ -33,6 +33,8 @@
 | R028-27 | source gate | CONDITIONS_NOT_MET | UI 显示 reason code、fixture file、JSON pointer、SHA256 |
 | R028-28 | source trace | trace 已有分支 | UI 同时显示 action source、reference source、target definition |
 | R028-29 | duplicate key boundary | JSON 对象含重复 event_id | 当前 local guard 不得宣称 PR9 checker PASS；若未来增加 scanner 再验收拒绝行为 |
+| R028-28 | observation restore | 提交 EVENT_START 观察值，导航至 EVENT_NEXT，再 back | 输入框从已保存的 caller observation 恢复，不读取 trigger |
+| R028-29 | error UI | UNKNOWN_CHOICE | 显示 category/title/code 与 available_choices |
 | R028-30 | isolation | 检查 Git diff | 只新增 candidates/game_web_region_028_r1；PR34/PR35/main/共享接口不变 |
 
 ## 未来证据字段

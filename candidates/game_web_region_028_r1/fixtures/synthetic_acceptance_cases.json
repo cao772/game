@@ -398,6 +398,59 @@
         "existing_prs_unchanged": true,
         "main_unchanged": true
       }
+    },
+    {
+      "case_id": "R028-28",
+      "area": "observation_restore",
+      "input": {
+        "op": "submit_observation",
+        "event_id": "EVENT_START",
+        "signal": "SIGNAL_START",
+        "conditions": [
+          "FLAG_READY"
+        ]
+      },
+      "then": [
+        {
+          "op": "choose",
+          "choice": "ACTION_TO_NEXT"
+        },
+        {
+          "op": "back"
+        }
+      ],
+      "expected": {
+        "current_event_id": "EVENT_START",
+        "input_restored_from_saved_caller_observation": true,
+        "trigger_not_used_as_input_source": true
+      }
+    },
+    {
+      "case_id": "R028-29",
+      "area": "error_ui",
+      "input": {
+        "op": "choose",
+        "choice": "ACTION_UNKNOWN"
+      },
+      "precondition": {
+        "gate_ready": true
+      },
+      "expected": {
+        "category_title_code_visible": true,
+        "available_choices_visible": true
+      }
+    },
+    {
+      "case_id": "R028-30",
+      "area": "isolation",
+      "input": {
+        "op": "inspect_diff"
+      },
+      "expected": {
+        "only_new_task_directory": true,
+        "existing_prs_unchanged": true,
+        "main_unchanged": true
+      }
     }
   ]
 }

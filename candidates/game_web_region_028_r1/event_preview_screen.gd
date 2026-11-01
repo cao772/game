@@ -247,7 +247,7 @@ func _apply(command: Dictionary) -> void:
     else:
         var error: Dictionary = result.get("error", {})
         var view: Dictionary = result.get("error_view", {})
-        _last_notice = "REJECTED " + str(error.get("code", "UNKNOWN")) + "：" + str(error.get("message", ""))
+        _last_notice = "REJECTED " + str(view.get("category", "review")) + " / " + str(view.get("title", "预览请求无法完成")) + " [" + str(error.get("code", "UNKNOWN")) + "]：" + str(error.get("message", ""))
         _last_notice += "；" + str(view.get("suggestion", "人工复核，不自动修复。"))
         var related: Array = view.get("related_sources", [])
         for item in related:
