@@ -1,0 +1,14 @@
+; GAME-WEB-REGION-020 r1 | standalone synthetic structural validation | NOT_RUN
+config_version=5
+
+[application]
+config/name="Synthetic A/B/C Structural Validation Candidate (NOT_RUN)"
+run/main_scene="res://main.tscn"
+
+[display]
+window/size/viewport_width=1120
+window/size/viewport_height=760
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
