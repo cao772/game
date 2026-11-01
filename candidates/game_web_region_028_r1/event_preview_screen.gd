@@ -288,10 +288,11 @@ func _rollback_root() -> void:
 func _format_source(value: Variant) -> String:
     if not (value is Dictionary) or value.is_empty():
         return "(无目标定义)"
-    return "%s %s @ %s" % [
+    return "%s [%s] %s @ sha256:%s" % [
         str(value.get("file", "")),
+        str(value.get("event_id", "")),
         str(value.get("pointer", "")),
-        str(value.get("sha256", "")).substr(0, 12)
+        str(value.get("sha256", ""))
     ]
 
 func _refresh_view() -> void:
