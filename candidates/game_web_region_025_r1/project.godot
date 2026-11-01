@@ -1,0 +1,14 @@
+; GAME-WEB-REGION-025 r1 | isolated menu / accessible region candidate | NOT_RUN
+config_version=5
+
+[application]
+config/name="Synthetic Menu to Accessible Region 025 (NOT_RUN)"
+run/main_scene="res://main.tscn"
+
+[display]
+window/size/viewport_width=1360
+window/size/viewport_height=850
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
