@@ -1,0 +1,14 @@
+; GAME-WEB-REGION-028 r1 | isolated synthetic event preview repair | NOT_RUN
+config_version=5
+
+[application]
+config/name="Synthetic Event Preview Repair 028 (NOT_RUN)"
+run/main_scene="res://event_preview_screen.tscn"
+
+[display]
+window/size/viewport_width=1360
+window/size/viewport_height=900
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

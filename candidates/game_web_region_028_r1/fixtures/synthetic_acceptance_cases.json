@@ -1,0 +1,403 @@
+{
+  "task_id": "GAME-WEB-REGION-028",
+  "version": "r1",
+  "status": "FUTURE_ACCEPTANCE_ONLY",
+  "not_run": true,
+  "fixtures": [
+    "EVENT_START",
+    "EVENT_NEXT",
+    "EVENT_END"
+  ],
+  "cases": [
+    {
+      "case_id": "R028-01",
+      "area": "start",
+      "input": {
+        "op": "load"
+      },
+      "expected": {
+        "loaded": true,
+        "started": false,
+        "selected_event": null
+      }
+    },
+    {
+      "case_id": "R028-02",
+      "area": "start",
+      "input": {
+        "op": "observe_before_start",
+        "event_id": "EVENT_START",
+        "signal": "SIGNAL_START",
+        "conditions": [
+          "FLAG_READY"
+        ]
+      },
+      "expected": {
+        "error": "START_EVENT_REQUIRED",
+        "state_unchanged": true
+      }
+    },
+    {
+      "case_id": "R028-03",
+      "area": "start",
+      "input": {
+        "op": "select_without_begin",
+        "event_id": "EVENT_START"
+      },
+      "expected": {
+        "started": false,
+        "current_event_id": null
+      }
+    },
+    {
+      "case_id": "R028-04",
+      "area": "start",
+      "input": {
+        "op": "begin",
+        "event_id": "EVENT_START"
+      },
+      "expected": {
+        "started": true,
+        "current_event_id": "EVENT_START",
+        "cursor": 0
+      }
+    },
+    {
+      "case_id": "R028-05",
+      "area": "start",
+      "input": {
+        "available": [
+          "EVENT_NEXT",
+          "EVENT_END"
+        ],
+        "op": "load_without_start"
+      },
+      "expected": {
+        "automatic_fallback": false,
+        "requires_explicit_choice": true
+      }
+    },
+    {
+      "case_id": "R028-06",
+      "area": "observation",
+      "input": {
+        "event_id": "EVENT_START",
+        "signal": "SIGNAL_START",
+        "conditions": [
+          "FLAG_READY"
+        ]
+      },
+      "expected": {
+        "ready": true,
+        "choices": [
+          "ACTION_TO_NEXT",
+          "ACTION_END",
+          "@ignore"
+        ]
+      }
+    },
+    {
+      "case_id": "R028-07",
+      "area": "observation",
+      "input": {
+        "event_id": "EVENT_START",
+        "signal": "SIGNAL_WRONG",
+        "conditions": [
+          "FLAG_READY"
+        ]
+      },
+      "expected": {
+        "ready": false,
+        "reason": "SIGNAL_MISMATCH"
+      }
+    },
+    {
+      "case_id": "R028-08",
+      "area": "observation",
+      "input": {
+        "event_id": "EVENT_START",
+        "signal": "SIGNAL_START",
+        "conditions": []
+      },
+      "expected": {
+        "ready": false,
+        "reason": "REQUIRED_CONDITIONS_MISSING",
+        "missing": [
+          "FLAG_READY"
+        ]
+      }
+    },
+    {
+      "case_id": "R028-09",
+      "area": "observation",
+      "input": {
+        "event_id": "EVENT_START",
+        "signal": "SIGNAL_START",
+        "conditions": [
+          "FLAG_EXTRA",
+          "FLAG_READY"
+        ]
+      },
+      "expected": {
+        "ready": true,
+        "additional": [
+          "FLAG_EXTRA"
+        ]
+      }
+    },
+    {
+      "case_id": "R028-10",
+      "area": "observation",
+      "input": {
+        "event_id": "EVENT_START",
+        "signal": "SIGNAL_START",
+        "conditions": [
+          "FLAG_READY",
+          "FLAG_READY"
+        ]
+      },
+      "expected": {
+        "error": "INVALID_CONDITIONS",
+        "state_unchanged": true
+      }
+    },
+    {
+      "case_id": "R028-11",
+      "area": "observation",
+      "input": {
+        "event_id": "EVENT_START",
+        "signal": "SIGNAL_START",
+        "conditions": [
+          "FLAG_READY",
+          "",
+          "FLAG_EXTRA"
+        ]
+      },
+      "expected": {
+        "error": "INVALID_CONDITIONS",
+        "empty_token_not_filtered": true
+      }
+    },
+    {
+      "case_id": "R028-12",
+      "area": "observation",
+      "input": {
+        "event_id": "EVENT_START",
+        "signal": "signal_start",
+        "conditions": [
+          "FLAG_READY"
+        ]
+      },
+      "expected": {
+        "error": "INVALID_SIGNAL",
+        "state_unchanged": true
+      }
+    },
+    {
+      "case_id": "R028-13",
+      "area": "per_event_gate",
+      "input": {
+        "event_id": "EVENT_NEXT",
+        "observation": null
+      },
+      "expected": {
+        "ready": false,
+        "does_not_reuse_previous_event_observation": true
+      }
+    },
+    {
+      "case_id": "R028-14",
+      "area": "provenance",
+      "input": {
+        "from": "EVENT_START",
+        "choice": "ACTION_TO_NEXT",
+        "target": "EVENT_NEXT"
+      },
+      "expected": {
+        "action_pointer": "/actions/0",
+        "reference_pointer": "/actions/0/next_event_id",
+        "target_definition_pointer": "/event_id"
+      }
+    },
+    {
+      "case_id": "R028-15",
+      "area": "provenance",
+      "input": {
+        "from": "EVENT_START",
+        "choice": "ACTION_END",
+        "target": null
+      },
+      "expected": {
+        "action_source_present": true,
+        "reference_source_present": true,
+        "target_definition": null
+      }
+    },
+    {
+      "case_id": "R028-16",
+      "area": "reload",
+      "input": {
+        "op": "request_reload",
+        "session": {
+          "started": true,
+          "history_length": 1
+        }
+      },
+      "expected": {
+        "confirmation_required": true
+      }
+    },
+    {
+      "case_id": "R028-17",
+      "area": "reload",
+      "input": {
+        "op": "cancel_reload"
+      },
+      "expected": {
+        "snapshot_unchanged": true
+      }
+    },
+    {
+      "case_id": "R028-18",
+      "area": "reload",
+      "input": {
+        "op": "confirm_reload",
+        "new_fixture_valid": true
+      },
+      "expected": {
+        "new_fixture_committed": true,
+        "session_reset": true,
+        "started": false
+      }
+    },
+    {
+      "case_id": "R028-19",
+      "area": "reload",
+      "input": {
+        "op": "confirm_reload",
+        "new_fixture_valid": false,
+        "error": "MISSING_FIXTURE"
+      },
+      "expected": {
+        "old_snapshot_preserved": true,
+        "stale": true,
+        "read_only": true
+      }
+    },
+    {
+      "case_id": "R028-20",
+      "area": "stale",
+      "input": {
+        "op": "choose",
+        "choice": "ACTION_TO_NEXT"
+      },
+      "precondition": {
+        "stale": true
+      },
+      "expected": {
+        "error": "SOURCE_STALE",
+        "snapshot_unchanged": true
+      }
+    },
+    {
+      "case_id": "R028-21",
+      "area": "stale",
+      "input": {
+        "op": "observe",
+        "event_id": "EVENT_START",
+        "signal": "SIGNAL_START",
+        "conditions": [
+          "FLAG_READY"
+        ]
+      },
+      "precondition": {
+        "stale": true
+      },
+      "expected": {
+        "error": "SOURCE_STALE",
+        "snapshot_unchanged": true
+      }
+    },
+    {
+      "case_id": "R028-22",
+      "area": "recovery",
+      "input": {
+        "op": "reload",
+        "new_fixture_valid": true
+      },
+      "precondition": {
+        "stale": true
+      },
+      "expected": {
+        "stale": false,
+        "old_session_not_restored": true,
+        "started": false
+      }
+    },
+    {
+      "case_id": "R028-23",
+      "area": "first_load",
+      "input": {
+        "op": "load",
+        "fixture_missing": true
+      },
+      "expected": {
+        "status": "BLOCKED",
+        "events_empty": true
+      }
+    },
+    {
+      "case_id": "R028-24",
+      "area": "error_source",
+      "input": {
+        "op": "choose",
+        "choice": "ACTION_TO_NEXT"
+      },
+      "precondition": {
+        "gate_ready": false
+      },
+      "expected": {
+        "error": "CONDITIONS_NOT_MET",
+        "related_source_visible": true
+      }
+    },
+    {
+      "case_id": "R028-25",
+      "area": "trace",
+      "input": {
+        "op": "inspect_trace"
+      },
+      "precondition": {
+        "history_has_branch": true
+      },
+      "expected": {
+        "selected_at": true,
+        "reference_at": true,
+        "target_definition": true
+      }
+    },
+    {
+      "case_id": "R028-26",
+      "area": "duplicate_key_boundary",
+      "input": {
+        "raw_json": "{\"event_id\":\"EVENT_START\",\"event_id\":\"EVENT_END\"}"
+      },
+      "expected": {
+        "not_pr9_checker": true,
+        "duplicate_key_rejection_not_claimed": true
+      }
+    },
+    {
+      "case_id": "R028-27",
+      "area": "isolation",
+      "input": {
+        "op": "inspect_diff"
+      },
+      "expected": {
+        "only_new_task_directory": true,
+        "existing_prs_unchanged": true,
+        "main_unchanged": true
+      }
+    }
+  ]
+}

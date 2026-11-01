@@ -1,0 +1,16 @@
+{
+  "event_id": "EVENT_END",
+  "trigger": {
+    "signal": "SIGNAL_END",
+    "conditions": [
+      "FLAG_READY"
+    ]
+  },
+  "actions": [
+    {
+      "action_id": "ACTION_COMPLETE",
+      "next_event_id": null
+    }
+  ],
+  "on_ignore_event_id": null
+}
