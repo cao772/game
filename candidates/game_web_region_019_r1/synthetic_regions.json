@@ -1,0 +1,24 @@
+{
+  "schema_version": "public-synthetic-region-017-v1",
+  "notice": "PUBLIC SYNTHETIC A/B/C ONLY. No real locations, identities, game stories, or private material.",
+  "scenarios": [
+    {
+      "id": "A",
+      "title": "A | 视线遮挡",
+      "grid": ["#########", "#S..#..T#", "#...#...#", "#.......#", "#.......#", "#.......#", "#########"],
+      "claimed": {"reachable": true, "visible": true}
+    },
+    {
+      "id": "B",
+      "title": "B | 绕行可达",
+      "grid": ["##########", "#S.......#", "#.######.#", "#.#....#.#", "#.#.##.#.#", "#...##..T#", "##########"],
+      "claimed": {"reachable": false, "visible": false}
+    },
+    {
+      "id": "C",
+      "title": "C | 不可达回退",
+      "grid": ["#########", "#S......#", "#.......#", "#####.###", "#..#.#T##", "#....####", "#########"],
+      "claimed": {"reachable": true, "visible": false}
+    }
+  ]
+}
