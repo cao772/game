@@ -1,0 +1,196 @@
+{
+  "task_id": "GAME-WEB-REGION-027",
+  "version": "r1",
+  "status": "FUTURE_ACCEPTANCE_ONLY",
+  "not_run": true,
+  "source_fixture_contract": {
+    "EVENT_START": {
+      "signal": "SIGNAL_START",
+      "conditions": ["FLAG_READY"],
+      "actions": [
+        {"action_id": "ACTION_TO_NEXT", "next_event_id": "EVENT_NEXT"},
+        {"action_id": "ACTION_END", "next_event_id": null}
+      ],
+      "on_ignore_event_id": "EVENT_END"
+    },
+    "EVENT_NEXT": {
+      "signal": "SIGNAL_NEXT",
+      "conditions": ["FLAG_READY"],
+      "actions": [
+        {"action_id": "ACTION_FINISH", "next_event_id": "EVENT_END"},
+        {"action_id": "ACTION_STOP", "next_event_id": null}
+      ],
+      "on_ignore_event_id": "FIELD_ABSENT"
+    },
+    "EVENT_END": {
+      "signal": "SIGNAL_END",
+      "conditions": ["FLAG_READY"],
+      "actions": [
+        {"action_id": "ACTION_COMPLETE", "next_event_id": null}
+      ],
+      "on_ignore_event_id": null
+    }
+  },
+  "cases": [
+    {
+      "case_id": "R027-01",
+      "area": "start_selection",
+      "input": {"action": "open_event_preview"},
+      "expected": {"session_started": false, "current_event_id": null, "choices_enabled": false}
+    },
+    {
+      "case_id": "R027-02",
+      "area": "start_selection",
+      "input": {"action": "select_start_event", "event_id": "EVENT_START"},
+      "expected": {"session_started": true, "current_event_id": "EVENT_START", "cursor": 0}
+    },
+    {
+      "case_id": "R027-03",
+      "area": "start_selection",
+      "input": {"action": "select_fixture_without_event_start", "available_event_ids": ["EVENT_NEXT", "EVENT_END"]},
+      "expected": {"automatic_fallback": false, "requires_explicit_selection": true}
+    },
+    {
+      "case_id": "R027-04",
+      "area": "observation",
+      "input": {"op": "observe", "event_id": "EVENT_START", "signal": "SIGNAL_START", "conditions": ["FLAG_READY"]},
+      "expected": {"ready": true, "reason_codes": [], "available_choices": ["ACTION_TO_NEXT", "ACTION_END", "@ignore"]}
+    },
+    {
+      "case_id": "R027-05",
+      "area": "observation",
+      "input": {"op": "observe", "event_id": "EVENT_START", "signal": "SIGNAL_WRONG", "conditions": ["FLAG_READY"]},
+      "expected": {"ready": false, "reason_codes": ["SIGNAL_MISMATCH"], "available_choices": []}
+    },
+    {
+      "case_id": "R027-06",
+      "area": "observation",
+      "input": {"op": "observe", "event_id": "EVENT_START", "signal": "SIGNAL_START", "conditions": []},
+      "expected": {"ready": false, "reason_codes": ["REQUIRED_CONDITIONS_MISSING"], "missing_conditions": ["FLAG_READY"]}
+    },
+    {
+      "case_id": "R027-07",
+      "area": "observation",
+      "input": {"op": "observe", "event_id": "EVENT_START", "signal": "SIGNAL_START", "conditions": ["FLAG_EXTRA", "FLAG_READY"]},
+      "expected": {"ready": true, "additional_observed_conditions": ["FLAG_EXTRA"]}
+    },
+    {
+      "case_id": "R027-08",
+      "area": "observation",
+      "input": {"op": "observe", "event_id": "EVENT_START", "signal": "SIGNAL_START", "conditions": ["FLAG_READY", "FLAG_READY"]},
+      "expected": {"status": "REJECTED", "error_code": "INVALID_CONDITIONS", "snapshot_unchanged": true}
+    },
+    {
+      "case_id": "R027-09",
+      "area": "observation",
+      "input": {"op": "observe", "event_id": "EVENT_START", "signal": "signal_start", "conditions": ["FLAG_READY"]},
+      "expected": {"status": "REJECTED", "error_code": "INVALID_SIGNAL", "snapshot_unchanged": true}
+    },
+    {
+      "case_id": "R027-10",
+      "area": "branch",
+      "input": {"op": "choose", "choice": "ACTION_TO_NEXT"},
+      "precondition": {"event_id": "EVENT_START", "signal": "SIGNAL_START", "conditions": ["FLAG_READY"]},
+      "expected": {"current_event_id": "EVENT_NEXT", "target_definition_pointer": "/event_id", "reference_pointer": "/actions/0/next_event_id"}
+    },
+    {
+      "case_id": "R027-11",
+      "area": "branch",
+      "input": {"op": "choose", "choice": "ACTION_END"},
+      "precondition": {"event_id": "EVENT_START", "signal": "SIGNAL_START", "conditions": ["FLAG_READY"]},
+      "expected": {"current_event_id": null, "next_choose_error": "TERMINAL_LOCKED"}
+    },
+    {
+      "case_id": "R027-12",
+      "area": "branch",
+      "input": {"op": "choose", "choice": "@ignore"},
+      "precondition": {"event_id": "EVENT_START", "signal": "SIGNAL_START", "conditions": ["FLAG_READY"]},
+      "expected": {"current_event_id": "EVENT_END", "ignore_offered_because_field_present": true}
+    },
+    {
+      "case_id": "R027-13",
+      "area": "branch",
+      "input": {"action": "inspect_choices", "event_id": "EVENT_NEXT"},
+      "expected": {"choices": ["ACTION_FINISH", "ACTION_STOP"], "ignore_offered": false}
+    },
+    {
+      "case_id": "R027-14",
+      "area": "branch",
+      "input": {"action": "inspect_choices", "event_id": "EVENT_END"},
+      "expected": {"choices": ["ACTION_COMPLETE", "@ignore"], "ignore_target": null}
+    },
+    {
+      "case_id": "R027-15",
+      "area": "branch",
+      "input": {"op": "choose", "choice": "ACTION_NOT_DEFINED"},
+      "precondition": {"event_id": "EVENT_START", "signal": "SIGNAL_START", "conditions": ["FLAG_READY"]},
+      "expected": {"status": "REJECTED", "error_code": "UNKNOWN_CHOICE", "snapshot_unchanged": true}
+    },
+    {
+      "case_id": "R027-16",
+      "area": "per_event_gate",
+      "input": {"op": "choose", "choice": "ACTION_FINISH"},
+      "precondition": {"current_event_id": "EVENT_NEXT", "observation_for_EVENT_NEXT": null},
+      "expected": {"status": "REJECTED", "error_code": "CONDITIONS_NOT_MET"}
+    },
+    {
+      "case_id": "R027-17",
+      "area": "navigation",
+      "input": [{"op": "back", "steps": 1}, {"op": "forward", "steps": 1}],
+      "precondition": {"history": [{"from_event_id": "EVENT_START", "choice": "ACTION_TO_NEXT", "to_event_id": "EVENT_NEXT"}], "cursor": 1},
+      "expected": {"cursor": 1, "history_length": 1, "redo_preserved": true}
+    },
+    {
+      "case_id": "R027-18",
+      "area": "navigation",
+      "input": {"op": "rollback", "cursor": 0},
+      "precondition": {"cursor": 1, "history_length": 1},
+      "expected": {"cursor": 0, "history_length": 0, "discarded_steps": 1}
+    },
+    {
+      "case_id": "R027-19",
+      "area": "navigation",
+      "input": {"op": "rollback", "cursor": 1},
+      "precondition": {"cursor": 0, "history_length": 1},
+      "expected": {"status": "REJECTED", "error_code": "ROLLBACK_FORWARD_FORBIDDEN", "snapshot_unchanged": true}
+    },
+    {
+      "case_id": "R027-20",
+      "area": "safe_prefix",
+      "input": {"op": "observe", "event_id": "EVENT_NEXT", "signal": "SIGNAL_WRONG", "conditions": ["FLAG_READY"]},
+      "precondition": {"history": [{"from_event_id": "EVENT_START", "choice": "ACTION_TO_NEXT", "to_event_id": "EVENT_NEXT"}], "cursor": 1},
+      "expected": {"cursor": 0, "history_length": 0, "policy": "rollback_to_safe_prefix"}
+    },
+    {
+      "case_id": "R027-21",
+      "area": "reload",
+      "input": {"action": "reload_fixtures_after_session"},
+      "precondition": {"observations": {"EVENT_START": {"signal": "SIGNAL_START", "conditions": ["FLAG_READY"]}}, "history_length": 1},
+      "expected": {"ui_warns_session_reset": true, "failed_reload_does_not_silently_claim_ready": true}
+    },
+    {
+      "case_id": "R027-22",
+      "area": "duplicate_key",
+      "input": {"raw_json": "{\"event_id\":\"EVENT_START\",\"event_id\":\"EVENT_END\",\"trigger\":{\"signal\":\"SIGNAL_START\",\"conditions\":[\"FLAG_READY\"]},\"actions\":[{\"action_id\":\"ACTION_END\",\"next_event_id\":null}]}"},
+      "expected": {"status": "BLOCKED", "error_code": "DUPLICATE_JSON_KEY", "last_key_wins_not_accepted": true}
+    },
+    {
+      "case_id": "R027-23",
+      "area": "lifecycle",
+      "input": {"route": "region", "action": "open_event_then_back"},
+      "expected": {"region_instance_identity_preserved": true, "event_instance_destroyed": true, "region_focus_target": "region_event_entry_button"}
+    },
+    {
+      "case_id": "R027-24",
+      "area": "lifecycle",
+      "input": {"route": "region", "action": "event_return_home"},
+      "expected": {"route": "menu/home", "event_instance_destroyed": true, "region_instance_destroyed": true}
+    },
+    {
+      "case_id": "R027-25",
+      "area": "lifecycle",
+      "input": {"route": "region", "action": "event_open_scene_missing"},
+      "expected": {"route_unchanged": true, "region_visible": true, "notice_status": "BLOCKED"}
+    }
+  ]
+}
