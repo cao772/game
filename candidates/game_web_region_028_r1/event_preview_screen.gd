@@ -210,6 +210,23 @@ func _parse_conditions_input() -> Array:
         conditions.append(token.strip_edges())
     return conditions
 
+func _sync_inputs_from_current_observation() -> void:
+    var event_id := _model.current_event_id()
+    if event_id.is_empty():
+        _signal_input.text = ""
+        _conditions_input.text = ""
+        return
+    var state: Dictionary = _model.snapshot()
+    var observations: Dictionary = state.get("observations", {})
+    if not observations.has(event_id):
+        _signal_input.text = ""
+        _conditions_input.text = ""
+        return
+    var observation: Dictionary = observations[event_id]
+    _signal_input.text = str(observation.get("signal", ""))
+    var conditions: Array = observation.get("conditions", [])
+    _conditions_input.text = ", ".join(conditions)
+
 func _apply(command: Dictionary) -> void:
     if not _fixture_ready or _stale:
         return
@@ -223,8 +240,7 @@ func _apply(command: Dictionary) -> void:
             _last_notice += "；导航策略 " + str(effect.get("policy", "")) + "；丢弃 " + str(effect.get("discarded_steps", 0)) + " 步"
         var after_event := _model.current_event_id()
         if before_event != after_event:
-            _signal_input.text = ""
-            _conditions_input.text = ""
+            _sync_inputs_from_current_observation()
     else:
         var error: Dictionary = result.get("error", {})
         var view: Dictionary = result.get("error_view", {})
@@ -305,6 +321,8 @@ func _refresh_view() -> void:
     else:
         _status_label.text = "事件来源状态：FIXTURE_READY · 预览 " + str(state.get("preview_status", "not_started"))
     _status_label.text += " · fixture SHA256 " + str(state.get("source_snapshot_sha256", ""))
+    if bool(state.get("started", false)):
+        _status_label.text += " · active start " + str(state.get("start_event_id", ""))
 
     if not bool(state.get("started", false)):
         _gate_label.text = "条件门禁：尚未开始；请选择起始事件并点击开始预览。"
@@ -343,14 +361,16 @@ func _refresh_view() -> void:
 
     var reason_text := "无阻断原因"
     var reasons: Array = diagnosis.get("reasons", [])
-    if not reasons.is_empty():
+    if _stale:
+        reason_text = "STALE_BLOCKED：" + str(state.get("stale_reason", "重载失败"))
+    elif not reasons.is_empty():
         reason_text = ""
         for reason in reasons:
             if not reason_text.is_empty():
                 reason_text += "；"
             reason_text += str(reason.get("code", "UNKNOWN")) + "：" + str(reason.get("detail", ""))
             reason_text += " @ " + _format_source(reason.get("source", {}))
-    _diagnostic_label.text = "条件诊断：" + reason_text + "｜下一步：" + str(diagnosis.get("next_step", ""))
+    _diagnostic_label.text = "条件诊断：" + reason_text + "｜下一步：" + ("修复夹具后重新读取；当前旧快照只读。" if _stale else str(diagnosis.get("next_step", "")))
 
     var definition: Dictionary = _model.source_at_current()
     _source_label.text = "事件定义：" + _format_source(definition)
