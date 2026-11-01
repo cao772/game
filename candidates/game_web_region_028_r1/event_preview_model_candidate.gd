@@ -82,10 +82,10 @@ func _fail(message: String) -> Dictionary:
     if _loaded:
         _stale = true
         _stale_reason = message
-        return {"ok": false, "status": "STALE_BLOCKED", "reason": message, "previous_snapshot_preserved": true, "read_only": true, "candidate_only": true, "no_runtime_effects": true}
+        return {"ok": false, "status": "STALE_BLOCKED", "reason": message, "previous_session_payload_preserved": true, "read_only": true, "candidate_only": true, "no_runtime_effects": true}
     _stale = false
     _stale_reason = ""
-    return {"ok": false, "status": "BLOCKED", "reason": message, "previous_snapshot_preserved": false, "candidate_only": true, "no_runtime_effects": true}
+    return {"ok": false, "status": "BLOCKED", "reason": message, "previous_session_payload_preserved": false, "candidate_only": true, "no_runtime_effects": true}
 
 
 func _validate_event(document: Dictionary) -> String:

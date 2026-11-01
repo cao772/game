@@ -133,7 +133,7 @@ func _build_ui() -> void:
 
     _reload_dialog = ConfirmationDialog.new()
     _reload_dialog.title = "确认安全重载"
-    _reload_dialog.dialog_text = "重新读取成功后会替换夹具并清空当前观察值与导航历史。继续吗？"
+    _reload_dialog.dialog_text = "重新读取成功后会替换夹具并清空当前起点选择、手工输入、观察值与导航历史。继续吗？"
     _reload_dialog.confirmed.connect(_perform_reload)
     add_child(_reload_dialog)
 
@@ -142,7 +142,7 @@ func _request_reload() -> void:
         _perform_reload()
         return
     var state: Dictionary = _model.snapshot()
-    var has_session: bool = bool(state.get("started", false)) or int(state.get("history_length", 0)) > 0 or not state.get("observations", {}).is_empty()
+    var has_session: bool = bool(state.get("started", false)) or int(state.get("history_length", 0)) > 0 or not state.get("observations", {}).is_empty() or not _selected_start_event_id.is_empty() or not _signal_input.text.is_empty() or not _conditions_input.text.is_empty()
     if has_session:
         _reload_dialog.popup_centered()
     else:
@@ -249,6 +249,8 @@ func _apply(command: Dictionary) -> void:
         var related: Array = view.get("related_sources", [])
         for item in related:
             _last_notice += "；来源 " + _format_source(item.get("source", {}))
+        if error.has("available_choices"):
+            _last_notice += "；当前可选分支：" + str(error.get("available_choices", []))
     _refresh_view()
 
 func _submit_observation() -> void:
