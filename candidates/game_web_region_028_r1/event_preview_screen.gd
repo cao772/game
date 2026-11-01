@@ -225,7 +225,10 @@ func _sync_inputs_from_current_observation() -> void:
     var observation: Dictionary = observations[event_id]
     _signal_input.text = str(observation.get("signal", ""))
     var conditions: Array = observation.get("conditions", [])
-    _conditions_input.text = ", ".join(conditions)
+    var condition_tokens := PackedStringArray()
+    for condition in conditions:
+        condition_tokens.append(str(condition))
+    _conditions_input.text = ", ".join(condition_tokens)
 
 func _apply(command: Dictionary) -> void:
     if not _fixture_ready or _stale:
