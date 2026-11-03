@@ -1,0 +1,86 @@
+{
+  "checked_date": "2026-11-03",
+  "timezone": "Asia/Shanghai",
+  "method": "GitHub API metadata; fixed commit downloads; full selected skill and reference reads. Stars are popularity signals, not independent quality ratings.",
+  "candidates": [
+    {
+      "repo": "joeseesun/qiaomu-novel-generator",
+      "url": "https://github.com/joeseesun/qiaomu-novel-generator",
+      "stars": 396,
+      "forks": 46,
+      "pushed_at": "2026-06-14T14:15:15Z",
+      "license": "MIT",
+      "commit": "d7b42cbd3e2993a3a2018f52446c106c698b71da",
+      "role": "selected",
+      "license_file": "licenses/joeseesun--qiaomu-novel-generator.txt",
+      "selected_paths": [
+        "."
+      ]
+    },
+    {
+      "repo": "haowjy/creative-writing-skills",
+      "url": "https://github.com/haowjy/creative-writing-skills",
+      "stars": 558,
+      "forks": 77,
+      "pushed_at": "2026-10-28T02:08:42Z",
+      "license": "Apache-2.0",
+      "commit": "1cb520f9c61e79ce2b1c56dba18601b2d6873433",
+      "role": "selected",
+      "license_file": "licenses/haowjy--creative-writing-skills.txt",
+      "selected_paths": [
+        "plugin/claude/skills/story-planning",
+        "plugin/claude/skills/creative-writing-craft",
+        "plugin/claude/skills/story-review"
+      ]
+    },
+    {
+      "repo": "sickn33/agentic-awesome-skills",
+      "url": "https://github.com/sickn33/agentic-awesome-skills",
+      "stars": 49052,
+      "forks": 7120,
+      "pushed_at": "2026-11-03T01:01:04Z",
+      "license": "MIT",
+      "commit": "b4bd5a153dd1e0a66789b6c971f731cdcf492a46",
+      "role": "selected",
+      "license_file": "licenses/sickn33--agentic-awesome-skills.txt",
+      "selected_paths": [
+        "skills/game-development/game-design"
+      ]
+    },
+    {
+      "repo": "ncdlek/game-dev-agent-skills",
+      "url": "https://github.com/ncdlek/game-dev-agent-skills",
+      "stars": 3,
+      "forks": 1,
+      "pushed_at": "2026-08-21T09:13:11Z",
+      "license": "MIT",
+      "commit": "20d63af5f6374f9b7d5a41caf501d8d443c9b100",
+      "role": "supplementary_low_popularity",
+      "license_file": "licenses/ncdlek--game-dev-agent-skills.txt",
+      "selected_paths": [
+        "skills/game-quest-narrative-architect"
+      ]
+    },
+    {
+      "repo": "Yuki001/game-dev-skills",
+      "stars": 107,
+      "license": "not_detected",
+      "role": "not_bundled",
+      "reason": "No repository license found in inspected tree/API; reference link only"
+    },
+    {
+      "repo": "morbeo/ai-skills",
+      "stars": 0,
+      "license": "CC0-1.0",
+      "role": "not_bundled",
+      "reason": "No public popularity signal; not preferred over selected sources"
+    },
+    {
+      "repo": "oleg-riazantsev/skills-saschb",
+      "stars": 0,
+      "license": "MIT",
+      "role": "not_bundled",
+      "reason": "No public popularity signal; not preferred over selected sources"
+    }
+  ]
+}
