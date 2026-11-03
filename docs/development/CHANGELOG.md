@@ -1,5 +1,23 @@
 # Source development log
 
+## GAME-RUNTIME-FOUNDATION-002 — 2026-11-03
+
+Continued the same implementation branch and Draft PR. Added application/world/dialogue adapters, bounded route history, and explicit nondeleting save archival. No main merge or runtime execution.
+
+Implemented and statically reviewed:
+- Loop-erased route history keeps at most 63 edges without imposing a lifetime action budget; final monotonic facts survive removed loops. Old histories up to 256 steps are fully validated before normalization.
+- Explicit archive/recovery retains at least two valid active records, preserves corrupt/highest-generation records, avoids overwriting existing archive targets and reports non-atomic partial outcomes.
+- Application presentation validates all text and observation bindings; revision-checked commands reject stale options after progress/load/mode changes. Scene world bindings cannot grant action-only facts.
+- Save-before-mode-switch at the application boundary; failed saves leave the current mode intact. Active and archived restore share staged semantic validation.
+- An explicit overlapping-body observation area and reusable plain-text dialogue panel with binding-epoch protection.
+- Synthetic presentation data, current API contracts and future scene integration obligations. Corrected the project feature declaration to 4.1 for static variables; exact release version remains unpinned.
+
+Independent review found and prompted a fix for an archive-capacity dead end: creating the first archive directory at a full active root, followed by a failed first move, previously prevented retry. The scan now allows exactly one verified archive control directory separately from the 1024 active/unknown entries, under a 1025 total bound. No file deletion or unbounded scan was introduced.
+
+Validation is source review, paper state traces, JSON/reference consistency and artifact readback only. Import/compiler, game code, tests, CI, build/export and performance acceptance are **NOT_RUN**. The first-batch review documents below remain historical; current contracts and the v2 reviews supersede their history-capacity and no-retention limitations.
+
+Next source milestone: a persistent scene owner, one bounded playable location with movement/targeting, quest progress/consequences and recovery controls. This batch supplies adapters, not a complete playable quest, Windows executable, full-world save or multi-process lock.
+
 ## GAME-RUNTIME-FOUNDATION-001 — 2026-11-03
 
 Outcome: added a single runtime foundation under `game/`, based on main `533b11f50c0d359cd0a5424d5216b0145727699a`. Previous candidate PRs remain unchanged. Main is not merged.

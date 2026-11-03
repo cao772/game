@@ -1,0 +1,18 @@
+{
+  "intro_key": "sample.intro",
+  "observations": {"LOOK_AT_ROUTE_A": "PATH_A_SEEN", "LOOK_AT_ROUTE_B": "PATH_B_SEEN", "SPEAK_TO_HELPER": "HELP_AVAILABLE"},
+  "dialogue": {
+    "sample.intro": {"speaker": "Dispatcher", "text": "A parcel needs delivering. Inspect the paths or ask for help before setting out."},
+    "sample.prepare": {"speaker": "Dispatcher", "text": "The parcel is ready to collect."},
+    "sample.collect": {"speaker": "", "text": "Collect the parcel."},
+    "sample.plan": {"speaker": "", "text": "Choose a known route, arrange help, or take a break."},
+    "sample.route": {"speaker": "", "text": "Follow an inspected route."},
+    "sample.help": {"speaker": "", "text": "Travel with the available helper."},
+    "sample.wait": {"speaker": "", "text": "Take a break and reconsider."},
+    "sample.rest": {"speaker": "", "text": "There is time to look for another way."},
+    "sample.retry": {"speaker": "", "text": "Return to the route choice."},
+    "sample.arrive": {"speaker": "Recipient", "text": "You have arrived with the parcel."},
+    "sample.hand_over": {"speaker": "", "text": "Hand over the parcel."},
+    "sample.complete": {"speaker": "Recipient", "text": "Delivery received. Thank you."}
+  }
+}

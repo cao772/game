@@ -90,6 +90,22 @@ func load_active() -> Dictionary:
 	if _active() == null:
 		return _failure("NOT_CONFIGURED")
 	var record: Dictionary = _store.read_latest(_mode)
+	return _restore_record(record)
+
+
+func archive_active(keep: int = 32) -> Dictionary:
+	if _active() == null:
+		return _failure("NOT_CONFIGURED")
+	return _store.archive_older(_mode, keep)
+
+
+func load_archived(generation: int) -> Dictionary:
+	if _active() == null:
+		return _failure("NOT_CONFIGURED")
+	return _restore_record(_store.read_archived(_mode, generation))
+
+
+func _restore_record(record: Dictionary) -> Dictionary:
 	if not record.get("ok", false):
 		return record
 	var payload_value: Variant = record.get("payload")
@@ -119,7 +135,10 @@ func load_active() -> Dictionary:
 		_chapter = proposed
 	return {
 		"ok": true, "code": "SESSION_RESTORED", "mode": _mode,
-		"generation": record.get("generation"), "skipped": record.get("skipped", [])
+		"generation": record.get("generation"), "skipped": record.get("skipped", []),
+		"history_normalized": restored.get("history_normalized", false),
+		"history_input_steps": restored.get("history_input_steps", 0),
+		"history_steps": restored.get("history_steps", 0)
 	}
 
 

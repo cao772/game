@@ -7,6 +7,7 @@ const ROOT_NAME := "game_runtime_v1"
 const MAX_PAYLOAD_BYTES := 1048576
 const MAX_RECORD_BYTES := MAX_PAYLOAD_BYTES * 6 + 1024
 const MAX_ENTRIES := 1024
+const MAX_ARCHIVE_ENTRIES := 4096
 const MAX_DEPTH := 32
 const MAX_VALUES := 8192
 const MAX_GENERATION := 2147483647
@@ -36,6 +37,43 @@ func read_latest(slot: String) -> Dictionary:
     if not scan["ok"]:
         return scan
     return _latest_from_scan(scan)
+
+
+func archive_older(slot: String, keep: int = 32) -> Dictionary:
+    # Explicit maintenance only: never called by write_record/read_latest.
+    if not _valid_slot(slot):
+        return _archive_result(false, "INVALID_SLOT", [], [], [], [], false)
+    if keep < 2 or keep > MAX_ENTRIES:
+        return _archive_result(false, "INVALID_KEEP", [], [], [], [], false)
+    if _write_in_progress:
+        return _archive_result(false, "WRITE_BUSY", [], [], [], [], true)
+    _write_in_progress = true
+    var result: Dictionary = _archive_locked(slot, keep)
+    _write_in_progress = false
+    return result
+
+
+func read_archived(slot: String, generation: Variant) -> Dictionary:
+    if not _valid_slot(slot):
+        return _error("INVALID_SLOT")
+    var parsed_generation: int = _positive_generation(generation)
+    if parsed_generation == 0:
+        return _error("INVALID_GENERATION")
+    if _write_in_progress:
+        return _error("WRITE_BUSY")
+    var archive: Dictionary = _open_archive(slot, false)
+    if not archive["ok"]:
+        return archive
+    var directory: DirAccess = archive["directory"]
+    if directory == null:
+        return _error("ARCHIVED_RECORD_NOT_FOUND")
+    var name: String = "%d.json" % parsed_generation
+    if not _name_exists(directory, name):
+        return _error("ARCHIVED_RECORD_NOT_FOUND", name)
+    var record: Dictionary = _read_at_directory(directory, name, parsed_generation)
+    if record["ok"]:
+        record["code"] = "ARCHIVED_RECORD_LOADED"
+    return record
 
 
 func _valid_slot(slot: String) -> bool:
@@ -165,8 +203,23 @@ func _scan(slot: String, create: bool) -> Dictionary:
     if begin_error != OK:
         return _error("SAVE_SCAN_FAILED", str(begin_error))
     var count: int = 0
+    var total_count: int = 0
+    var archive_control_present: bool = false
     var name: String = directory.get_next()
     while not name.is_empty():
+        total_count += 1
+        if total_count > MAX_ENTRIES + 1:
+            directory.list_dir_end()
+            return _error("SAVE_DIRECTORY_LIMIT")
+        # This single verified control directory does not consume an active-file
+        # slot. Creating it at capacity cannot lock out a retry after a failed move.
+        if name.to_lower() == "archive":
+            if name != "archive" or directory.is_link(name) or not directory.current_is_dir() or not directory.dir_exists(name):
+                directory.list_dir_end()
+                return _error("ARCHIVE_CONTROL_INVALID", name)
+            archive_control_present = true
+            name = directory.get_next()
+            continue
         count += 1
         if count > MAX_ENTRIES:
             directory.list_dir_end()
@@ -194,7 +247,7 @@ func _scan(slot: String, create: bool) -> Dictionary:
         name = directory.get_next()
     directory.list_dir_end()
     records.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["generation"] > b["generation"])
-    return {"ok": true, "code": "SCANNED", "records": records, "entry_count": count}
+    return {"ok": true, "code": "SCANNED", "records": records, "entry_count": count, "root_entry_count": total_count, "archive_control_present": archive_control_present}
 
 
 func _read_record(name: String, expected_generation: int) -> Dictionary:
@@ -204,9 +257,14 @@ func _read_record(name: String, expected_generation: int) -> Dictionary:
     var directory: DirAccess = root["directory"]
     if directory == null:
         return _error("SAVE_ROOT_DISAPPEARED")
+    return _read_at_directory(directory, name, expected_generation)
+
+
+func _read_at_directory(directory: DirAccess, name: String, expected_generation: int) -> Dictionary:
+    # Internal caller supplies an already checked fixed directory and simple name.
     if directory.is_link(name) or directory.dir_exists(name):
         return _error("RECORD_NOT_REGULAR_FILE", name)
-    var path: String = ROOT.path_join(name)
+    var path: String = directory.get_current_dir().path_join(name)
     var file := FileAccess.open(path, FileAccess.READ)
     if file == null:
         return _error("RECORD_OPEN_FAILED", name)
@@ -246,7 +304,10 @@ func _read_record(name: String, expected_generation: int) -> Dictionary:
     var issue: String = _json_issue(payload, 0, {"values": 0, "bytes": 0})
     if not issue.is_empty():
         return _error(issue, name)
-    return {"ok": true, "code": "RECORD_VALID", "payload": payload, "generation": expected_generation, "path": path}
+    var record_digest: String = _sha256(bytes)
+    if record_digest.is_empty():
+        return _error("HASH_FAILED", name)
+    return {"ok": true, "code": "RECORD_VALID", "payload": payload, "generation": expected_generation, "path": path, "record_sha256": record_digest}
 
 
 func _integer_equals(value: Variant, expected: int) -> bool:
@@ -355,3 +416,153 @@ func _write_locked(slot: String, payload: Dictionary) -> Dictionary:
 
 func _name_exists(directory: DirAccess, name: String) -> bool:
     return directory.file_exists(name) or directory.dir_exists(name) or directory.is_link(name)
+
+
+func _positive_generation(value: Variant) -> int:
+    if typeof(value) == TYPE_INT:
+        return value if value >= 1 and value <= MAX_GENERATION else 0
+    if typeof(value) == TYPE_FLOAT:
+        if is_finite(value) and value >= 1.0 and value <= float(MAX_GENERATION) and value == floor(value):
+            return int(value)
+    return 0
+
+
+func _open_archive(slot: String, create: bool) -> Dictionary:
+    var root: Dictionary = _open_root(false)
+    if not root["ok"]:
+        return root
+    var directory: DirAccess = root["directory"]
+    if directory == null:
+        return {"ok": true, "code": "ARCHIVE_ABSENT", "directory": null}
+    # Each component is checked independently; no caller path is accepted.
+    for component in ["archive", slot]:
+        if directory.is_link(component):
+            return _error("ARCHIVE_DIRECTORY_IS_LINK", component)
+        if not directory.dir_exists(component):
+            if directory.file_exists(component):
+                return _error("ARCHIVE_NOT_DIRECTORY", component)
+            if not create:
+                return {"ok": true, "code": "ARCHIVE_ABSENT", "directory": null}
+            var creation: Error = directory.make_dir(component)
+            if creation != OK:
+                return _error("ARCHIVE_CREATE_FAILED", component + ":" + str(creation))
+        if directory.is_link(component):
+            return _error("ARCHIVE_DIRECTORY_IS_LINK", component)
+        directory = DirAccess.open(directory.get_current_dir().path_join(component))
+        if directory == null:
+            return _error("ARCHIVE_OPEN_FAILED", component)
+    return {"ok": true, "code": "ARCHIVE_READY", "directory": directory}
+
+
+func _count_archive_entries(directory: DirAccess) -> Dictionary:
+    directory.include_hidden = true
+    directory.include_navigational = false
+    var start_error: Error = directory.list_dir_begin()
+    if start_error != OK:
+        return _error("ARCHIVE_SCAN_FAILED", str(start_error))
+    var count: int = 0
+    var name: String = directory.get_next()
+    while not name.is_empty():
+        count += 1
+        if count > MAX_ARCHIVE_ENTRIES:
+            directory.list_dir_end()
+            return _error("ARCHIVE_DIRECTORY_LIMIT")
+        name = directory.get_next()
+    directory.list_dir_end()
+    return {"ok": true, "code": "ARCHIVE_COUNTED", "entry_count": count}
+
+
+func _archive_result(ok: bool, code: String, moved: Array, remaining: Array, retained: Array, diagnostics: Array, remaining_unknown: bool = false) -> Dictionary:
+    return {
+        "ok": ok, "code": code, "partial": not ok and not moved.is_empty(),
+        "atomic": false, "moved": moved, "remaining": remaining,
+        "retained": retained, "diagnostics": diagnostics,
+        "remaining_unknown": remaining_unknown
+    }
+
+
+func _archive_locked(slot: String, keep: int) -> Dictionary:
+    # A full (exactly 1024 active entries) directory is still scannable here.
+    # The one verified archive control directory has a separate total-entry bound.
+    # Only regular writes reserve an extra entry and reject count == MAX_ENTRIES.
+    var scan: Dictionary = _scan(slot, false)
+    if not scan["ok"]:
+        return _archive_result(false, scan["code"], [], [], [], [scan], true)
+    var records: Array = scan["records"]
+    var valid: Array = []
+    var diagnostics: Array = []
+    for record in records:
+        var verified: Dictionary = _read_record(record["name"], record["generation"])
+        if not verified["ok"]:
+            diagnostics.append({"name": record["name"], "generation": record["generation"], "code": verified["code"], "action": "LEFT_ACTIVE"})
+            continue
+        valid.append({"name": record["name"], "generation": record["generation"], "record_sha256": verified["record_sha256"]})
+    if not records.is_empty() and valid.is_empty():
+        return _archive_result(false, "NO_VALID_RECORD", [], [], [], diagnostics)
+    var retained: Array = []
+    var planned: Array = []
+    var highest: int = records[0]["generation"] if not records.is_empty() else 0
+    for index in range(valid.size()):
+        var record: Dictionary = valid[index]
+        if index < keep or record["generation"] == highest:
+            retained.append(record["generation"])
+        else:
+            planned.append(record)
+    if planned.is_empty():
+        return _archive_result(true, "NOTHING_TO_ARCHIVE", [], [], retained, diagnostics)
+    # All candidates have been read and validated before any move or mkdir.
+    var archive: Dictionary = _open_archive(slot, true)
+    if not archive["ok"] or archive["directory"] == null:
+        diagnostics.append(archive)
+        return _archive_result(false, "ARCHIVE_UNAVAILABLE", [], planned, retained, diagnostics)
+    var destination: DirAccess = archive["directory"]
+    var count: Dictionary = _count_archive_entries(destination)
+    if not count["ok"]:
+        diagnostics.append(count)
+        return _archive_result(false, count["code"], [], planned, retained, diagnostics)
+    var archive_count: int = count["entry_count"]
+    var moved: Array = []
+    var remaining: Array = planned.duplicate(true)
+    for record in planned:
+        if archive_count >= MAX_ARCHIVE_ENTRIES:
+            diagnostics.append({"code": "ARCHIVE_DIRECTORY_LIMIT", "action": "STOPPED_WITHOUT_DELETION"})
+            return _archive_result(false, "ARCHIVE_DIRECTORY_LIMIT", moved, remaining, retained, diagnostics)
+        # Reopen/recheck links and the candidate immediately before each rename.
+        var root: Dictionary = _open_root(false)
+        archive = _open_archive(slot, false)
+        if not root["ok"] or root.get("directory") == null or not archive["ok"] or archive.get("directory") == null:
+            diagnostics.append({"code": "DIRECTORY_CHANGED", "root_code": root["code"], "archive_code": archive["code"]})
+            return _archive_result(false, "DIRECTORY_CHANGED", moved, remaining, retained, diagnostics)
+        var source: DirAccess = root["directory"]
+        destination = archive["directory"]
+        var target_name: String = "%d.json" % record["generation"]
+        if _name_exists(destination, target_name):
+            diagnostics.append({"name": record["name"], "generation": record["generation"], "code": "ARCHIVE_TARGET_EXISTS", "action": "LEFT_ACTIVE"})
+            continue
+        var fresh: Dictionary = _read_record(record["name"], record["generation"])
+        if not fresh["ok"] or fresh.get("record_sha256", "") != record["record_sha256"]:
+            diagnostics.append({"name": record["name"], "generation": record["generation"], "code": "SOURCE_CHANGED_OR_INVALID", "action": "LEFT_ACTIVE"})
+            return _archive_result(false, "SOURCE_CHANGED_OR_INVALID", moved, remaining, retained, diagnostics)
+        # These checks require single-process ownership; rename is not a CAS.
+        if source.is_link(record["name"]) or _name_exists(destination, target_name):
+            diagnostics.append({"name": record["name"], "code": "ARCHIVE_MOVE_CONFLICT", "action": "LEFT_ACTIVE"})
+            return _archive_result(false, "ARCHIVE_MOVE_CONFLICT", moved, remaining, retained, diagnostics)
+        var target_path: String = destination.get_current_dir().path_join(target_name)
+        var move_error: Error = source.rename(record["name"], target_path)
+        if move_error != OK:
+            diagnostics.append({"name": record["name"], "code": "ARCHIVE_MOVE_FAILED", "error": move_error, "action": "STOPPED"})
+            return _archive_result(false, "ARCHIVE_MOVE_FAILED", moved, remaining, retained, diagnostics)
+        remaining.erase(record)
+        archive_count += 1
+        var move_receipt: Dictionary = {"generation": record["generation"], "from": ROOT.path_join(record["name"]), "path": target_path, "readback_verified": false}
+        moved.append(move_receipt)
+        # A failed readback after rename is a moved-but-unverified record, not
+        # an atomic rollback. Keep every file and return the exact partial state.
+        var after: Dictionary = _read_at_directory(destination, target_name, record["generation"])
+        if not after["ok"] or after.get("record_sha256", "") != record["record_sha256"]:
+            diagnostics.append({"generation": record["generation"], "code": "ARCHIVE_READBACK_FAILED", "path": target_path})
+            return _archive_result(false, "ARCHIVE_READBACK_FAILED", moved, remaining, retained, diagnostics)
+        move_receipt["readback_verified"] = true
+    if not remaining.is_empty():
+        return _archive_result(false, "ARCHIVE_TARGETS_BLOCKED", moved, remaining, retained, diagnostics)
+    return _archive_result(true, "ARCHIVED" if diagnostics.is_empty() else "ARCHIVED_WITH_WARNINGS", moved, remaining, retained, diagnostics)

@@ -3,8 +3,10 @@ extends RefCounted
 ## This module never awards inventory, changes a world clock or writes a file.
 
 const MAX_FACTS := 128
-const MAX_HISTORY := 256
+# Input protection for old full-history saves; not a lifetime action budget.
+const MAX_RESTORE_HISTORY := 256
 const MAX_NODES := 64
+const MAX_CANONICAL_HISTORY := MAX_NODES - 1
 const MAX_ACTIONS := 16
 const MAX_VERSION := 2147483647
 const MAX_TEXT_KEY := 128
@@ -73,20 +75,28 @@ func choose(action_id: String) -> Dictionary:
 	var current: Dictionary = _definition["nodes"][_node]
 	if current["terminal"]:
 		return _failure("TERMINAL_NODE")
-	if _history.size() >= MAX_HISTORY:
-		return _failure("HISTORY_LIMIT")
 	var action: Dictionary = _find_action(current, action_id)
 	if action.is_empty():
 		return _failure("ACTION_NOT_AT_CURRENT_NODE", "action_id")
 	if not _gates_pass(action, _facts):
 		return _failure("ACTION_REQUIREMENTS_UNMET", "action_id")
-	# The graph and grant identifiers were validated during configuration.
-	# There are no callouts/signals between committing these fields.
+	# Preserve monotonic facts even when the action returns to a prior node.
+	# History is a route witness, not a complete action/observation audit trail.
+	var staged_facts: Dictionary = _facts.duplicate()
 	for fact in action["grants"]:
-		_facts[fact] = true
-	_history.append(action_id)
+		staged_facts[fact] = true
+	var extended_history: Array = _history.duplicate()
+	extended_history.append(action_id)
+	var staged_history: Array = _loop_erased_route(extended_history)
+	# All derived state is prepared before the commit; no external callouts.
+	_facts = staged_facts
+	_history = staged_history
 	_node = action["target"]
-	return _success("ACTION_APPLIED")
+	return {
+		"ok": true, "code": "ACTION_APPLIED",
+		"history_compacted": staged_history.size() < extended_history.size(),
+		"history_steps": staged_history.size()
+	}
 
 
 func snapshot() -> Dictionary:
@@ -139,8 +149,8 @@ func restore(data: Dictionary) -> Dictionary:
 	if typeof(data["history"]) != TYPE_ARRAY:
 		return _failure("INVALID_SNAPSHOT_HISTORY", "history")
 	var history: Array = data["history"]
-	if history.size() > MAX_HISTORY:
-		return _failure("HISTORY_LIMIT", "history")
+	if history.size() > MAX_RESTORE_HISTORY:
+		return _failure("RESTORE_HISTORY_LIMIT", "history")
 	for action_id in history:
 		if not _identifier(action_id):
 			return _failure("INVALID_HISTORY_ACTION", "history")
@@ -168,12 +178,19 @@ func restore(data: Dictionary) -> Dictionary:
 			replay_node = action["target"]
 		if replay_node != data["node"]:
 			return _failure("HISTORY_NODE_MISMATCH", "node")
+	# Validate every original step BEFORE erasing loops. Invalid actions,
+	# missing grants and post-terminal steps cannot hide inside a removed loop.
+	var staged_history: Array = _loop_erased_route(history)
 	# No earlier branch changes live state, even for almost-valid snapshots.
 	_started = data["started"]
 	_node = data["node"]
 	_facts = staged_facts
-	_history = history.duplicate()
-	return _success("RESTORED")
+	_history = staged_history
+	return {
+		"ok": true, "code": "RESTORED",
+		"history_normalized": staged_history != history,
+		"history_input_steps": history.size(), "history_steps": staged_history.size()
+	}
 
 
 func view() -> Dictionary:
@@ -182,20 +199,43 @@ func view() -> Dictionary:
 	var result: Dictionary = {
 		"ok": true, "code": "VIEW", "started": _started, "node": _node,
 		"terminal": false, "text_key": "", "available_actions": [],
-		"options": [], "history_limit_reached": _history.size() >= MAX_HISTORY
+		"options": [], "history_kind": "loop_erased_route", "history_steps": _history.size(),
+		"history_capacity": MAX_CANONICAL_HISTORY,
+		# Retained for earlier callers; it no longer gates action availability.
+		"history_limit_reached": false
 	}
 	if not _started:
 		return result
 	var current: Dictionary = _definition["nodes"][_node]
 	result["terminal"] = current["terminal"]
 	result["text_key"] = current["text_key"]
-	if current["terminal"] or _history.size() >= MAX_HISTORY:
+	if current["terminal"]:
 		return result
 	for action in current["actions"]:
 		if _gates_pass(action, _facts):
 			result["available_actions"].append(action["id"])
 			result["options"].append({"id": action["id"], "text_key": action["text_key"]})
 	return result
+
+
+func _loop_erased_route(history: Array) -> Array:
+	# Private helper: callers have already validated the entire input path.
+	# Route nodes are unique after each step, hence at most N-1 action edges.
+	var route: Array = []
+	var route_nodes: Array = [_definition["start"]]
+	var current_node: String = _definition["start"]
+	for action_id in history:
+		var action: Dictionary = _find_action(_definition["nodes"][current_node], action_id)
+		var target: String = action["target"]
+		var prior_index: int = route_nodes.find(target)
+		if prior_index >= 0:
+			route.resize(prior_index)
+			route_nodes.resize(prior_index + 1)
+		else:
+			route.append(action_id)
+			route_nodes.append(target)
+		current_node = target
+	return route
 
 
 func _validate_definition(definition: Dictionary) -> Dictionary:
