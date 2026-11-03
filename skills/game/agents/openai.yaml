@@ -1,0 +1,7 @@
+interface:
+  display_name: "Game · 小说与游戏设计"
+  short_description: "结合现有剧情与双模式计划，完成小说、任务、玩法设计和连续性审读"
+  default_prompt: "使用 $game，读取当前游戏项目的相关计划与来源，完成本轮剧情或玩法设计，保持候选与正史分离，并记录验证范围。"
+
+policy:
+  allow_implicit_invocation: true
