@@ -1,0 +1,11 @@
+; Runtime library foundation. No main scene or export preset yet.
+; No editor/import/runtime/build has been executed for this milestone.
+config_version=5
+
+[application]
+config/name="Game Runtime Foundation"
+config/features=PackedStringArray("4.0", "GL Compatibility")
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

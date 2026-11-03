@@ -1,0 +1,33 @@
+{
+  "id": "DELIVERY_SAMPLE",
+  "version": 1,
+  "start": "PREPARE",
+  "facts": ["PATH_A_SEEN", "PATH_B_SEEN", "HELP_AVAILABLE", "PARCEL_COLLECTED", "DELIVERED"],
+  "nodes": {
+    "PREPARE": {
+      "text_key": "sample.prepare",
+      "terminal": false,
+      "actions": [{"id": "COLLECT", "text_key": "sample.collect", "target": "PLAN", "requires_all": [], "requires_any": [], "grants": ["PARCEL_COLLECTED"]}]
+    },
+    "PLAN": {
+      "text_key": "sample.plan",
+      "terminal": false,
+      "actions": [
+        {"id": "TAKE_ROUTE", "text_key": "sample.route", "target": "ARRIVE", "requires_all": ["PARCEL_COLLECTED"], "requires_any": ["PATH_A_SEEN", "PATH_B_SEEN"], "grants": []},
+        {"id": "ASK_HELP", "text_key": "sample.help", "target": "ARRIVE", "requires_all": ["PARCEL_COLLECTED", "HELP_AVAILABLE"], "requires_any": [], "grants": []},
+        {"id": "WAIT", "text_key": "sample.wait", "target": "REST", "requires_all": [], "requires_any": [], "grants": []}
+      ]
+    },
+    "REST": {
+      "text_key": "sample.rest",
+      "terminal": false,
+      "actions": [{"id": "RETRY", "text_key": "sample.retry", "target": "PLAN", "requires_all": [], "requires_any": [], "grants": []}]
+    },
+    "ARRIVE": {
+      "text_key": "sample.arrive",
+      "terminal": false,
+      "actions": [{"id": "HAND_OVER", "text_key": "sample.hand_over", "target": "COMPLETE", "requires_all": ["PARCEL_COLLECTED"], "requires_any": [], "grants": ["DELIVERED"]}]
+    },
+    "COMPLETE": {"text_key": "sample.complete", "terminal": true, "actions": []}
+  }
+}
