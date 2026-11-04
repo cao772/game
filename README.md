@@ -8,6 +8,7 @@ Unpublished manuscripts, story canon, private design notes, and raw chat evidenc
 
 The consolidated source-development entry is [game/README.md](game/README.md).
 It implements quest progression, mode-separated sessions and save records, with
-world-observation/dialogue adapters, loop-erased quest history and explicit save archival.
+world-observation/dialogue adapters, loop-erased quest history, explicit save archival,
+and a bounded synthetic scene with movement, interaction, consequences and recovery controls.
 It is source-reviewed only: runtime, tests and Windows packaging are NOT_RUN.
 See [development roadmap](docs/development/delivery-roadmap.md) for the next milestones.

@@ -1,5 +1,11 @@
 # Source development log
 
+## GAME-RUNTIME-SCENE-003 — 2026-11-04
+
+Added a configured main scene with one persistent application owner, collision-bounded location, WASD player, elevated fixed camera and explicit nearest-overlap interactions. The synthetic quest now connects collection, observation, route choice, physical delivery and a visible return-visit result. Added Chinese synthetic presentation, scrolling journal/dialogue, explicit save/archive/restore controls and confirmations for destructive in-memory restoration. Failed mode saves preserve the active mode; successful load/switch resets position by declared policy. Shared application APIs and save schemas remain unchanged.
+
+Source review corrected a raw archive-receipt dump into a generation-only display, retained partial/warning feedback, and added scrolling to keep recovery and dialogue controls reachable. Reviewed normal, alternate-prerequisite, WAIT/RETRY, completion, failed restore and mode-isolation paths on paper. No independent reviewer or runtime execution in this batch. Resource and JSON inspection are not engine compilation or gameplay tests. Import, tests, CI, export and Windows acceptance remain NOT_RUN. See scene-review-v3.md for the exact limits.
+
 ## GAME-RUNTIME-FOUNDATION-002 — 2026-11-03
 
 Continued the same implementation branch and Draft PR. Added application/world/dialogue adapters, bounded route history, and explicit nondeleting save archival. No main merge or runtime execution.

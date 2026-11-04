@@ -1,18 +1,58 @@
 {
   "intro_key": "sample.intro",
-  "observations": {"LOOK_AT_ROUTE_A": "PATH_A_SEEN", "LOOK_AT_ROUTE_B": "PATH_B_SEEN", "SPEAK_TO_HELPER": "HELP_AVAILABLE"},
+  "observations": {
+    "LOOK_AT_ROUTE_A": "PATH_A_SEEN",
+    "LOOK_AT_ROUTE_B": "PATH_B_SEEN",
+    "SPEAK_TO_HELPER": "HELP_AVAILABLE"
+  },
   "dialogue": {
-    "sample.intro": {"speaker": "Dispatcher", "text": "A parcel needs delivering. Inspect the paths or ask for help before setting out."},
-    "sample.prepare": {"speaker": "Dispatcher", "text": "The parcel is ready to collect."},
-    "sample.collect": {"speaker": "", "text": "Collect the parcel."},
-    "sample.plan": {"speaker": "", "text": "Choose a known route, arrange help, or take a break."},
-    "sample.route": {"speaker": "", "text": "Follow an inspected route."},
-    "sample.help": {"speaker": "", "text": "Travel with the available helper."},
-    "sample.wait": {"speaker": "", "text": "Take a break and reconsider."},
-    "sample.rest": {"speaker": "", "text": "There is time to look for another way."},
-    "sample.retry": {"speaker": "", "text": "Return to the route choice."},
-    "sample.arrive": {"speaker": "Recipient", "text": "You have arrived with the parcel."},
-    "sample.hand_over": {"speaker": "", "text": "Hand over the parcel."},
-    "sample.complete": {"speaker": "Recipient", "text": "Delivery received. Thank you."}
+    "sample.intro": {
+      "speaker": "配送员",
+      "text": "有一份物品需要送到场地另一端。先领取，再查看路线或寻求协助。"
+    },
+    "sample.prepare": {
+      "speaker": "配送员",
+      "text": "物品已经准备好。"
+    },
+    "sample.collect": {
+      "speaker": "",
+      "text": "领取物品。"
+    },
+    "sample.plan": {
+      "speaker": "",
+      "text": "探索蓝色交互点后，回这里决定路线；也可以先休息。"
+    },
+    "sample.route": {
+      "speaker": "",
+      "text": "选择已经查看的路线，前往收件处。"
+    },
+    "sample.help": {
+      "speaker": "",
+      "text": "请协助者带路，前往收件处。"
+    },
+    "sample.wait": {
+      "speaker": "",
+      "text": "先休息，稍后重新考虑。"
+    },
+    "sample.rest": {
+      "speaker": "",
+      "text": "不必着急。你仍然可以探索其他路线。"
+    },
+    "sample.retry": {
+      "speaker": "",
+      "text": "重新选择路线。"
+    },
+    "sample.arrive": {
+      "speaker": "收件人",
+      "text": "你把物品带来了。"
+    },
+    "sample.hand_over": {
+      "speaker": "",
+      "text": "交付物品。"
+    },
+    "sample.complete": {
+      "speaker": "收件人",
+      "text": "物品已收到，谢谢。随时欢迎再来。"
+    }
   }
 }

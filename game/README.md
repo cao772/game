@@ -1,6 +1,6 @@
 # Game runtime foundation
 
-The consolidated source includes a quest runtime, a free/chapter session owner, an immutable save store and an application boundary for world interaction and dialogue. It is **not a playable game or exported Windows build**. The project has no main scene yet. Godot import, compilation, execution, tests and export are **NOT_RUN**; development has been limited to source authoring and static review.
+The consolidated source includes a quest runtime, a free/chapter session owner, an immutable save store and an application boundary for world interaction and dialogue. It is **not a playable game or exported Windows build**. A bounded synthetic main scene now connects movement, nearby interaction, quest choices, visible delivery feedback and explicit save recovery; it has not been imported or run. Godot import, compilation, execution, tests and export are **NOT_RUN**; development has been limited to source authoring and static review.
 
 ## Components
 
@@ -15,7 +15,7 @@ The consolidated source includes a quest runtime, a free/chapter session owner, 
 | `content/synthetic_delivery.json` | Public, non-canonical sample with alternate prerequisites and a retry loop; not the private game quest |
 | `content/synthetic_presentation.json` | Complete synthetic text and observation bindings for that sample |
 
-Use `game/` as the eventual Godot project root. A future scene controller will preload `res://runtime/quest_application.gd`, parse its approved definition and presentation, and call `configure`. Route player interactions through registered world bindings; the UI must not grant itself an expected condition merely because it knows the quest schema. `start` and `choose` are explicit commands. `present` is read-only and supplies text, actions and a revision for subsequent commands. Definitions and facts are per session, not a global knowledge table. See the [application integration contract](../docs/development/application-integration-v2.md).
+Use `game/` as the eventual Godot project root. The sample scene controller preloads `res://runtime/quest_application.gd`, parse its approved definition and presentation, and calls `configure`. Route player interactions through registered world bindings; the UI must not grant itself an expected condition merely because it knows the quest schema. `start` and `choose` are explicit commands. `present` is read-only and supplies text, actions and a revision for subsequent commands. Definitions and facts are per session, not a global knowledge table. See the [application integration contract](../docs/development/application-integration-v2.md).
 
 `enter_chapter` creates a fresh chapter instance. `leave_chapter` discards it and returns to the unchanged in-memory free instance. `save_active` and `load_active` address only the active mode's fixed slot. To resume a chapter, explicitly enter it before loading. A storage-valid but semantically incompatible save is rejected with the live session retained. Neither a hash nor a successful save proves gameplay correctness.
 
@@ -36,3 +36,13 @@ At the lower coordinator layer, mode changes do not write files. At the applicat
 See [candidate contract](../docs/development/runtime-contract.md), [delivery roadmap](../docs/development/delivery-roadmap.md), and the component review documents for future acceptance and limitations.
 
 The feature declaration is 4.1 because the save store uses GDScript static variables. This is an API-level requirement, not a verified minimum engine build; pin and validate the exact engine/export templates before packaging.
+
+## Bounded scene candidate (batch 003)
+
+`scenes/sample_location.tscn` is the configured main scene. `world/sample_location.gd` owns one application for the scene lifetime; `world/sample_player.gd` supplies WASD movement with a fixed elevated camera. E interacts with the nearest overlapping station. Dialogue freezes movement; Esc closes it. A scrolling sidebar exposes the journal, mode, manual save, latest restore, explicit archive and restore by generation. User-facing sample text is Chinese and remains wholly synthetic.
+
+At the collection station: explicitly start, collect, inspect either route or speak to the helper, return to choose, then physically walk to the recipient to hand over. WAIT/RETRY remains available. A completed recipient changes color and caption, including after restore. Observation facts are collected by explicit area interaction only. This is a connectivity sample, not balanced route traversal or final art.
+
+Restores warn before replacing unsaved active-mode progress. Mode changes save first and reset position only on success. Save failures preserve the scene and active mode. Quest state is persisted; position is deliberately reset to the entrance after successful load/switch and is not saved. Archival shows moved generation IDs even after partial failure. No new save schema or shared API changes. The sample assumes one scene and one process; no scene transitions or whole-world persistence are claimed.
+
+Source review and pending Windows checks: [scene review](../docs/development/scene-review-v3.md).
