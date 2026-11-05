@@ -16,10 +16,14 @@ var _revision: int = 0
 
 
 func configure(definition: Dictionary, presentation: Dictionary) -> Dictionary:
+	return configure_with_side(definition, presentation, {})
+
+
+func configure_with_side(definition: Dictionary, presentation: Dictionary, side_definition: Dictionary) -> Dictionary:
 	if _session != null:
 		return _error("ALREADY_CONFIGURED")
 	var staged: Session = Session.new()
-	var checked: Dictionary = staged.configure(definition)
+	var checked: Dictionary = staged.configure_with_side(definition, side_definition)
 	if not checked.get("ok", false):
 		return checked
 	checked = _validate_presentation(definition, presentation)
@@ -71,6 +75,24 @@ func observe_interaction(interaction_id: String, expected_revision: int) -> Dict
 func choose(action_id: String, expected_revision: int) -> Dictionary:
 	var gate: Dictionary = _guard(expected_revision)
 	return gate if not gate["ok"] else _finish(_session.choose(action_id))
+
+
+func side_view() -> Dictionary:
+	if _session == null:
+		return _error("NOT_CONFIGURED")
+	var state: Dictionary = _session.side_view()
+	state["revision"] = _revision
+	return state
+
+
+func side_start(expected_revision: int) -> Dictionary:
+	var gate: Dictionary = _guard(expected_revision)
+	return gate if not gate["ok"] else _finish(_session.side_start())
+
+
+func side_choose(action_id: String, expected_revision: int) -> Dictionary:
+	var gate: Dictionary = _guard(expected_revision)
+	return gate if not gate["ok"] else _finish(_session.side_choose(action_id))
 
 
 func save(expected_revision: int) -> Dictionary:

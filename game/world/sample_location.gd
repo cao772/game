@@ -10,6 +10,8 @@ const Parcel = preload("res://scenes/sample_parcel.tscn")
 const Records = preload("res://world/records_room.gd")
 const RecordsScene = preload("res://scenes/records_room.tscn")
 const RecordsDoor = preload("res://scenes/records_door.tscn")
+const Market = preload("res://world/market_encounter.gd")
+const MarketScene = preload("res://scenes/loan_market.tscn")
 
 # Variants can change performance copy without changing quest facts or save data.
 @export_file("*.json") var definition_path := "res://content/synthetic_delivery.json"
@@ -19,6 +21,7 @@ const RecordsDoor = preload("res://scenes/records_door.tscn")
 @export var receipt_messages: Dictionary = {}
 @export var terminal_notes: Dictionary = {}
 @export_file("*.json") var records_path := "res://content/records_lines.json"
+@export_file("*.json") var market_lines_path := "res://content/market_lines.json"
 
 const SPAWN := Vector3(0, 1, 5)
 const DOOR := Vector3(7.0, 0, -9.45)
@@ -31,6 +34,10 @@ var _overview: Transform3D
 var _yard_overview: Transform3D
 var _place := Place.YARD
 var _room: Records
+var _market: Market
+var _market_buttons: VBoxContainer
+var _market_stop := ""
+var _hold_merchant := ""
 var _scroll: ScrollContainer
 var _receipt_line: Label
 var _dialogue: Dialogue
@@ -60,6 +67,8 @@ func _ready() -> void:
 	var definition: Variant = _read_json(definition_path)
 	var presentation: Variant = _read_json(presentation_path)
 	var records_copy: Variant = _read_json(records_path)
+	var market_copy: Variant = _read_json(market_lines_path)
+	var side: Variant = _read_json("res://content/market_task.json")
 	if typeof(definition) != TYPE_DICTIONARY or typeof(presentation) != TYPE_DICTIONARY or typeof(records_copy) != TYPE_DICTIONARY:
 		_notice.text = "任务资料无法读取。请检查安装文件。"
 		_player.controls_enabled = false
@@ -68,8 +77,12 @@ func _ready() -> void:
 		_notice.text = "档案室资料无法读取。请检查安装文件。"
 		_player.controls_enabled = false
 		return
+	if not (market_copy is Dictionary) or not (side is Dictionary) or not _market.configure(market_copy, side):
+		_notice.text = "摊位资料无法读取。请检查安装文件。"
+		_player.controls_enabled = false
+		return
 	_add_room_stations()
-	var result: Dictionary = _application.configure(definition, presentation)
+	var result: Dictionary = _application.configure_with_side(definition, presentation, side)
 	_ready_ok = result.get("ok", false)
 	if not _ready_ok:
 		_notice.text = "任务初始化失败：" + str(result.get("code", "UNKNOWN"))
@@ -151,6 +164,15 @@ func _build_world() -> void:
 	_room.position = Vector3(80, 0, 0)
 	add_child(_room)
 	_room.hide()
+	_market = MarketScene.instantiate() as Market
+	add_child(_market)
+	_market_station("StallApproach", "逛旧货摊", "stall")
+	_market_station("BenchApproach", "查看修理台", "bench")
+	_market_station("RackApproach", "查看寄放架", "rack")
+
+func _market_station(marker_name: String, caption: String, stop: String) -> void:
+	var marker := _market.get_node(marker_name) as Marker3D
+	_register_station(caption, to_local(marker.global_position), "", Place.YARD, stop, 1.45)
 
 func _add_room_stations() -> void:
 	_room_station("ArchivistApproach", "与" + _room.clerk_name() + "交谈", "talk")
@@ -240,6 +262,8 @@ func _build_ui() -> void:
 	_dialogue_box.add_child(_dialogue)
 	_receipt_line = _label(_dialogue_box, "")
 	_receipt_line.hide()
+	_market_buttons = VBoxContainer.new()
+	_dialogue_box.add_child(_market_buttons)
 	_dialogue.command_finished.connect(_after_choice)
 	_button(_dialogue_box, "结束交谈", _close_dialogue)
 	_dialogue_box.hide()
@@ -328,6 +352,9 @@ func _interact() -> void:
 	if _place == Place.RECORDS:
 		_read_records(role)
 		return
+	if role in ["stall", "bench", "rack"]:
+		_open_market(role)
+		return
 	if not area.interaction_id.is_empty():
 		var result: Dictionary = area.interact(_player, _application, view["revision"])
 		_report(result, "已记下这条线索。回领取点选择行动。")
@@ -393,11 +420,91 @@ func _read_records(role: String) -> void:
 
 func _close_dialogue() -> void:
 	_opened = false
+	_clear_market_buttons()
+	_market_stop = ""
+	if not _hold_merchant.is_empty():
+		_hold_merchant = ""
+		_market.project(_application.side_view())
 	_player.show()
 	_camera.transform = _overview
 	_receipt_line.hide()
 	_dialogue.show()
 	_dialogue_box.hide()
+
+func _open_market(stop: String) -> void:
+	_market_stop = stop
+	var view := _application.side_view()
+	var focus_point := _market.focus_at(stop)
+	_camera.global_position = focus_point + Vector3(1.10, 1.35, 3.3)
+	_camera.look_at(focus_point)
+	_opened = true
+	_player.controls_enabled = false
+	_player.velocity = Vector3.ZERO
+	_player.hide()
+	_dialogue.hide()
+	_receipt_line.text = _market.line(stop, view)
+	_receipt_line.show()
+	_dialogue_box.show()
+	_scroll.scroll_vertical = 0
+	_clear_market_buttons()
+	if stop != _market.current_stop(view):
+		return
+	_market.gesture()
+	if not view["started"]:
+		_button(_market_buttons, "听她说下去", _market_command.bind(stop, "start", view["revision"]))
+	elif view["terminal"]:
+		var extra: Dictionary = _market.copy["extras"][view["node"]]
+		_button(_market_buttons, extra["label"], _market_command.bind(stop, "inspect", view["revision"]))
+	else:
+		for item in view["options"]:
+			var action: String = item["id"]
+			_button(_market_buttons, _market.copy["actions"][action], _market_command.bind(stop, action, view["revision"]))
+
+func _clear_market_buttons() -> void:
+	for child in _market_buttons.get_children():
+		_market_buttons.remove_child(child)
+		child.queue_free()
+
+func _market_command(stop: String, action: String, revision: int) -> void:
+	if not _opened or _market_stop != stop or _target < 0 or _confirm.visible:
+		return
+	var station: Dictionary = _stations[_target]
+	var view := _application.side_view()
+	if station["role"] != stop or not _in_reach(station) or revision != view["revision"] or stop != _market.current_stop(view):
+		return
+	_clear_market_buttons()
+	if action == "inspect" and view["terminal"]:
+		_frame_market_detail(view["node"])
+		_receipt_line.text = _market.copy["extras"][view["node"]]["text"]
+		return
+	var result: Dictionary
+	if action == "start":
+		result = _application.side_start(revision)
+	else:
+		result = _application.side_choose(action, revision)
+	if not result["ok"]:
+		_report(result, "")
+		_close_dialogue()
+		return
+	if action == "start":
+		_refresh()
+		_open_market(stop)
+		return
+	view = _application.side_view()
+	_hold_merchant = stop
+	_refresh()
+	_market.gesture()
+	if view["terminal"]:
+		_receipt_line.text = _market.copy["receipts"][view["node"]]
+	else:
+		_receipt_line.text = str(_market.copy["handoffs"][action]) + "\n" + _market.objective(view)
+		if action == "READ_TAG":
+			_frame_market_detail(action)
+
+func _frame_market_detail(key: String) -> void:
+	var focus_point := _market.detail_at(key)
+	_camera.global_position = focus_point + Vector3(0.12, 0.92, 0.95)
+	_camera.look_at(focus_point)
 
 func _after_choice(result: Dictionary) -> void:
 	# A successful choice at this counter is the handover; restoring a snapshot
@@ -431,6 +538,9 @@ func _refresh() -> void:
 	_received.visible = view["terminal"]
 	_recipient_label.text = clerk_name + " · " + entry
 	_room.show_outcome(view)
+	var side := _application.side_view()
+	_market.project(side, _hold_merchant)
+	_journal.text += "\n" + _market.objective(side)
 	_dialogue.refresh()
 
 func _save() -> void:

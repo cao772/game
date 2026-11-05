@@ -1,0 +1,58 @@
+[gd_scene load_steps=5 format=3]
+
+[sub_resource type="StandardMaterial3D" id="Alloy"]
+albedo_color = Color(0.62, 0.69, 0.67, 1)
+metallic = 0.4
+roughness = 0.39
+
+[sub_resource type="StandardMaterial3D" id="Grip"]
+albedo_color = Color(0.22, 0.33, 0.31, 1)
+roughness = 0.75
+
+[sub_resource type="BoxMesh" id="Unit"]
+size = Vector3(1, 1, 1)
+
+[sub_resource type="TorusMesh" id="Ring"]
+material = SubResource("Alloy")
+inner_radius = 0.048
+outer_radius = 0.104
+rings = 12
+ring_segments = 6
+
+[node name="WorkshopSpanner" type="Node3D"]
+
+[node name="Handle" type="MeshInstance3D" parent="."]
+position = Vector3(-0.014, 0.035, 0)
+scale = Vector3(0.48, 0.06, 0.096)
+mesh = SubResource("Unit")
+material_override = SubResource("Alloy")
+
+[node name="HandleInset" type="MeshInstance3D" parent="."]
+position = Vector3(-0.048, 0.066, 0)
+scale = Vector3(0.25, 0.006, 0.040)
+mesh = SubResource("Unit")
+material_override = SubResource("Grip")
+
+[node name="RingEnd" type="MeshInstance3D" parent="."]
+position = Vector3(-0.318, 0.034, 0)
+mesh = SubResource("Ring")
+
+[node name="JawBase" type="MeshInstance3D" parent="."]
+position = Vector3(0.229, 0.041, 0)
+scale = Vector3(0.087, 0.082, 0.196)
+mesh = SubResource("Unit")
+material_override = SubResource("Alloy")
+
+[node name="LongJaw" type="MeshInstance3D" parent="."]
+position = Vector3(0.308, 0.041, 0.097)
+rotation = Vector3(0, -0.27, 0)
+scale = Vector3(0.19, 0.082, 0.066)
+mesh = SubResource("Unit")
+material_override = SubResource("Alloy")
+
+[node name="ShortJaw" type="MeshInstance3D" parent="."]
+position = Vector3(0.29, 0.041, -0.096)
+rotation = Vector3(0, 0.27, 0)
+scale = Vector3(0.154, 0.082, 0.066)
+mesh = SubResource("Unit")
+material_override = SubResource("Alloy")

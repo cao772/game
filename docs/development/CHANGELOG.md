@@ -1,5 +1,9 @@
 # Source development log
 
+## GAME-RUNTIME-MARKET-006 — 2026-11-05
+
+Added an optional stall errand with a quick replacement and a three-stop recovery route. The merchant, tool, signs and available return visit reflect the active side-quest state. Session schema 2 saves both quests in one generation and restores earlier delivery-only records. The original configure signatures remain available.
+
 ## GAME-RUNTIME-RECORDS-005 — 2026-11-05
 
 An accessible records room now shows a physical slip in the tray assigned to the active terminal node. The archivist points the player toward the record and offers a different line after its inspection. Door travel, tray inspection and conversation reuse the current quest without issuing progress commands. Successful load and mode changes return to the yard. Static review covered doorway positions, sightlines, asset dependencies, outcome mapping and isolation between visits. Engine import, gameplay and Windows export await verification.

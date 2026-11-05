@@ -23,7 +23,7 @@ At the lower coordinator layer, mode changes do not write files. At the applicat
 
 ## Current boundaries
 
-- One quest definition per coordinator. This milestone does not claim a multi-quest journal, full world save, inventory, currency, reward delivery, chapter clock or content migration.
+- One primary quest and one optional side quest per coordinator. The journal displays each independently. The market tracks the choice and its visible consequences. Inventory and currency are outside this scene.
 - Observation calls are trusted application input. Saves are not authenticated against tampering, and snapshots cannot reconstruct when an externally observed fact was learned.
 - Structural reachability is checked; it is not a proof that the world can supply every required fact. Content/world mapping still needs review.
 - Completed quests reject further choices. Terminal state is not an implemented exactly-once reward system.
@@ -50,3 +50,8 @@ Both locations share one quest owner and one player. A successful restore or mod
 The CC0 clerk uses three clips from [KayKit Adventurers](art/counter_actor/SOURCE.md); the desk, ledger and lamp come from [KayKit Furniture Bits](art/dispatch_counter/SOURCE.md). The clerk is a staging model. For asset checks and the pending Windows walkthrough see [counter review](../docs/development/counter-review-v4.md); [scene review](../docs/development/scene-review-v3.md) describes the earlier blockout.
 
 The second clerk uses the [unhooded Rogue model](art/records_actor/SOURCE.md). The [filing cabinets](art/records_room/SOURCE.md) and readable slips are staged for the visit. Windows verification should cover the doorway in both directions, each tray before and after delivery, a close-up from the desk edge, and a restore initiated inside the room.
+
+
+At the southeast stall the player can start an optional errand at any point during delivery. Picking a replacement resolves it there. Tracking the original closes the stall and leads to the southwest workbench, the shelf east of the counter and back to the workbench. On return the stall offers either prices or a shared-tool register. Each stop checks proximity and the active revision before accepting a choice.
+
+Both quests are stored in one generation for the selected mode. A schema 1 save opens with its original delivery progress and a fresh side quest. A schema 2 save restores both quests after validating both snapshots. Open these newer generations with this version. Pending Windows checks include saving between the shelf and workbench, reloading a prior delivery-only generation, and completing a different market route in chapter replay.
