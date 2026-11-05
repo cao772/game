@@ -6,11 +6,19 @@ const IDLE: StringName = &"Idle"
 const HANDOVER: StringName = &"Interact"
 const GREETING: StringName = &"Cheer"
 
+@export var model_scene: PackedScene = MODEL
 var _player: AnimationPlayer
 
 
 func _ready() -> void:
-	var model := MODEL.instantiate() as Node3D
+	var scene := model_scene if model_scene != null else MODEL
+	var instance := scene.instantiate()
+	if not instance is Node3D:
+		if instance != null:
+			instance.free()
+		push_warning("Counter actor expects a Node3D model.")
+		return
+	var model := instance as Node3D
 	model.scale = Vector3.ONE * 0.84
 	add_child(model)
 	var players := model.find_children("*", "AnimationPlayer", true, false)

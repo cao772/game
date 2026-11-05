@@ -10,6 +10,7 @@ The consolidated source-development entry is [game/README.md](game/README.md).
 It implements quest progression, mode-separated sessions and save records, with
 world-observation/dialogue adapters, loop-erased quest history, explicit save archival,
 and a bounded synthetic delivery scene. Collect a parcel, take it to the lamp-lit desk
-and speak to the animated clerk; the parcel and desk sign reflect the saved outcome.
+and speak to the animated clerk. The door beside the desk leads to a records room.
+The archivist can discuss the slip the player finds in the trays.
 It is source-reviewed only: runtime, tests and Windows packaging are NOT_RUN.
 See [development roadmap](docs/development/delivery-roadmap.md) for the next milestones.

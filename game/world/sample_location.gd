@@ -7,6 +7,9 @@ const Dialogue = preload("res://ui/quest_dialogue_panel.gd")
 const CounterActor = preload("res://world/counter_actor.gd")
 const Counter = preload("res://scenes/dispatch_counter.tscn")
 const Parcel = preload("res://scenes/sample_parcel.tscn")
+const Records = preload("res://world/records_room.gd")
+const RecordsScene = preload("res://scenes/records_room.tscn")
+const RecordsDoor = preload("res://scenes/records_door.tscn")
 
 # Variants can change performance copy without changing quest facts or save data.
 @export_file("*.json") var definition_path := "res://content/synthetic_delivery.json"
@@ -15,13 +18,20 @@ const Parcel = preload("res://scenes/sample_parcel.tscn")
 @export_multiline var early_greeting := "东西从入口领。我给你留了桌上这块空地方。"
 @export var receipt_messages: Dictionary = {}
 @export var terminal_notes: Dictionary = {}
+@export_file("*.json") var records_path := "res://content/records_lines.json"
 
 const SPAWN := Vector3(0, 1, 5)
+const DOOR := Vector3(7.0, 0, -9.45)
+enum Place { YARD, RECORDS }
 
 var _application: Application = Application.new()
 var _player: Player
 var _camera: Camera3D
 var _overview: Transform3D
+var _yard_overview: Transform3D
+var _place := Place.YARD
+var _room: Records
+var _scroll: ScrollContainer
 var _receipt_line: Label
 var _dialogue: Dialogue
 var _dialogue_box: VBoxContainer
@@ -49,10 +59,16 @@ func _ready() -> void:
 	_build_ui()
 	var definition: Variant = _read_json(definition_path)
 	var presentation: Variant = _read_json(presentation_path)
-	if typeof(definition) != TYPE_DICTIONARY or typeof(presentation) != TYPE_DICTIONARY:
+	var records_copy: Variant = _read_json(records_path)
+	if typeof(definition) != TYPE_DICTIONARY or typeof(presentation) != TYPE_DICTIONARY or typeof(records_copy) != TYPE_DICTIONARY:
 		_notice.text = "任务资料无法读取。请检查安装文件。"
 		_player.controls_enabled = false
 		return
+	if not _room.configure(records_copy):
+		_notice.text = "档案室资料无法读取。请检查安装文件。"
+		_player.controls_enabled = false
+		return
+	_add_room_stations()
 	var result: Dictionary = _application.configure(definition, presentation)
 	_ready_ok = result.get("ok", false)
 	if not _ready_ok:
@@ -103,6 +119,7 @@ func _build_world() -> void:
 	_camera.look_at(Vector3.ZERO)
 	_camera.current = true
 	_overview = _camera.transform
+	_yard_overview = _overview
 	var light := DirectionalLight3D.new()
 	light.rotation_degrees = Vector3(-60, -25, 0)
 	light.light_energy = 1.4
@@ -123,6 +140,30 @@ func _build_world() -> void:
 	counter.get_node("SignAnchor").add_child(_recipient_label)
 	_recipient_index = _stations.size()
 	_register_station("与" + clerk_name + "交谈", counter.position + Vector3(0, 0, 0.45), "")
+	var door := RecordsDoor.instantiate() as Node3D
+	door.position = DOOR
+	add_child(door)
+	var nameplate := _sign("档案室")
+	nameplate.position = Vector3(0, 2.25, 0.19)
+	door.add_child(nameplate)
+	_register_station("进入档案室", DOOR + Vector3(0, 0, 0.9), "", Place.YARD, "enter")
+	_room = RecordsScene.instantiate() as Records
+	_room.position = Vector3(80, 0, 0)
+	add_child(_room)
+	_room.hide()
+
+func _add_room_stations() -> void:
+	_room_station("ArchivistApproach", "与" + _room.clerk_name() + "交谈", "talk")
+	_room_station("FiledApproach", "查看归档盘", "filed")
+	_room_station("PendingApproach", "查看待核盘", "pending")
+	_room_station("ExitApproach", "返回登记区", "exit")
+	var nameplate := _sign(_room.clerk_name())
+	nameplate.position.y = 2.22
+	_room.get_node("ArchivistAnchor").add_child(nameplate)
+
+func _room_station(marker_name: String, caption: String, role: String) -> void:
+	var marker := _room.get_node(marker_name) as Marker3D
+	_register_station(caption, to_local(marker.global_position), "", Place.RECORDS, role, 1.55)
 
 func _material(color: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
@@ -161,7 +202,7 @@ func _sign(caption: String) -> Label3D:
 	label.font_size = 40
 	return label
 
-func _register_station(caption: String, at: Vector3, observation: String) -> void:
+func _register_station(caption: String, at: Vector3, observation: String, place: Place = Place.YARD, role: String = "", radius: float = 2.2) -> void:
 	var area := Observation.new()
 	area.interaction_id = observation
 	area.collision_layer = 0
@@ -169,11 +210,11 @@ func _register_station(caption: String, at: Vector3, observation: String) -> voi
 	area.position = at + Vector3(0, 1, 0)
 	var shape := CollisionShape3D.new()
 	var sphere := SphereShape3D.new()
-	sphere.radius = 2.2
+	sphere.radius = radius
 	shape.shape = sphere
 	area.add_child(shape)
 	add_child(area)
-	_stations.append({"caption": caption, "area": area})
+	_stations.append({"caption": caption, "area": area, "place": place, "role": role, "radius": radius})
 
 func _build_ui() -> void:
 	var canvas := CanvasLayer.new()
@@ -182,17 +223,26 @@ func _build_ui() -> void:
 	panel.position = Vector2(16, 16)
 	panel.custom_minimum_size = Vector2(350, 0)
 	canvas.add_child(panel)
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(374, 740)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	panel.add_child(scroll)
+	_scroll = ScrollContainer.new()
+	_scroll.custom_minimum_size = Vector2(374, 740)
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	panel.add_child(_scroll)
 	var column := VBoxContainer.new()
 	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(column)
+	_scroll.add_child(column)
 	_journal = _label(column, "")
-	_label(column, "WASD 移动 · E 交互 · Esc 关闭对话\n在蓝色路标附近查看线索；到亮灯的柜台交件。")
+	_label(column, "WASD 移动 · E 交互 · Esc 关闭对话")
 	_hint = _label(column, "")
 	_notice = _label(column, "任务进度需手动保存；位置不保存。")
+	_dialogue_box = VBoxContainer.new()
+	column.add_child(_dialogue_box)
+	_dialogue = Dialogue.new()
+	_dialogue_box.add_child(_dialogue)
+	_receipt_line = _label(_dialogue_box, "")
+	_receipt_line.hide()
+	_dialogue.command_finished.connect(_after_choice)
+	_button(_dialogue_box, "结束交谈", _close_dialogue)
+	_dialogue_box.hide()
 	_button(column, "保存当前模式", _save)
 	_button(column, "恢复最新存档…", _request.bind("load"))
 	_mode_button = _button(column, "进入章节重玩…", _request.bind("mode"))
@@ -204,15 +254,6 @@ func _build_ui() -> void:
 	_generation.step = 1
 	column.add_child(_generation)
 	_button(column, "恢复指定归档…", _request.bind("restore"))
-	_dialogue_box = VBoxContainer.new()
-	column.add_child(_dialogue_box)
-	_dialogue = Dialogue.new()
-	_dialogue_box.add_child(_dialogue)
-	_receipt_line = _label(_dialogue_box, "")
-	_receipt_line.hide()
-	_dialogue.command_finished.connect(_after_choice)
-	_button(_dialogue_box, "结束交谈", _close_dialogue)
-	_dialogue_box.hide()
 	_confirm = ConfirmationDialog.new()
 	_confirm.title = "确认存档操作"
 	_confirm.confirmed.connect(_execute_pending)
@@ -242,12 +283,25 @@ func _physics_process(_delta: float) -> void:
 	_target = -1
 	var distance: float = INF
 	for index in range(_stations.size()):
+		if _stations[index]["place"] != _place:
+			continue
 		var area: Observation = _stations[index]["area"]
 		var candidate: float = area.global_position.distance_squared_to(_player.global_position)
-		if area.overlaps_body(_player) and candidate < distance:
+		if candidate < distance and _in_reach(_stations[index]):
 			distance = candidate
 			_target = index
-	_hint.text = "靠近路标或亮灯的柜台。" if _target < 0 else "E · " + str(_stations[_target]["caption"])
+	if _opened:
+		_hint.text = "Esc · 结束查看"
+	elif _target >= 0:
+		_hint.text = "E · " + str(_stations[_target]["caption"])
+	else:
+		_hint.text = "靠近分盘或档案员。出口在身后。" if _place == Place.RECORDS else "路标在两侧，柜台和档案室在北面。"
+
+func _in_reach(station: Dictionary) -> bool:
+	var area: Observation = station["area"]
+	# Physics overlap lists can briefly reflect the position before a teleport.
+	var reach: float = station["radius"] + 0.8
+	return area.global_position.distance_squared_to(_player.global_position) <= reach * reach and area.overlaps_body(_player)
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not _ready_ok or _confirm.visible or not event is InputEventKey or not event.pressed or event.echo:
@@ -260,7 +314,19 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _interact() -> void:
 	var view: Dictionary = _application.present()
 	var area: Observation = _stations[_target]["area"]
-	if not area.overlaps_body(_player):
+	if not _in_reach(_stations[_target]):
+		return
+	var role: String = _stations[_target]["role"]
+	if role == "enter":
+		_move_to(Place.RECORDS, (_room.get_node("Spawn") as Marker3D).global_position)
+		_notice.text = "已进入档案室。左手归档，右手待核。"
+		return
+	if role == "exit":
+		_move_to(Place.YARD, to_global(DOOR + Vector3(0, 1, 2.6)))
+		_notice.text = "已返回登记区。"
+		return
+	if _place == Place.RECORDS:
+		_read_records(role)
 		return
 	if not area.interaction_id.is_empty():
 		var result: Dictionary = area.interact(_player, _application, view["revision"])
@@ -281,9 +347,53 @@ func _interact() -> void:
 	_player.controls_enabled = false
 	_dialogue.refresh()
 	_dialogue_box.show()
+	_scroll.scroll_vertical = 0
+
+func _move_to(place: Place, destination: Vector3) -> void:
+	_close_dialogue()
+	_target = -1
+	_place = place
+	_player.global_position = destination
+	_player.recovery_position = to_local(destination)
+	_player.velocity = Vector3.ZERO
+	_room.visible = place == Place.RECORDS
+	if place == Place.RECORDS:
+		_room.begin_visit()
+		_camera.position = _room.position + Vector3(0, 9.2, 7.2)
+		_camera.look_at(_room.to_global(Vector3(0, 0.25, -0.35)))
+	else:
+		_camera.transform = _yard_overview
+	_overview = _camera.transform
+	_refresh()
+
+func _read_records(role: String) -> void:
+	var anchor: Node3D
+	var line: String
+	if role == "talk":
+		anchor = _room.get_node("ArchivistAnchor") as Node3D
+		line = _room.clerk_name() + "：" + _room.talk()
+	elif role == "filed" or role == "pending":
+		anchor = _room.get_node("FiledTray" if role == "filed" else "PendingTray") as Node3D
+		line = _room.inspect(role)
+	else:
+		return
+	var focus_point := anchor.global_position + Vector3.UP * (1.15 if role == "talk" else 0.14)
+	var offset := Vector3(0.65, 1.6, 3.1) if role == "talk" else Vector3(0.08, 1.10, 0.85)
+	_camera.global_position = focus_point + offset
+	_camera.look_at(focus_point)
+	_opened = true
+	_player.velocity = Vector3.ZERO
+	_player.controls_enabled = false
+	_player.hide()
+	_dialogue.hide()
+	_receipt_line.text = line
+	_receipt_line.show()
+	_dialogue_box.show()
+	_scroll.scroll_vertical = 0
 
 func _close_dialogue() -> void:
 	_opened = false
+	_player.show()
 	_camera.transform = _overview
 	_receipt_line.hide()
 	_dialogue.show()
@@ -314,10 +424,13 @@ func _refresh() -> void:
 	var objectives := {"": "前往领取点开始任务", "PREPARE": "领取物品", "PLAN": "探索路线或寻找协助，再回领取点决定", "REST": "回领取点重新规划", "ARRIVE": "走到收件处交付"}
 	var entry := str(terminal_notes.get(view["node"], "已签收")) if view["terminal"] else "收件处"
 	_journal.text = ("自由模式" if view["mode"] == "free" else "章节重玩") + "\n" + (entry + "，可保存并回访" if view["terminal"] else str(objectives.get(view["node"], "前往领取点开始任务")))
+	if view["terminal"]:
+		_journal.text += "\n" + ("可查看两个分盘，或询问档案员。" if _place == Place.RECORDS else "可从柜台右侧的门去档案室看底联。")
 	_mode_button.text = "进入章节重玩…" if view["mode"] == "free" else "返回自由模式…"
 	_carried.visible = view["node"] in ["PLAN", "REST", "ARRIVE"]
 	_received.visible = view["terminal"]
 	_recipient_label.text = clerk_name + " · " + entry
+	_room.show_outcome(view)
 	_dialogue.refresh()
 
 func _save() -> void:
@@ -358,12 +471,9 @@ func _execute_pending() -> void:
 				result = _application.leave_chapter(_pending_revision)
 		_: return
 	if result.get("ok", false) and command != "archive":
-		_target = -1
 		_actor.reset_pose()
-		_player.position = SPAWN
-		_player.velocity = Vector3.ZERO
+		_move_to(Place.YARD, to_global(SPAWN))
 	_report(result, "操作完成。")
-	_refresh()
 
 func _report(result: Dictionary, success: String) -> void:
 	_notice.text = success if result.get("ok", false) else "操作未完成；请保留当前进度。"

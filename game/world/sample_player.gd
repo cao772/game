@@ -1,6 +1,7 @@
 extends CharacterBody3D
 ## Fixed-camera movement for the bounded source sample; no runtime acceptance yet.
 var controls_enabled: bool = true
+var recovery_position := Vector3(0, 1, 5)
 
 func _physics_process(delta: float) -> void:
 	var direction := Vector2.ZERO
@@ -15,5 +16,5 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	# Recovery only; normal containment is provided by physical walls.
 	if position.y < -5.0:
-		position = Vector3(0, 1, 5)
+		position = recovery_position
 		velocity = Vector3.ZERO

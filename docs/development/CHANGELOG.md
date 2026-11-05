@@ -1,5 +1,9 @@
 # Source development log
 
+## GAME-RUNTIME-RECORDS-005 — 2026-11-05
+
+An accessible records room now shows a physical slip in the tray assigned to the active terminal node. The archivist points the player toward the record and offers a different line after its inspection. Door travel, tray inspection and conversation reuse the current quest without issuing progress commands. Successful load and mode changes return to the yard. Static review covered doorway positions, sightlines, asset dependencies, outcome mapping and isolation between visits. Engine import, gameplay and Windows export await verification.
+
 ## GAME-RUNTIME-COUNTER-004 — 2026-11-05
 
 Replaced the delivery marker with a lit desk, a clerk, and a parcel that travels from player to desk. Delivery, repeat visits and restores now have distinct presentation. The receipt holds a closer camera until dismissed. The scene can load a different delivery definition and use terminal-specific receipts and desk labels without adding save fields. See [counter source review and pending walkthrough](counter-review-v4.md).
