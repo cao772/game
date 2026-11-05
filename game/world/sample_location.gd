@@ -4,10 +4,25 @@ const Application = preload("res://runtime/quest_application.gd")
 const Player = preload("res://world/sample_player.gd")
 const Observation = preload("res://world/quest_observation_area.gd")
 const Dialogue = preload("res://ui/quest_dialogue_panel.gd")
+const CounterActor = preload("res://world/counter_actor.gd")
+const Counter = preload("res://scenes/dispatch_counter.tscn")
+const Parcel = preload("res://scenes/sample_parcel.tscn")
+
+# Variants can change performance copy without changing quest facts or save data.
+@export_file("*.json") var definition_path := "res://content/synthetic_delivery.json"
+@export_file("*.json") var presentation_path := "res://content/synthetic_presentation.json"
+@export var clerk_name := "签收员"
+@export_multiline var early_greeting := "东西从入口领。我给你留了桌上这块空地方。"
+@export var receipt_messages: Dictionary = {}
+@export var terminal_notes: Dictionary = {}
+
 const SPAWN := Vector3(0, 1, 5)
 
 var _application: Application = Application.new()
 var _player: Player
+var _camera: Camera3D
+var _overview: Transform3D
+var _receipt_line: Label
 var _dialogue: Dialogue
 var _dialogue_box: VBoxContainer
 var _journal: Label
@@ -22,15 +37,18 @@ var _stations: Array[Dictionary] = []
 var _target: int = -1
 var _opened: bool = false
 var _ready_ok: bool = false
-var _recipient: MeshInstance3D
+var _actor: CounterActor
+var _carried: Node3D
+var _received: Node3D
+var _recipient_index: int
 var _recipient_label: Label3D
 var _mode_button: Button
 
 func _ready() -> void:
 	_build_world()
 	_build_ui()
-	var definition: Variant = _read_json("res://content/synthetic_delivery.json")
-	var presentation: Variant = _read_json("res://content/synthetic_presentation.json")
+	var definition: Variant = _read_json(definition_path)
+	var presentation: Variant = _read_json(presentation_path)
 	if typeof(definition) != TYPE_DICTIONARY or typeof(presentation) != TYPE_DICTIONARY:
 		_notice.text = "任务资料无法读取。请检查安装文件。"
 		_player.controls_enabled = false
@@ -74,11 +92,17 @@ func _build_world() -> void:
 	mesh.material_override = _material(Color("f4cc78"))
 	_player.add_child(mesh)
 	add_child(_player)
-	var camera := Camera3D.new()
-	add_child(camera)
-	camera.position = Vector3(0, 23, 18)
-	camera.look_at(Vector3.ZERO)
-	camera.current = true
+	_carried = Parcel.instantiate() as Node3D
+	_carried.name = "CarriedParcel"
+	_carried.position = Vector3(0.34, -0.08, 0.12)
+	_carried.visible = false
+	_player.add_child(_carried)
+	_camera = Camera3D.new()
+	add_child(_camera)
+	_camera.position = Vector3(0, 23, 18)
+	_camera.look_at(Vector3.ZERO)
+	_camera.current = true
+	_overview = _camera.transform
 	var light := DirectionalLight3D.new()
 	light.rotation_degrees = Vector3(-60, -25, 0)
 	light.light_energy = 1.4
@@ -87,9 +111,18 @@ func _build_world() -> void:
 	_station("查看左侧路线", Vector3(-7, 0, 0), "LOOK_AT_ROUTE_A")
 	_station("查看右侧路线", Vector3(7, 0, 0), "LOOK_AT_ROUTE_B")
 	_station("询问协助者", Vector3(-5, 0, -5), "SPEAK_TO_HELPER")
-	_station("收件处", Vector3(0, 0, -7), "")
-	_recipient = _stations[4]["mesh"]
-	_recipient_label = _stations[4]["label"]
+	var counter := Counter.instantiate() as Node3D
+	counter.position = Vector3(0, 0, -7)
+	add_child(counter)
+	_actor = CounterActor.new()
+	counter.get_node("ActorAnchor").add_child(_actor)
+	_received = Parcel.instantiate() as Node3D
+	_received.visible = false
+	counter.get_node("ParcelAnchor").add_child(_received)
+	_recipient_label = _sign(clerk_name)
+	counter.get_node("SignAnchor").add_child(_recipient_label)
+	_recipient_index = _stations.size()
+	_register_station("与" + clerk_name + "交谈", counter.position + Vector3(0, 0, 0.45), "")
 
 func _material(color: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
@@ -115,13 +148,20 @@ func _box(at: Vector3, size: Vector3, color: Color, solid: bool) -> MeshInstance
 	return mesh
 
 func _station(caption: String, at: Vector3, observation: String) -> void:
-	var mesh := _box(at + Vector3(0, 0.35, 0), Vector3(1, 0.7, 1), Color("75adc0"), true)
+	_box(at + Vector3(0, 0.35, 0), Vector3(1, 0.7, 1), Color("75adc0"), true)
+	var label := _sign(caption)
+	label.position = at + Vector3(0, 2, 0)
+	add_child(label)
+	_register_station(caption, at, observation)
+
+func _sign(caption: String) -> Label3D:
 	var label := Label3D.new()
 	label.text = caption
-	label.position = at + Vector3(0, 2, 0)
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.font_size = 40
-	add_child(label)
+	return label
+
+func _register_station(caption: String, at: Vector3, observation: String) -> void:
 	var area := Observation.new()
 	area.interaction_id = observation
 	area.collision_layer = 0
@@ -133,7 +173,7 @@ func _station(caption: String, at: Vector3, observation: String) -> void:
 	shape.shape = sphere
 	area.add_child(shape)
 	add_child(area)
-	_stations.append({"caption": caption, "area": area, "mesh": mesh, "label": label})
+	_stations.append({"caption": caption, "area": area})
 
 func _build_ui() -> void:
 	var canvas := CanvasLayer.new()
@@ -150,7 +190,7 @@ func _build_ui() -> void:
 	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(column)
 	_journal = _label(column, "")
-	_label(column, "WASD 移动 · E 交互 · Esc 关闭对话\n蓝色为交互点，绿色表示交付完成。")
+	_label(column, "WASD 移动 · E 交互 · Esc 关闭对话\n在蓝色路标附近查看线索；到亮灯的柜台交件。")
 	_hint = _label(column, "")
 	_notice = _label(column, "任务进度需手动保存；位置不保存。")
 	_button(column, "保存当前模式", _save)
@@ -168,6 +208,8 @@ func _build_ui() -> void:
 	column.add_child(_dialogue_box)
 	_dialogue = Dialogue.new()
 	_dialogue_box.add_child(_dialogue)
+	_receipt_line = _label(_dialogue_box, "")
+	_receipt_line.hide()
 	_dialogue.command_finished.connect(_after_choice)
 	_button(_dialogue_box, "结束交谈", _close_dialogue)
 	_dialogue_box.hide()
@@ -205,7 +247,7 @@ func _physics_process(_delta: float) -> void:
 		if area.overlaps_body(_player) and candidate < distance:
 			distance = candidate
 			_target = index
-	_hint.text = "靠近蓝色交互点。" if _target < 0 else "E · " + str(_stations[_target]["caption"])
+	_hint.text = "靠近路标或亮灯的柜台。" if _target < 0 else "E · " + str(_stations[_target]["caption"])
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not _ready_ok or _confirm.visible or not event is InputEventKey or not event.pressed or event.echo:
@@ -226,9 +268,14 @@ func _interact() -> void:
 		_refresh()
 		return
 	var needs_recipient: bool = view["node"] == "ARRIVE" or view["terminal"]
-	if (_target == 4) != needs_recipient:
-		_notice.text = "请到收件处交付。" if needs_recipient else "请先到领取点领取并选择路线。"
+	if (_target == _recipient_index) != needs_recipient:
+		_notice.text = "请到收件处交付。" if needs_recipient else clerk_name + "：" + early_greeting
 		return
+	if _target == _recipient_index:
+		_camera.position = Vector3(3.2, 2.8, -3.4)
+		_camera.look_at(Vector3(-0.2, 1.1, -7.65))
+		if view["terminal"]:
+			_actor.acknowledge(false)
 	_opened = true
 	_player.velocity = Vector3.ZERO
 	_player.controls_enabled = false
@@ -237,20 +284,40 @@ func _interact() -> void:
 
 func _close_dialogue() -> void:
 	_opened = false
+	_camera.transform = _overview
+	_receipt_line.hide()
+	_dialogue.show()
 	_dialogue_box.hide()
 
 func _after_choice(result: Dictionary) -> void:
-	_report(result, "行动已记录；完成后记得保存。")
-	_close_dialogue()
+	# A successful choice at this counter is the handover; restoring a snapshot
+	# calls _refresh directly and must never replay that one-shot.
+	var view := _application.present()
+	var just_delivered: bool = result.get("ok", false) and _opened and view.get("terminal", false)
+	var feedback := "行动已记录；完成后记得保存。"
+	if just_delivered:
+		_actor.acknowledge(true)
+		feedback = clerk_name + "：" + str(receipt_messages.get(view["node"], "对上了。包裹我留下，这一栏我来签。"))
+		# Hold the counter view until dismissed, so the player can see the gesture
+		# and read the response. The next explicit visit gets the terminal dialogue.
+		_receipt_line.text = feedback
+		_dialogue.hide()
+		_receipt_line.show()
+		_report(result, "已签收；任务进度可保存。")
+	else:
+		_report(result, feedback)
+		_close_dialogue()
 	_refresh()
 
 func _refresh() -> void:
 	var view: Dictionary = _application.present()
-	var objectives := {"": "前往领取点开始任务", "PREPARE": "领取物品", "PLAN": "探索路线或寻找协助，再回领取点决定", "REST": "回领取点重新规划", "ARRIVE": "走到收件处交付", "COMPLETE": "交付完成，可保存并回访"}
-	_journal.text = ("自由模式" if view["mode"] == "free" else "章节重玩") + "\n" + str(objectives.get(view["node"], "前往领取点开始任务"))
+	var objectives := {"": "前往领取点开始任务", "PREPARE": "领取物品", "PLAN": "探索路线或寻找协助，再回领取点决定", "REST": "回领取点重新规划", "ARRIVE": "走到收件处交付"}
+	var entry := str(terminal_notes.get(view["node"], "已签收")) if view["terminal"] else "收件处"
+	_journal.text = ("自由模式" if view["mode"] == "free" else "章节重玩") + "\n" + (entry + "，可保存并回访" if view["terminal"] else str(objectives.get(view["node"], "前往领取点开始任务")))
 	_mode_button.text = "进入章节重玩…" if view["mode"] == "free" else "返回自由模式…"
-	_recipient.material_override = _material(Color("75d596") if view["terminal"] else Color("75adc0"))
-	_recipient_label.text = "已收件 · 谢谢" if view["terminal"] else "收件处"
+	_carried.visible = view["node"] in ["PLAN", "REST", "ARRIVE"]
+	_received.visible = view["terminal"]
+	_recipient_label.text = clerk_name + " · " + entry
 	_dialogue.refresh()
 
 func _save() -> void:
@@ -291,6 +358,8 @@ func _execute_pending() -> void:
 				result = _application.leave_chapter(_pending_revision)
 		_: return
 	if result.get("ok", false) and command != "archive":
+		_target = -1
+		_actor.reset_pose()
 		_player.position = SPAWN
 		_player.velocity = Vector3.ZERO
 	_report(result, "操作完成。")

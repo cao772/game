@@ -1,0 +1,26 @@
+[gd_scene load_steps=5 format=3]
+
+[sub_resource type="StandardMaterial3D" id="Kraft"]
+albedo_color = Color(0.76, 0.47, 0.19, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="Box"]
+material = SubResource("Kraft")
+size = Vector3(0.48, 0.25, 0.34)
+
+[sub_resource type="StandardMaterial3D" id="Band"]
+albedo_color = Color(0.15, 0.52, 0.40, 1)
+
+[sub_resource type="BoxMesh" id="Seal"]
+material = SubResource("Band")
+size = Vector3(0.09, 0.252, 0.342)
+
+[node name="Parcel" type="Node3D"]
+
+[node name="Package" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.125, 0)
+mesh = SubResource("Box")
+
+[node name="SealingBand" type="MeshInstance3D" parent="."]
+position = Vector3(0.08, 0.125, 0)
+mesh = SubResource("Seal")

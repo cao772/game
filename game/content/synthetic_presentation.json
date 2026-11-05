@@ -43,16 +43,16 @@
       "text": "重新选择路线。"
     },
     "sample.arrive": {
-      "speaker": "收件人",
-      "text": "你把物品带来了。"
+      "speaker": "签收员",
+      "text": "放在灯旁边。等我核一眼封口，你就不用再抱着它了。"
     },
     "sample.hand_over": {
       "speaker": "",
-      "text": "交付物品。"
+      "text": "把包裹放在账册旁边。"
     },
     "sample.complete": {
-      "speaker": "收件人",
-      "text": "物品已收到，谢谢。随时欢迎再来。"
+      "speaker": "签收员",
+      "text": "还惦记这件？看，封口朝外的那份就是。签名已经留底，不用再跑一趟。"
     }
   }
 }

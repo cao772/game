@@ -37,12 +37,12 @@ See [candidate contract](../docs/development/runtime-contract.md), [delivery roa
 
 The feature declaration is 4.1 because the save store uses GDScript static variables. This is an API-level requirement, not a verified minimum engine build; pin and validate the exact engine/export templates before packaging.
 
-## Bounded scene candidate (batch 003)
+## Using the delivery scene
 
 `scenes/sample_location.tscn` is the configured main scene. `world/sample_location.gd` owns one application for the scene lifetime; `world/sample_player.gd` supplies WASD movement with a fixed elevated camera. E interacts with the nearest overlapping station. Dialogue freezes movement; Esc closes it. A scrolling sidebar exposes the journal, mode, manual save, latest restore, explicit archive and restore by generation. User-facing sample text is Chinese and remains wholly synthetic.
 
-At the collection station: explicitly start, collect, inspect either route or speak to the helper, return to choose, then physically walk to the recipient to hand over. WAIT/RETRY remains available. A completed recipient changes color and caption, including after restore. Observation facts are collected by explicit area interaction only. This is a connectivity sample, not balanced route traversal or final art.
+At the collection station: start and collect, inspect either route or speak to the helper, then return to choose a route. WAIT/RETRY remains available. Carry the green-banded parcel to the lamp-lit desk; E opens the clerk's dialogue in a closer view. Handing it over moves the parcel onto the desk and shows the clerk's reply. Dismiss the receipt, then interact again for a different greeting. Before the parcel is ready the clerk directs you to collection. The desk sign, journal and parcel are derived from quest state, including after restore. Restoring a save never initiates the handover animation.
 
 Restores warn before replacing unsaved active-mode progress. Mode changes save first and reset position only on success. Save failures preserve the scene and active mode. Quest state is persisted; position is deliberately reset to the entrance after successful load/switch and is not saved. Archival shows moved generation IDs even after partial failure. No new save schema or shared API changes. The sample assumes one scene and one process; no scene transitions or whole-world persistence are claimed.
 
-Source review and pending Windows checks: [scene review](../docs/development/scene-review-v3.md).
+The CC0 clerk uses three clips from [KayKit Adventurers](art/counter_actor/SOURCE.md); the desk, ledger and lamp come from [KayKit Furniture Bits](art/dispatch_counter/SOURCE.md). The clerk is a staging model. For asset checks and the pending Windows walkthrough see [counter review](../docs/development/counter-review-v4.md); [scene review](../docs/development/scene-review-v3.md) describes the earlier blockout.

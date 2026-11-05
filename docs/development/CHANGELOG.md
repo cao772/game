@@ -1,5 +1,9 @@
 # Source development log
 
+## GAME-RUNTIME-COUNTER-004 — 2026-11-05
+
+Replaced the delivery marker with a lit desk, a clerk, and a parcel that travels from player to desk. Delivery, repeat visits and restores now have distinct presentation. The receipt holds a closer camera until dismissed. The scene can load a different delivery definition and use terminal-specific receipts and desk labels without adding save fields. See [counter source review and pending walkthrough](counter-review-v4.md).
+
 ## GAME-RUNTIME-SCENE-003 — 2026-11-04
 
 Added a configured main scene with one persistent application owner, collision-bounded location, WASD player, elevated fixed camera and explicit nearest-overlap interactions. The synthetic quest now connects collection, observation, route choice, physical delivery and a visible return-visit result. Added Chinese synthetic presentation, scrolling journal/dialogue, explicit save/archive/restore controls and confirmations for destructive in-memory restoration. Failed mode saves preserve the active mode; successful load/switch resets position by declared policy. Shared application APIs and save schemas remain unchanged.
