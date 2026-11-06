@@ -4,8 +4,12 @@ The regional explorer also has a modern-street entry. It saves before departure 
 returns to the saved world. `scenes/modern_street.tscn` provides a separate first-person
 walking area; V switches to a close shoulder camera, hold RMB to look, release it to
 use the UI. WASD walks, Shift runs and Space jumps. The street includes human-scale
-residential blocks and three CC0 material sets. Interiors and vehicles are static,
-the modern position is temporary, and engine/rendering acceptance is still NOT_RUN.
+residential blocks and three CC0 material sets. One workshop now has usable front/rear
+shutters, a light and a toolbox movable between three supports. Approach and look
+at a target, then press E. F5 saves; F9 confirms a restore. The independent
+urban_free slot saves these interactions; player position resets to the entrance.
+Returning normally saves first, with a separate confirmed no-save exit available.
+Other interiors and driving remain unavailable; engine/rendering acceptance is NOT_RUN.
 See `../docs/development/modern-street-v10.md` for scope and verification boundaries.
 
 The consolidated source includes a quest runtime, a free/chapter session owner, an immutable save store and an application boundary for world interaction and dialogue. It is **not a playable game or exported Windows build**. A bounded synthetic main scene now connects movement, nearby interaction, quest choices, visible delivery feedback and explicit save recovery; it has not been imported or run. Godot import, compilation, execution, tests and export are **NOT_RUN**; development has been limited to source authoring and static review.

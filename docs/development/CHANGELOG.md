@@ -1,5 +1,18 @@
 # Source development log
 
+## GAME-WORLD-WORKSHOP-011 — 2026-11-06
+
+Opened one modern block's ground floor into a front-to-yard workshop. Added nearby
+visible E interactions for two shutters, a lamp and one toolbox on three supports.
+The new urban_free save slot restores only the five-field layout and held item;
+the player re-enters from the street. Save-before-return, confirmed restore and
+explicit no-save exit preserve changes and old records on failure. Input shares
+the walking controller's focus/pause gate; wall occlusion and occupied door/placement
+checks guard interaction. Previous world/quest data and APIs are unchanged.
+
+Source/grammar/resource/geometry and independent review only. Engine, gameplay,
+tests, save I/O, visual acceptance and Windows export remain NOT_RUN.
+
 ## GAME-WORLD-MODERN-010 — 2026-11-06
 
 Added a separate modern residential street with first-person and close shoulder

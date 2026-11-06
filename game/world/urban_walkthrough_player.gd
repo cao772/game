@@ -166,6 +166,21 @@ func mode_label() -> String:
 	return "近距第三人称" if _third_person else "第一人称"
 
 
+func interaction_camera() -> Camera3D:
+	return _camera
+
+
+func interaction_allowed() -> bool:
+	return _can_control()
+
+
+func reset_pose(at: Vector3) -> void:
+	_stop_controls()
+	position = at
+	_yaw.rotation = Vector3.ZERO
+	_pitch.rotation = Vector3.ZERO
+
+
 func release_pointer() -> void:
 	_looking = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

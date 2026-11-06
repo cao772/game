@@ -2,6 +2,9 @@ extends Node3D
 ## Independent modern street study. Metres, feet at y=0, no legacy world state.
 
 const Walker = preload("res://world/urban_walkthrough_player.gd")
+const Workshop = preload("res://world/urban_workshop.gd")
+const UrbanState = preload("res://runtime/urban_state.gd")
+const UrbanStore = preload("res://runtime/urban_save_store.gd")
 @export_file("*.tscn") var return_scene_path: String = "res://scenes/world_explorer.tscn"
 
 var _walker: Walker
@@ -10,6 +13,17 @@ var _last_error: String = ""
 var _materials: Dictionary = {}
 var _batches: Dictionary = {}
 var _font: SystemFont
+var _workshop: Workshop
+var _urban := UrbanState.new()
+var _store := UrbanStore.new()
+var _held: Node3D
+var _action: Label
+var _load_confirm: ConfirmationDialog
+var _leave_confirm: ConfirmationDialog
+var _nearest: Dictionary = {}
+var _interact_queued := false
+var _persistence_ready := false
+var _dirty := false
 
 
 func _ready() -> void:
@@ -21,11 +35,16 @@ func _ready() -> void:
 	_build_street_details()
 	_flush_batches()
 	_build_lighting()
+	_workshop = Workshop.new()
+	add_child(_workshop)
+	_workshop.setup(_materials, _font)
 	_walker = Walker.new()
 	_walker.position = Vector3(0, 0, 20)
 	_walker.recover_pos = Vector3(0, 0.1, 20)
 	add_child(_walker)
 	_build_ui()
+	_build_held()
+	_restore_latest(true)
 
 
 func _process(_delta: float) -> void:
@@ -34,6 +53,38 @@ func _process(_delta: float) -> void:
 		_hint.text += "\n按住右键环视 · 松开 / Esc 释放"
 		if not _last_error.is_empty():
 			_hint.text += "\n" + _last_error
+		var view: Dictionary = _urban.view()
+		_action.text = "E：" + _target_caption(_nearest, view) if not _nearest.is_empty() else "沿东侧廊檐找到维修工坊 · 靠近并看向门、开关或工具箱"
+		_action.text += " · 手持工具箱" if view["toolbox_anchor"] == "carried" else ""
+		_action.text += " · 尚未保存" if _dirty else ""
+		_sync_held()
+
+
+func _physics_process(delta: float) -> void:
+	if _walker == null or not _walker.interaction_allowed():
+		_interact_queued = false
+		_nearest.clear()
+		return
+	_nearest = _find_target()
+	if _interact_queued:
+		_interact_queued = false
+		_interact(delta)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _walker == null or not _walker.interaction_allowed():
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		match event.physical_keycode:
+			KEY_E:
+				_interact_queued = true
+			KEY_F5:
+				_save_urban()
+			KEY_F9:
+				_request_restore()
+			_:
+				return
+		get_viewport().set_input_as_handled()
 
 
 func _prepare_materials() -> void:
@@ -107,7 +158,9 @@ func _build_block(side: float, center_z: float) -> void:
 	# Four 13 x 21m blocks, frontage x=+/-11, six storeys at 3m each.
 	_box(Vector3(side * 17.5, 10.5, center_z), Vector3(13, 15, 21), "concrete", true)
 	# Recessed ground floor creates an actually walkable 3.2m covered frontage.
-	_box(Vector3(side * 19.1, 1.5, center_z), Vector3(9.8, 3, 21), "concrete", true)
+	var enterable: bool = side > 0 and center_z > 0
+	if not enterable:
+		_box(Vector3(side * 19.1, 1.5, center_z), Vector3(9.8, 3, 21), "concrete", true)
 	_box(Vector3(side * 17.5, 18.14, center_z), Vector3(13.25, 0.28, 21.25), "trim")
 	var yaw: float = -side * PI * 0.5
 	for floor_index in range(1, 6):
@@ -134,6 +187,8 @@ func _build_block(side: float, center_z: float) -> void:
 	for bay in range(6):
 		_box(Vector3(side * 11.25, 1.5, center_z - 10.3 + bay * 4.12), Vector3(0.42, 3, 0.42), "concrete", true)
 	for bay in range(5):
+		if enterable:
+			continue
 		var z: float = center_z - 8.4 + bay * 4.2
 		var origin := Vector3(side * 14.15, 0, z)
 		_facade_part("shop_window", Vector3(2.25, 2.2, 0.05), "glass", origin, yaw, Vector3(-0.6, 1.1, 0))
@@ -225,16 +280,18 @@ func _build_lighting() -> void:
 func _build_ui() -> void:
 	var canvas := CanvasLayer.new()
 	add_child(canvas)
+	var column := VBoxContainer.new()
+	column.position = Vector2(18, 16)
+	column.add_theme_constant_override("separation", 8)
+	canvas.add_child(column)
 	var bar := HBoxContainer.new()
-	bar.position = Vector2(18, 16)
 	bar.add_theme_constant_override("separation", 16)
-	canvas.add_child(bar)
-	var back := Button.new()
-	back.text = "返回街外"
-	back.focus_mode = Control.FOCUS_NONE
-	back.add_theme_font_override("font", _font)
-	back.pressed.connect(_return_to_world)
-	bar.add_child(back)
+	column.add_child(bar)
+	_ui_button(bar, "保存并返回街外", _return_to_world)
+	_ui_button(bar, "保存 · F5", _save_urban)
+	_ui_button(bar, "恢复 · F9", _request_restore)
+	_ui_button(bar, "整理旧存档", _archive_urban)
+	_ui_button(bar, "不保存返回", _request_leave)
 	_hint = Label.new()
 	_hint.add_theme_font_override("font", _font)
 	_hint.add_theme_font_size_override("font_size", 16)
@@ -243,15 +300,217 @@ func _build_ui() -> void:
 	_hint.add_theme_constant_override("shadow_offset_x", 1)
 	_hint.add_theme_constant_override("shadow_offset_y", 1)
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bar.add_child(_hint)
+	column.add_child(_hint)
+	_action = Label.new()
+	_action.add_theme_font_override("font", _font)
+	_action.add_theme_font_size_override("font_size", 18)
+	_action.add_theme_color_override("font_color", Color("ffe5a1"))
+	_action.add_theme_color_override("font_shadow_color", Color("222823"))
+	_action.add_theme_constant_override("shadow_offset_x", 1)
+	_action.add_theme_constant_override("shadow_offset_y", 1)
+	_action.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(_action)
+	_load_confirm = ConfirmationDialog.new()
+	_load_confirm.title = "恢复现代街区"
+	_load_confirm.dialog_text = "恢复最近保存的门、照明与工具箱位置，并回到街上起点？当前未保存改动会被替换。"
+	_load_confirm.confirmed.connect(_restore_latest.bind(false))
+	_load_confirm.visibility_changed.connect(_update_modal_controls)
+	canvas.add_child(_load_confirm)
+	_leave_confirm = ConfirmationDialog.new()
+	_leave_confirm.title = "不保存返回"
+	_leave_confirm.dialog_text = "离开现代街区并放弃本次未保存的布置？原有存档保留。"
+	_leave_confirm.confirmed.connect(_leave_without_save)
+	_leave_confirm.visibility_changed.connect(_update_modal_controls)
+	canvas.add_child(_leave_confirm)
+
+
+func _ui_button(parent: Node, caption: String, action: Callable) -> void:
+	var button := Button.new()
+	button.text = caption
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_font_override("font", _font)
+	button.pressed.connect(action)
+	parent.add_child(button)
 
 
 func _return_to_world() -> void:
+	if not _save_urban():
+		return
+	_leave_without_save()
+
+
+func _leave_without_save() -> void:
 	_walker.release_pointer()
-	_last_error = ""
 	var result := get_tree().change_scene_to_file(return_scene_path)
 	if result != OK:
 		_last_error = "暂时无法返回，请稍后再试。"
+
+
+func _request_leave() -> void:
+	_walker.release_pointer()
+	_interact_queued = false
+	_leave_confirm.popup_centered()
+
+
+func _request_restore() -> void:
+	_walker.release_pointer()
+	_interact_queued = false
+	_load_confirm.popup_centered()
+
+
+func _update_modal_controls() -> void:
+	if _load_confirm != null and _leave_confirm != null:
+		_walker.controls_enabled = not (_load_confirm.visible or _leave_confirm.visible)
+		if not _walker.controls_enabled:
+			_interact_queued = false
+			_nearest.clear()
+
+
+func _save_urban() -> bool:
+	if not _persistence_ready:
+		_last_error = "旧街区存档尚未成功读取，暂不写入。可重试恢复，或不保存返回。"
+		return false
+	var saved: Dictionary = _store.write_record("urban_free", _urban.snapshot())
+	if saved.get("ok", false):
+		_dirty = false
+		_last_error = "已保存门、照明和工具箱；下次从街上起点进入。"
+	else:
+		_last_error = "保存失败：%s。当前布置仍保留，可整理旧档后重试。" % saved.get("code", "UNKNOWN")
+	return saved.get("ok", false)
+
+
+func _restore_latest(initial: bool) -> void:
+	var record: Dictionary = _store.read_latest("urban_free")
+	if record.get("code") == "NO_SAVES":
+		if initial:
+			_persistence_ready = true
+			_last_error = "东侧维修工坊已开放；门、灯和工具箱都可使用。"
+		else:
+			_last_error = "还没有现代街区存档；当前布置保留。"
+			_last_error += "可以先保存。" if _persistence_ready else "之前的读取问题尚未解决，写入仍暂停；可不保存返回。"
+	elif record.get("ok", false) and record.get("payload") is Dictionary:
+		var restored: Dictionary = _urban.restore(record["payload"])
+		if restored["ok"]:
+			_persistence_ready = true
+			_dirty = false
+			_walker.reset_pose(Vector3(0, 0.1, 20))
+			_last_error = "已恢复街区布置，回到街上起点。"
+			if record.get("code") == "RECOVERED_OLDER_RECORD" or not record.get("skipped", []).is_empty():
+				_last_error += " 最近记录不可用，采用了较早的有效存档。"
+		else:
+			_persistence_ready = false
+			_last_error = "旧档格式未通过校验，保留当前布置且暂停写入：" + restored["code"]
+	else:
+		_persistence_ready = false
+		_last_error = "存档未读取，保留当前布置且暂停写入：%s。可重试恢复或不保存返回。" % record.get("code", "UNKNOWN")
+	_apply_urban_view()
+
+
+func _archive_urban() -> void:
+	var result: Dictionary = _store.archive_older("urban_free", 32)
+	_last_error = "已归档 %d 份，保留最近32份；原记录仍保留。%s" % [result.get("moved", []).size(), result.get("code", "UNKNOWN")]
+
+
+func _apply_urban_view() -> void:
+	var view: Dictionary = _urban.view()
+	_workshop.apply_view(view)
+	_sync_held()
+	_held.visible = view["toolbox_anchor"] == "carried"
+	_nearest.clear()
+	_interact_queued = false
+
+
+func _find_target() -> Dictionary:
+	var eye: Vector3 = _walker.global_position + Vector3.UP * Walker.EYE_HEIGHT
+	var forward: Vector3 = -_walker.interaction_camera().global_basis.z
+	var view: Dictionary = _urban.view()
+	var best: Dictionary = {}
+	var best_score := -INF
+	for target in _workshop.targets():
+		var id: String = target["id"]
+		if Workshop.ANCHORS.has(id) and view["toolbox_anchor"] != "carried" and view["toolbox_anchor"] != id:
+			continue
+		var offset: Vector3 = target["position"] - eye
+		var distance := offset.length()
+		if distance > 2.6 or distance < 0.2:
+			continue
+		var facing := forward.dot(offset / distance)
+		if facing < 0.45:
+			continue
+		# A gate may occlude its own handle from inside; accept only that exact body.
+		var ray := PhysicsRayQueryParameters3D.create(eye, target["position"], 1)
+		ray.hit_from_inside = true
+		var hit := get_world_3d().direct_space_state.intersect_ray(ray)
+		if not hit.is_empty() and not _workshop.is_gate_collider(id, hit.get("collider")):
+			continue
+		var score := facing * 3.0 - distance
+		if score > best_score:
+			best_score = score
+			best = target
+	return best
+
+
+func _target_caption(target: Dictionary, view: Dictionary) -> String:
+	var id: String = target["id"]
+	match id:
+		"front_gate", "back_gate":
+			var opened: bool = view["front_open" if id == "front_gate" else "back_open"]
+			return ("关闭" if opened else "打开") + target["label"]
+		"lamp_switch":
+			return "关灯" if view["lamp_on"] else "开灯"
+		_:
+			return "放到" + target["label"] if view["toolbox_anchor"] == "carried" else "拿起工具箱"
+
+
+func _interact(delta: float) -> void:
+	if _nearest.is_empty():
+		return
+	var id: String = _nearest["id"]
+	var view: Dictionary = _urban.view()
+	var result: Dictionary
+	if id == "front_gate" or id == "back_gate":
+		var opened: bool = view["front_open" if id == "front_gate" else "back_open"]
+		if opened and (_workshop.gate_occupied(id, _walker.global_position) or _workshop.gate_occupied(id, _walker.global_position + _walker.velocity * delta)):
+			_last_error = "先离开门洞，再关卷帘门。"
+			return
+		result = _urban.toggle_gate(id)
+	elif id == "lamp_switch":
+		result = _urban.toggle_lamp()
+	elif view["toolbox_anchor"] == "carried":
+		var base: Vector3 = Workshop.ANCHORS[id]
+		var p := _walker.global_position
+		if absf(p.x - base.x) < 0.7 and absf(p.z - base.z) < 0.55 and p.y < base.y + 0.48 and p.y + 1.75 > base.y:
+			_last_error = "先让开放置位置，再放下工具箱。"
+			return
+		result = _urban.place_toolbox(id)
+	else:
+		result = _urban.take_toolbox()
+	if result["ok"]:
+		_last_error = _target_caption(_nearest, view) + "，已完成。"
+		_dirty = true
+		_apply_urban_view()
+	else:
+		_last_error = "暂时无法操作：" + result["code"]
+
+
+func _build_held() -> void:
+	_held = Node3D.new()
+	add_child(_held)
+	var box := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Workshop.TOOLBOX_SIZE
+	box.mesh = mesh
+	box.material_override = _materials["shop"]
+	_held.add_child(box)
+	_held.hide()
+
+
+func _sync_held() -> void:
+	var forward: Vector3 = -_walker.interaction_camera().global_basis.z
+	forward.y = 0
+	forward = forward.normalized()
+	_held.position = _walker.position + Vector3.UP * 1.12 + forward * 0.8
+	_held.rotation.y = atan2(-forward.x, -forward.z)
 
 
 func _sign(text: String, p: Vector3, yaw: float) -> void:

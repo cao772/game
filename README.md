@@ -31,3 +31,8 @@ first-person and close third-person source controls, human-scale apartment block
 looping street/alley paths and three bundled CC0 PBR materials. It can be entered
 from the regional explorer after saving. This is a source-only scale/material study;
 rendering, collision and performance remain unverified.
+
+The [enterable workshop](docs/development/urban-workshop-v11.md) now connects one
+street frontage to its rear yard. Nearby visible shutters, a lamp and a movable
+toolbox can be used freely; their layout persists in an independent `urban_free`
+slot. This source increment keeps old world and quest saves unchanged.
