@@ -5,6 +5,13 @@ extends Node3D
 const SEAT_FEET := Vector3(-21, 0, 20.8)
 const SEAT_TARGET := Vector3(-21, 0.75, 20)
 const STAND_POINTS := [Vector3(-21, 0, 19.45), Vector3(-22, 0, 19.45), Vector3(-20, 0, 19.45)]
+const TRAY_SIZE := Vector3(0.62, 0.12, 0.42)
+const TRAY_ANCHORS := {
+	"reading_book": Vector3(-21.4, 0.76, 10.1),
+	"reading_side": Vector3(-19.5, 0.58, 20.5),
+	"reading_porch": Vector3(-13.35, 0.82, 17.4),
+}
+const TRAY_LABELS := {"reading_book": "阅览台", "reading_side": "长椅旁低台", "reading_porch": "前廊窄台"}
 const PAGES := [
 	["01 · 两条走法", "从临街门进来，穿过书架两侧都能到后巷。\n不想进屋，也可以沿外廊绕过楼角。"],
 	["02 · 留一条路", "看完把书留在台上，后来的人也能翻。\n门口和书架两边留空，赶路的人就不用打断谁。"],
@@ -19,6 +26,8 @@ var _lamp: OmniLight3D
 var _bulb_material: StandardMaterial3D
 var _page_index: int = -1
 var _lamp_on: bool = true
+var _tray: Node3D
+var _tray_anchor: String = "reading_book"
 
 
 func setup(materials: Dictionary, font: Font) -> void:
@@ -40,18 +49,23 @@ func targets() -> Array[Dictionary]:
 	var standing: Array[Vector3] = []
 	for point in STAND_POINTS:
 		standing.append(to_global(point))
-	return [
-		{"id": "reading_book", "label": "公共阅览册", "position": to_global(Vector3(-21.4, 0.96, 10.3))},
+	var result: Array[Dictionary] = [
 		{"id": "reading_lamp", "label": "阅览灯", "position": to_global(Vector3(-14.5, 1.35, 13.4))},
 		{"id": "reading_seat", "label": "阅览室长椅", "position": to_global(SEAT_TARGET),
 			"feet": to_global(SEAT_FEET), "yaw": global_rotation.y, "stand_candidates": standing},
 	]
+	for id in TRAY_ANCHORS:
+		if is_carrying() or _tray_anchor == id:
+			result.append({"id": id, "label": TRAY_LABELS[id], "position": to_global(TRAY_ANCHORS[id] + Vector3(0, 0.18, 0))})
+	return result
 
 
 func caption(id: String) -> String:
+	if TRAY_ANCHORS.has(id):
+		if is_carrying():
+			return "把书盘放到" + str(TRAY_LABELS[id])
+		return "翻阅公共册"
 	match id:
-		"reading_book":
-			return "翻开公共阅览册" if _page_index < 0 else "翻到下一页 · %d / %d" % [_page_index + 1, PAGES.size()]
 		"reading_lamp":
 			return "关掉阅览灯" if _lamp_on else "打开阅览灯"
 		"reading_seat":
@@ -74,15 +88,86 @@ func toggle_lamp() -> String:
 func reset_visit() -> void:
 	# Called only on construction or successful layout restore, never on failed or
 	# cancelled restore. The five-field urban save remains byte-for-byte compatible.
+	_tray_anchor = "reading_book"
+	_project_tray()
 	_page_index = -1
 	_lamp_on = true
 	_update_page()
 	_update_light()
 
 
+func is_carrying() -> bool:
+	return _tray_anchor == "carried"
+
+
+func has_tray(id: String) -> bool:
+	return TRAY_ANCHORS.has(id) and _tray_anchor == id
+
+
+func take_tray(id: String, toolbox_carried: bool) -> bool:
+	if toolbox_carried or not has_tray(id):
+		return false
+	_tray_anchor = "carried"
+	# Root places this same node at the hands immediately; there is no clone.
+	return true
+
+
+func place_tray(id: String) -> bool:
+	if not is_carrying() or not TRAY_ANCHORS.has(id):
+		return false
+	_tray_anchor = id
+	_project_tray()
+	return true
+
+
+func placement_occupied(id: String, feet: Vector3) -> bool:
+	if not TRAY_ANCHORS.has(id):
+		return true
+	var base: Vector3 = to_global(TRAY_ANCHORS[id])
+	return absf(feet.x - base.x) < TRAY_SIZE.x * 0.5 + 0.34 and absf(feet.z - base.z) < TRAY_SIZE.z * 0.5 + 0.34 and feet.y < base.y + TRAY_SIZE.y + 0.04 and feet.y + 1.75 > base.y
+
+
+func present_carried(at: Vector3, yaw: float) -> void:
+	if is_carrying():
+		_tray.global_position = at
+		_tray.global_rotation = Vector3(0, yaw, 0)
+
+
+func _project_tray() -> void:
+	if TRAY_ANCHORS.has(_tray_anchor):
+		_tray.position = TRAY_ANCHORS[_tray_anchor]
+		_tray.rotation = Vector3.ZERO
+
+
+func _build_tray() -> void:
+	_tray = Node3D.new()
+	_tray.name = "UniqueReadingTray"
+	add_child(_tray)
+	# Build existing helpers at local offsets, then transfer each visual into the
+	# tray without keeping its old global transform. No physics body moves here.
+	_tray_piece(Vector3(0, 0.025, 0), Vector3(0.62, 0.05, 0.42), "shop")
+	_tray_piece(Vector3(0, 0.065, 0), Vector3(0.56, 0.03, 0.36), "paint")
+	for x in [-0.30, 0.30]:
+		_tray_piece(Vector3(x, 0.07, 0), Vector3(0.02, 0.09, 0.42), "shop")
+	for z in [-0.20, 0.20]:
+		_tray_piece(Vector3(0, 0.07, z), Vector3(0.58, 0.09, 0.02), "shop")
+	_page_label = _label("", Vector3(0, 0.085, 0), 0, 0.0012)
+	remove_child(_page_label)
+	_tray.add_child(_page_label)
+	_page_label.rotation.x = -PI * 0.5
+	_bookmark = _tray_piece(Vector3(-0.22, 0.10, 0.13), Vector3(0.025, 0.02, 0.16), "metal")
+
+
+func _tray_piece(at: Vector3, size: Vector3, material: String) -> Node3D:
+	var piece := _box(at, size, material)
+	remove_child(piece)
+	_tray.add_child(piece)
+	return piece
+
+
 func _update_page() -> void:
 	_page_label.text = "街角阅览册\n随手翻阅" if _page_index < 0 else str(PAGES[_page_index][0])
-	_bookmark.position.x = -21.7 + float(_page_index + 1) * 0.15
+	_bookmark.position.x = -0.22 + float(_page_index + 1) * 0.11
 
 
 func _update_light() -> void:
@@ -131,11 +216,10 @@ func _build_furniture() -> void:
 
 func _build_reading_desk() -> void:
 	_box(Vector3(-21.4, 0.38, 10), Vector3(2.2, 0.76, 1.0), "trim", true)
-	_box(Vector3(-21.4, 0.80, 10.1), Vector3(0.92, 0.08, 0.6), "shop")
-	_box(Vector3(-21.4, 0.85, 10.1), Vector3(0.88, 0.02, 0.56), "paint")
-	_page_label = _label("", Vector3(-21.4, 0.865, 10.1), 0, 0.0018)
-	_page_label.rotation.x = -PI * 0.5
-	_bookmark = _box(Vector3(-21.7, 0.87, 10.35), Vector3(0.035, 0.02, 0.25), "shop")
+	# Two extra supports stay outside the west through-route and all stand paths.
+	_box(Vector3(-19.5, 0.29, 20.5), Vector3(0.80, 0.58, 0.60), "trim", true)
+	_box(Vector3(-13.35, 0.41, 17.4), Vector3(0.80, 0.82, 0.65), "trim", true)
+	_build_tray()
 	_box(Vector3(-14.39, 1.35, 13.4), Vector3(0.08, 0.18, 0.14), "frame")
 	_label("阅览灯", Vector3(-14.41, 1.6, 13.4), -PI * 0.5, 0.0025)
 	_lamp = OmniLight3D.new()

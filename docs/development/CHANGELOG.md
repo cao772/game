@@ -1,5 +1,16 @@
 # Source development log
 
+## GAME-WORLD-READING-TRAY-017 — 2026-11-07
+
+Made the public booklet one movable tray with desk, bench-side and frontage
+supports. Added mutually exclusive toolbox/tray carrying, page retention while
+moving, held reading and seated surface reading at the correct eye height.
+Queued secondary input clears on focus/modal/pause; occupied placements reject
+before mutation. Existing world/quest/urban saves and resident routines remain.
+Tray layout is visit-local with explicit save/restore/exit feedback. No new NPC
+or third-party asset. Offline grammar, geometry and source self-review only;
+Godot, gameplay, tests, save I/O and builds remain NOT_RUN.
+
 ## GAME-WORLD-READING-ROOM-016 — 2026-11-06
 
 Opened the southwest ground floor as a public reading passage with two always-open

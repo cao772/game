@@ -60,3 +60,8 @@ The [public reading room](docs/development/urban-reading-room-v16.md) opens the
 southwest ground floor as a second street-to-alley passage, with two routes around
 a shelf, optional reading, a light and a seat. Reading state lasts for the visit;
 legacy saves and the existing resident routine remain unchanged. Source only.
+
+A [movable reading tray](docs/development/urban-reading-tray-v17.md) lets the player
+choose the desk, bench-side table or covered frontage. Book and toolbox pickups
+share one hand slot. Pages follow the tray; seated reading retains range/occlusion
+checks. Tray layout lasts for the visit and does not alter legacy save schemas.

@@ -171,3 +171,14 @@ temporary for this visit and are not included in F5 saves; re-entry or a success
 F9 layout restore resets them. Failed/cancelled restores preserve the current room.
 The existing workshop resident continues independently. See
 `../docs/development/urban-reading-room-v16.md`. All runtime acceptance is NOT_RUN.
+
+## Move the reading tray
+
+R picks up the public tray or places it on an aimed support. E retains reading and
+seating; while carrying, E can also place the tray. F reads the held booklet or an
+aimed nearby tray. While seated E stands, R refuses movement and F reads. Only one
+item can be carried: put down the toolbox before taking the tray, or vice versa.
+The desk, bench-side table and covered-frontage ledge are the three supports.
+Page number follows the tray. Its position is visit-local and resets to the desk
+on re-entry or successful F9 restore; it is not part of F5 saves. See
+`../docs/development/urban-reading-tray-v17.md`. Source-only; runtime NOT_RUN.

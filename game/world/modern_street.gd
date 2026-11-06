@@ -27,6 +27,7 @@ var _load_confirm: ConfirmationDialog
 var _leave_confirm: ConfirmationDialog
 var _nearest: Dictionary = {}
 var _interact_queued := false
+var _reading_action: String = ""
 var _persistence_ready := false
 var _dirty := false
 var _resident: Resident
@@ -84,6 +85,10 @@ func _process(_delta: float) -> void:
 			_action.text = "E：离开" + _seat_label + " · 起身位置被挡时会留在座位上"
 		else:
 			_action.text = "E：" + _target_caption(_nearest, view) if not _nearest.is_empty() else "西侧阅览室可穿行到后巷 · 东侧工坊通后院与晒台"
+		if _reading_room.is_carrying():
+			_action.text += " · 手持书盘 · F 翻页"
+		elif not _nearest.is_empty() and _reading_room.has_tray(str(_nearest["id"])):
+			_action.text += " · F 翻页" if _walker.is_seated() else " · R 拿起书盘"
 		_action.text += " · 手持工具箱" if view["toolbox_anchor"] == "carried" else ""
 		_action.text += " · 尚未保存" if _dirty else ""
 		if is_instance_valid(_resident):
@@ -98,16 +103,26 @@ func _physics_process(delta: float) -> void:
 		_workshop.present_activity(_resident.status() if enabled else {})
 	if not enabled:
 		_interact_queued = false
+		_reading_action = ""
 		_nearest.clear()
 		return
 	_nearest = _find_target()
+	var reading_action: String = _reading_action
+	_reading_action = ""
 	if _interact_queued:
 		_interact_queued = false
+		_reading_action = ""
 		_interact(delta)
+	elif reading_action == "move":
+		_move_reading_tray(delta)
+	elif reading_action == "read":
+		_read_page()
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT or what == NOTIFICATION_PAUSED:
+		_interact_queued = false
+		_reading_action = ""
 		if is_instance_valid(_resident):
 			_resident.suspend_activity()
 		if is_instance_valid(_workshop):
@@ -121,6 +136,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		match event.physical_keycode:
 			KEY_E:
 				_interact_queued = true
+			KEY_R:
+				_reading_action = "move"
+			KEY_F:
+				_reading_action = "read"
 			KEY_F5:
 				_save_urban()
 			KEY_F9:
@@ -355,13 +374,13 @@ func _build_ui() -> void:
 	column.add_child(_action)
 	_load_confirm = ConfirmationDialog.new()
 	_load_confirm.title = "恢复现代街区"
-	_load_confirm.dialog_text = "恢复最近保存的工坊门、工作灯与工具箱位置，并回到街上起点？当前未保存改动会被替换；阅览灯和书页回到初始状态。"
+	_load_confirm.dialog_text = "恢复最近保存的工坊门、工作灯与工具箱位置，并回到街上起点？当前未保存改动会被替换；书盘回阅览台，阅览灯和书页回到初始状态。"
 	_load_confirm.confirmed.connect(_restore_latest.bind(false))
 	_load_confirm.visibility_changed.connect(_update_modal_controls)
 	canvas.add_child(_load_confirm)
 	_leave_confirm = ConfirmationDialog.new()
 	_leave_confirm.title = "不保存返回"
-	_leave_confirm.dialog_text = "离开现代街区并放弃本次未保存的布置？原有存档保留。"
+	_leave_confirm.dialog_text = "离开现代街区并放弃本次未保存的布置？原有存档保留；公共书盘回阅览台。"
 	_leave_confirm.confirmed.connect(_leave_without_save)
 	_leave_confirm.visibility_changed.connect(_update_modal_controls)
 	canvas.add_child(_leave_confirm)
@@ -408,12 +427,14 @@ func _leave_without_save() -> void:
 func _request_leave() -> void:
 	_walker.release_pointer()
 	_interact_queued = false
+	_reading_action = ""
 	_leave_confirm.popup_centered()
 
 
 func _request_restore() -> void:
 	_walker.release_pointer()
 	_interact_queued = false
+	_reading_action = ""
 	_load_confirm.popup_centered()
 
 
@@ -431,6 +452,7 @@ func _update_modal_controls() -> void:
 			_workshop.present_activity({})
 			_walker.release_pointer()
 			_interact_queued = false
+			_reading_action = ""
 			_nearest.clear()
 
 
@@ -441,7 +463,7 @@ func _save_urban() -> bool:
 	var saved: Dictionary = _store.write_record("urban_free", _urban.snapshot())
 	if saved.get("ok", false):
 		_dirty = false
-		_last_error = "已保存工坊门、工作灯和工具箱；阅览灯与书页只保留到离场或恢复。"
+		_last_error = "已保存工坊门、工作灯和工具箱；书盘位置、阅览灯与书页只保留到离场或恢复。"
 	else:
 		_last_error = "保存失败：%s。当前布置仍保留，可整理旧档后重试。" % saved.get("code", "UNKNOWN")
 	return saved.get("ok", false)
@@ -494,12 +516,12 @@ func _apply_urban_view() -> void:
 	_held.visible = view["toolbox_anchor"] == "carried"
 	_nearest.clear()
 	_interact_queued = false
+	_reading_action = ""
 
 
 func _find_target() -> Dictionary:
-	if _walker.is_seated():
-		return {}
-	var eye: Vector3 = _walker.global_position + Vector3.UP * Walker.EYE_HEIGHT
+	var eye_height: float = Walker.SEATED_EYE_HEIGHT if _walker.is_seated() else Walker.EYE_HEIGHT
+	var eye: Vector3 = _walker.global_position + Vector3.UP * eye_height
 	var forward: Vector3 = -_walker.interaction_camera().global_transform.basis.z
 	var view: Dictionary = _urban.view()
 	var best: Dictionary = {}
@@ -511,6 +533,8 @@ func _find_target() -> Dictionary:
 		candidates.append(_resident.interaction_target())
 	for target in candidates:
 		var id: String = target["id"]
+		if _walker.is_seated() and not _reading_room.has_tray(id):
+			continue
 		if Workshop.ANCHORS.has(id) and view["toolbox_anchor"] != "carried" and view["toolbox_anchor"] != id:
 			continue
 		var offset: Vector3 = target["position"] - eye
@@ -536,8 +560,10 @@ func _find_target() -> Dictionary:
 
 func _target_caption(target: Dictionary, view: Dictionary) -> String:
 	var id: String = target["id"]
+	if ReadingRoom.TRAY_ANCHORS.has(id):
+		return _reading_room.caption(id)
 	match id:
-		"reading_book", "reading_lamp", "reading_seat":
+		"reading_lamp", "reading_seat":
 			return _reading_room.caption(id)
 		"terrace_seat":
 			return "坐在晒台长椅上"
@@ -558,6 +584,7 @@ func _interact(delta: float) -> void:
 		_last_error = "已起身，可以继续探索。" if stood.get("ok", false) else "起身位置暂时被挡住了；仍留在座位上，稍后再试。"
 		_nearest.clear()
 		_interact_queued = false
+		_reading_action = ""
 		return
 	if _nearest.is_empty():
 		return
@@ -575,11 +602,19 @@ func _interact(delta: float) -> void:
 		_last_error = "坐下了。可以环视街区，按 E 随时尝试起身。" if seated.get("ok", false) else "先走到长椅前的空位，站稳后再坐下。"
 		_nearest.clear()
 		_interact_queued = false
+		_reading_action = ""
 		return
-	elif id == "reading_book" or id == "reading_lamp":
-		_last_error = _reading_room.turn_page() if id == "reading_book" else _reading_room.toggle_lamp()
+	elif ReadingRoom.TRAY_ANCHORS.has(id):
+		if _reading_room.is_carrying():
+			_move_reading_tray(delta)
+		else:
+			_read_page()
+		return
+	elif id == "reading_lamp":
+		_last_error = _reading_room.toggle_lamp()
 		_nearest.clear()
 		_interact_queued = false
+		_reading_action = ""
 		return
 	elif id == "workshop_resident":
 		_walker.release_pointer()
@@ -610,6 +645,9 @@ func _interact(delta: float) -> void:
 			return
 		result = _urban.place_toolbox(id)
 	else:
+		if _reading_room.is_carrying():
+			_last_error = "手里已有书盘，请先放到阅览台、座旁低台或前廊窄台。"
+			return
 		result = _urban.take_toolbox()
 	if result["ok"]:
 		_last_error = _target_caption(_nearest, view) + "，已完成。"
@@ -617,6 +655,43 @@ func _interact(delta: float) -> void:
 		_apply_urban_view()
 	else:
 		_last_error = "暂时无法操作：" + result["code"]
+
+
+func _read_page() -> void:
+	# Owned hand content needs no remote target. Surface reading always uses the
+	# same physics-frame range, facing and occlusion result, including seated eyes.
+	if _reading_room.is_carrying() or (not _nearest.is_empty() and _reading_room.has_tray(str(_nearest["id"]))):
+		_last_error = _reading_room.turn_page()
+	else:
+		_last_error = "先走近并看向书盘，或把它拿在手里再翻页。"
+
+
+func _move_reading_tray(delta: float) -> void:
+	if _walker.is_seated():
+		_last_error = "坐着可以按 F 翻页；请先按 E 起身，再拿放书盘。"
+		return
+	if _nearest.is_empty() or not ReadingRoom.TRAY_ANCHORS.has(str(_nearest["id"])):
+		_last_error = "看向阅览台、座旁低台或前廊窄台的书盘位置，再按 R。"
+		return
+	var id: String = _nearest["id"]
+	if not _reading_room.is_carrying():
+		var toolbox_carried: bool = _urban.view()["toolbox_anchor"] == "carried"
+		if not _reading_room.take_tray(id, toolbox_carried):
+			_last_error = "手里已有工具箱，请先放回工坊或院台。" if toolbox_carried else "这里没有可拿的书盘。"
+			return
+		_sync_held()
+		_last_error = "拿起了公共书盘；F 翻页，看向另一处台面按 E 或 R 放下。"
+	else:
+		for feet in [_walker.global_position, _walker.global_position + _walker.velocity * delta, _resident.global_position, _resident.possible_next_position(delta)]:
+			if _reading_room.placement_occupied(id, feet):
+				_last_error = "放置位置有人，等让开后再放。"
+				return
+		if not _reading_room.place_tray(id):
+			return
+		_last_error = "已放到" + str(ReadingRoom.TRAY_LABELS[id]) + "；书页保留，可就近翻阅。"
+	_nearest.clear()
+	_interact_queued = false
+	_reading_action = ""
 
 
 func _build_held() -> void:
@@ -639,6 +714,7 @@ func _sync_held() -> void:
 	var held_distance: float = 0.6 if _walker.is_seated() else 0.8
 	_held.position = _walker.position + Vector3.UP * held_height + forward * held_distance
 	_held.rotation.y = atan2(-forward.x, -forward.z)
+	_reading_room.present_carried(_held.global_position, _held.global_rotation.y)
 
 
 func _sign(text: String, p: Vector3, yaw: float) -> void:
