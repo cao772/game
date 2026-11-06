@@ -6,14 +6,22 @@ extends CharacterBody3D
 const MODEL: PackedScene = preload("res://art/resident_merchant/merchant.glb")
 const SPEED: float = 1.05
 const ARRIVAL: float = 0.025
-const PHASES := ["bench", "shelf", "yard"]
-const DWELL := {"bench": 25.0, "shelf": 12.0, "yard": 20.0}
+const LEVEL_TOLERANCE: float = 0.08
+const MAX_STEP: float = 0.1
+const PHASES := ["bench", "shelf", "yard", "terrace"]
+const DWELL := {"bench": 25.0, "shelf": 12.0, "yard": 20.0, "terrace": 24.0}
 const POINTS := {
 	"bench": Vector3(18, 0, 11.5), "shelf": Vector3(22.5, 0, 23.1),
 	"yard": Vector3(27, 0, 18.8), "center": Vector3(19, 0, 17.5),
 	"front_in": Vector3(15.3, 0, 17.5), "front_out": Vector3(13.2, 0, 17.5),
 	"back_in": Vector3(22.9, 0, 17.5), "back_out": Vector3(25, 0, 17.5),
 	"south_front": Vector3(13.2, 0, 29.5), "south_back": Vector3(25, 0, 29.5),
+	# Reach the stair from its ground end; never cut through its side or jump
+	# from the rear lane onto the elevated slab. All heights are authored floors.
+	"north_ground": Vector3(25, 0, 2), "stair_approach": Vector3(37.2, 0, 2),
+	"stair_foot": Vector3(37.2, 0, 3), "stair_top": Vector3(37.2, 3, 11),
+	"landing": Vector3(37.2, 3, 12), "deck_east": Vector3(33, 3, 12),
+	"deck_inner": Vector3(33, 3, 8.5), "terrace": Vector3(29, 3, 8.5),
 }
 const EDGES := [
 	["bench", "center", ""], ["shelf", "center", ""],
@@ -21,11 +29,16 @@ const EDGES := [
 	["center", "front_in", ""], ["front_in", "front_out", "front_open"],
 	["front_out", "south_front", ""], ["south_front", "south_back", ""],
 	["south_back", "back_out", ""], ["back_out", "yard", ""],
+	["back_out", "north_ground", ""], ["north_ground", "stair_approach", ""],
+	["stair_approach", "stair_foot", ""], ["stair_foot", "stair_top", ""],
+	["stair_top", "landing", ""], ["landing", "deck_east", ""],
+	["deck_east", "deck_inner", ""], ["deck_inner", "terrace", ""],
 ]
 const GATE_PLANE := {"front_open": 14.28, "back_open": 23.92}
 
 var _animation: AnimationPlayer
 var _visual: Node3D
+var _player_probe: CapsuleShape3D
 var _phase_index: int = 0
 var _node: String = "bench"
 var _remaining: float = 25.0
@@ -47,6 +60,10 @@ func _ready() -> void:
 	collision_mask = 3
 	safe_margin = 0.002
 	floor_snap_length = 0.15
+	floor_max_angle = deg_to_rad(45.0)
+	floor_stop_on_slope = true
+	floor_constant_speed = true
+	floor_block_on_wall = true
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.3
@@ -54,6 +71,11 @@ func _ready() -> void:
 	shape.shape = capsule
 	shape.position.y = 0.875
 	add_child(shape)
+	# A small vertical envelope includes the capsule's ~0.021m geometric lift
+	# on the 20.556deg stair ramp and the join between ramp and flat floor.
+	_player_probe = CapsuleShape3D.new()
+	_player_probe.radius = capsule.radius
+	_player_probe.height = capsule.height + 0.2
 	_visual = MODEL.instantiate() as Node3D
 	_visual.scale = Vector3.ONE * 0.84
 	add_child(_visual)
@@ -110,7 +132,12 @@ func advance(delta: float, view: Dictionary, enabled: bool) -> void:
 		return
 	if _edge_to.is_empty() and _node == _phase():
 		_settle(delta)
-		_remaining = maxf(0.0, _remaining - delta)
+		if not _at_point(POINTS[_node]):
+			_blocked = "obstacle"
+			_activity = "等脚下站稳"
+			_play(&"Idle")
+			return
+		_remaining = maxf(0.0, _remaining - minf(delta, MAX_STEP))
 		if _remaining > 0.0:
 			_work_or_rest()
 			return
@@ -166,21 +193,22 @@ func interaction_target() -> Dictionary:
 
 
 func possible_next_position(delta: float) -> Vector3:
-	if not _enabled or _conversing or delta <= 0.0:
+	if not _enabled or _conversing or delta <= 0.0 or not is_finite(delta):
 		return global_position
 	var next: String = _edge_to
+	var from: String = _edge_from
 	if next.is_empty():
+		from = _node
 		var destination := _phase()
 		if _node == destination:
-			if _remaining > delta:
+			if _remaining > minf(delta, MAX_STEP):
 				return global_position
 			destination = PHASES[(_phase_index + 1) % PHASES.size()]
 		var route := _route(_node, destination)
 		if route.size() < 2:
 			return global_position
 		next = route[1]
-	var offset := _horizontal(POINTS[next] - global_position)
-	return global_position + offset.limit_length(SPEED * delta)
+	return global_position + _edge_motion(from, next, minf(delta, MAX_STEP))
 
 
 func _resolve_closed_crossing() -> void:
@@ -201,15 +229,24 @@ func _resolve_closed_crossing() -> void:
 func _walk_edge(delta: float) -> void:
 	var offset := _horizontal(POINTS[_edge_to] - global_position)
 	if offset.length() <= ARRIVAL:
-		_arrive()
 		_settle(delta)
+		if _at_point(POINTS[_edge_to]):
+			_arrive()
+		else:
+			_blocked = "obstacle"
+			_activity = "等脚下站稳"
 		_play(&"Idle")
 		return
-	var intended := offset.normalized() * minf(SPEED, offset.length() / delta)
-	# A swept probe prevents sideways sliding around a player who is blocking the
-	# route. The edge stays active; it is retried when the obstacle moves away.
+	# move_and_slide uses the engine's full physics delta. Bound the requested
+	# displacement, then divide by that original delta, not by the capped step.
+	var planned := _edge_motion(_edge_from, _edge_to, minf(delta, MAX_STEP))
+	var intended := _horizontal(planned) / delta
+	# Check players separately: an uphill floor can be the first world hit and
+	# otherwise conceal a player farther along the same swept capsule motion.
+	if _player_in_path(planned):
+		_blocked = "player"
 	var probe := KinematicCollision3D.new()
-	if test_move(global_transform, intended * delta, probe, safe_margin, false, 4):
+	if _blocked.is_empty() and test_move(global_transform, intended * delta, probe, safe_margin, false, 4):
 		_blocked = _collision_kind(probe)
 	if not _blocked.is_empty():
 		_settle(delta)
@@ -219,8 +256,11 @@ func _walk_edge(delta: float) -> void:
 	var before := global_position
 	velocity.x = intended.x
 	velocity.z = intended.z
-	velocity.y = 0.0 if is_on_floor() else velocity.y - 20.0 * delta
+	velocity.y = 0.0 if is_on_floor() else velocity.y - 20.0 * minf(delta, MAX_STEP)
 	move_and_slide()
+	# Bounded movement drops <0.04m per frame on this ramp, inside the 0.15m
+	# snap range. Snap is a collision operation, never an authored-y assignment.
+	apply_floor_snap()
 	for index in range(get_slide_collision_count()):
 		var kind := _collision_kind(get_slide_collision(index))
 		if not kind.is_empty():
@@ -230,12 +270,58 @@ func _walk_edge(delta: float) -> void:
 	_moving = _horizontal(global_position - before).length() > 0.00001
 	if is_instance_valid(_visual) and _moving:
 		_visual.rotation.y = atan2(intended.x, intended.z)
-	_activity = "先退回门边，再换条路" if _returning else "正往" + {"bench": "工作台", "shelf": "货架", "yard": "后院"}[_phase()] + "走"
+	_activity = "先退回门边，再换条路" if _returning else "正往" + {"bench": "工作台", "shelf": "货架", "yard": "后院", "terrace": "晒台"}[_phase()] + "走"
 	if not _moving and not _blocked.is_empty():
 		_activity = "等你先过" if _blocked == "player" else "前面暂时走不过去"
 	_play(&"Walking_A" if _moving else &"Idle")
-	if _horizontal(POINTS[_edge_to] - global_position).length() <= ARRIVAL:
+	if _at_point(POINTS[_edge_to]):
 		_arrive()
+
+
+func _edge_motion(from: String, to: String, delta: float) -> Vector3:
+	var motion := _horizontal(POINTS[to] - global_position).limit_length(SPEED * delta)
+	var segment: Vector3 = POINTS[to] - POINTS[from]
+	var run := _horizontal(segment).length()
+	if run > 0.0001:
+		motion.y = motion.length() * segment.y / run
+	return motion
+
+
+func _player_in_path(motion: Vector3) -> bool:
+	var space := get_world_3d().direct_space_state
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = _player_probe
+	query.transform = Transform3D(global_transform.basis, global_position + Vector3.UP * 0.875)
+	query.collision_mask = 2
+	query.exclude = [get_rid()]
+	query.margin = 0.005
+	query.collide_with_areas = false
+	# cast_motion ignores shapes overlapped at its start, so check both poses.
+	if not space.intersect_shape(query, 1).is_empty():
+		return true
+	query.motion = motion
+	var fractions: PackedFloat32Array = space.cast_motion(query)
+	if fractions.size() != 2 or fractions[0] < 1.0 or fractions[1] < 1.0:
+		return true
+	query.transform.origin += motion
+	query.motion = Vector3.ZERO
+	return not space.intersect_shape(query, 1).is_empty()
+
+
+func _at_point(point: Vector3) -> bool:
+	# Horizontal proximity alone must not finish an upper-floor edge from below.
+	if not is_on_floor() or _horizontal(point - global_position).length() > ARRIVAL:
+		return false
+	if absf(point.y - global_position.y) > LEVEL_TOLERANCE:
+		return false
+	var ray := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 0.1,
+		global_position - Vector3.UP * 0.12, 1, [get_rid()])
+	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(ray)
+	if hit.is_empty():
+		return false
+	var normal: Vector3 = hit["normal"]
+	var surface: Vector3 = hit["position"]
+	return normal.y >= cos(floor_max_angle) and absf(surface.y - point.y) <= LEVEL_TOLERANCE
 
 
 func _arrive() -> void:
@@ -256,8 +342,9 @@ func _clear_edge() -> void:
 func _settle(delta: float) -> void:
 	velocity.x = 0.0
 	velocity.z = 0.0
-	velocity.y = 0.0 if is_on_floor() else velocity.y - 20.0 * delta
+	velocity.y = 0.0 if is_on_floor() else velocity.y - 20.0 * minf(delta, MAX_STEP)
 	move_and_slide()
+	apply_floor_snap()
 
 
 func _collision_kind(hit: KinematicCollision3D) -> String:
@@ -266,7 +353,7 @@ func _collision_kind(hit: KinematicCollision3D) -> String:
 		var body := hit.get_collider(index) as CollisionObject3D
 		if body != null and (body.collision_layer & 2) != 0:
 			return "player"
-		if hit.get_normal(index).y < 0.6:
+		if hit.get_normal(index).y < cos(floor_max_angle):
 			obstacle = true
 	if obstacle:
 		return "gate" if not _edge_gate.is_empty() and not bool(_view.get(_edge_gate, false)) else "obstacle"
@@ -279,10 +366,13 @@ func _work_or_rest() -> void:
 		_activity = "在工作台前整理工具" if working else ("在工作台前等照明" if not bool(_view.get("lamp_on", false)) else "在工作台前等工具箱")
 	elif _phase() == "shelf":
 		_activity = "整理货架上的物件"
+	elif _phase() == "terrace":
+		_activity = "站在晒台边看看街景"
 	else:
 		_activity = "在后院歇一会儿"
 	if is_instance_valid(_visual):
-		_visual.rotation.y = PI if _phase() == "bench" else 0.0
+		# The northward view follows the open cross street, not the adjacent facade.
+		_visual.rotation.y = PI if _phase() in ["bench", "terrace"] else 0.0
 	_play(&"Interact" if working else &"Idle")
 
 

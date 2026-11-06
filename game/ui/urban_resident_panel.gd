@@ -5,7 +5,8 @@ extends PanelContainer
 signal closed
 
 const RESIDENT_ID := "workshop_resident"
-const PHASES := ["bench", "shelf", "yard"]
+const LEGACY_PHASES := ["bench", "shelf", "yard"]
+const PHASES := ["bench", "shelf", "yard", "terrace"]
 const BLOCKERS := ["", "gate", "player", "obstacle"]
 const CONFIG_FIELDS := [
 	"schema_version", "resident_id", "display_name", "greetings",
@@ -25,6 +26,7 @@ var _status: Dictionary = {}
 var _view: Dictionary = {}
 var _is_open := false
 var _talk_index := 0
+var _location_talk_indices: Dictionary = {}
 var _name_label: Label
 var _activity_label: Label
 var _reply_label: Label
@@ -68,7 +70,9 @@ func _ready() -> void:
 func configure(data: Dictionary) -> Dictionary:
 	if _is_open:
 		return {"ok": false, "code": "CONVERSATION_OPEN"}
-	if not _exact_keys(data, CONFIG_FIELDS) or not _version_one(data["schema_version"]):
+	var extended_fields: Array = CONFIG_FIELDS.duplicate()
+	extended_fields.append("location_small_talk")
+	if not (_exact_keys(data, CONFIG_FIELDS) or _exact_keys(data, extended_fields)) or not _version_one(data["schema_version"]):
 		return {"ok": false, "code": "INVALID_RESIDENT_CONFIG"}
 	if typeof(data["resident_id"]) != TYPE_STRING or data["resident_id"] != RESIDENT_ID:
 		return {"ok": false, "code": "INVALID_RESIDENT_ID"}
@@ -76,7 +80,7 @@ func configure(data: Dictionary) -> Dictionary:
 		return {"ok": false, "code": "INVALID_RESIDENT_NAME"}
 	if not _text_map(data["greetings"], ["idle", "moving", "gate", "player", "obstacle"], 240):
 		return {"ok": false, "code": "INVALID_GREETINGS"}
-	if not _text_map(data["destination_names"], PHASES, 24):
+	if not (_text_map(data["destination_names"], LEGACY_PHASES, 24) or _text_map(data["destination_names"], PHASES, 24)):
 		return {"ok": false, "code": "INVALID_DESTINATIONS"}
 	if not _text_map(data["route_replies"], ROUTE_FIELDS, 240):
 		return {"ok": false, "code": "INVALID_ROUTE_REPLIES"}
@@ -89,10 +93,15 @@ func configure(data: Dictionary) -> Dictionary:
 	for line in data["small_talk"]:
 		if not _valid_text(line, 240):
 			return {"ok": false, "code": "INVALID_SMALL_TALK"}
+	if data.has("location_small_talk") and not _valid_location_talk(data["location_small_talk"]):
+		return {"ok": false, "code": "INVALID_LOCATION_SMALL_TALK"}
 	# Validate everything before replacing an earlier, usable configuration.
 	_copy = data.duplicate(true)
 	_copy["schema_version"] = 1
+	if not _copy["destination_names"].has("terrace"):
+		_copy["destination_names"]["terrace"] = "公共晒台"
 	_talk_index = 0
+	_location_talk_indices.clear()
 	return {"ok": true, "code": "RESIDENT_LINES_READY"}
 
 
@@ -105,14 +114,12 @@ func open_resident(status: Dictionary, view: Dictionary) -> bool:
 	_view = view.duplicate(true)
 	_name_label.text = _copy["display_name"]
 	_activity_label.text = "当前：" + str(_status["activity"])
-	if _status["phase"] == "bench" and not _status["moving"] and not _view["lamp_on"] and _status["blocked"] == "":
+	if _resting_at("bench") and not _view["lamp_on"]:
 		_activity_label.text = "当前：在工作台边歇一会儿，灯关着，暂不检修"
 	var greeting_key: String = _status["blocked"]
 	if greeting_key.is_empty():
 		greeting_key = "moving" if _status["moving"] else "idle"
 	_reply_label.text = _copy["greetings"][greeting_key]
-	if not _view["lamp_on"]:
-		_reply_label.text += "\n\n" + str(_copy["lamp_replies"]["off"])
 	_scroll.scroll_vertical = 0
 	_is_open = true
 	_fit_viewport()
@@ -169,7 +176,7 @@ func _answer_toolbox() -> void:
 	if not _is_open:
 		return
 	var reply: String = _copy["toolbox_replies"][_view["toolbox_anchor"]]
-	if not _view["lamp_on"]:
+	if _resting_at("bench") and not _view["lamp_on"]:
 		reply += "\n\n" + str(_copy["lamp_replies"]["off"])
 	_show_reply(reply)
 
@@ -177,8 +184,23 @@ func _answer_toolbox() -> void:
 func _answer_small_talk() -> void:
 	if not _is_open:
 		return
+	var phase: String = _status["phase"]
+	# A phase can name the destination while the resident is still on the road.
+	# Use local observations only after arrival; blocked greetings stay truthful.
+	if _copy.has("location_small_talk") and _resting_at(phase):
+		var local_lines: Array = _copy["location_small_talk"][phase]
+		var index: int = int(_location_talk_indices.get(phase, 0))
+		_show_reply(local_lines[index])
+		_location_talk_indices[phase] = (index + 1) % local_lines.size()
+		return
 	_show_reply(_copy["small_talk"][_talk_index])
 	_talk_index = (_talk_index + 1) % 3
+
+
+func _resting_at(phase: String) -> bool:
+	# Intermediate route nodes can also settle for a frame. Only a completed
+	# destination exposes the NEXT phase as goal in the resident status contract.
+	return _status["phase"] == phase and _status["goal"] != phase and not _status["moving"] and _status["blocked"] == ""
 
 
 func _answer_lamp() -> void:
@@ -248,6 +270,18 @@ func _text_map(value: Variant, fields: Array, limit: int) -> bool:
 	for field in fields:
 		if not _valid_text(value[field], limit):
 			return false
+	return true
+
+
+func _valid_location_talk(value: Variant) -> bool:
+	if not _exact_keys(value, PHASES):
+		return false
+	for phase in PHASES:
+		if typeof(value[phase]) != TYPE_ARRAY or value[phase].size() != 2:
+			return false
+		for line in value[phase]:
+			if not _valid_text(line, 240):
+				return false
 	return true
 
 

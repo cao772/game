@@ -1,5 +1,18 @@
 # Source development log
 
+## GAME-WORLD-LIFE-014 — 2026-11-06
+
+Extended the existing workshop resident's routine to a separate terrace lookout.
+The actor uses the stair route, rests above the yard, and returns through the same
+gate-aware graph. Waypoint arrival checks floor contact and height; player blocking
+continues to pause progress. The player's bench and alternate ramp remain available.
+Optional place-specific small talk distinguishes a current stop from a future
+destination and accepts older three-destination copy. Five-field urban saves,
+world/quest data, the terrace geometry and staging assets remain unchanged.
+
+Source and offline review only. Godot import, gameplay, tests, animation, save I/O
+and Windows export remain NOT_RUN.
+
 ## GAME-WORLD-TERRACE-013 — 2026-11-06
 
 Added a public yard terrace at 3 m with a short stair route, a switchback ramp and

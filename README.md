@@ -45,3 +45,8 @@ urban save unchanged; it is not a full-day city simulation or final character ar
 The [public terrace](docs/development/urban-terrace-v13.md) adds an elevated yard
 loop reached by stairs or a switchback ramp, plus optional seated observation.
 The same layout save is retained; posture and temporary movement remain unsaved.
+
+The same [resident now visits the terrace](docs/development/urban-life-v14.md)
+independently, using the stair route to a separate standing lookout before returning
+to work. Optional small talk varies by the actual resting place, with older
+conversation configurations retained. This remains source-only development.
