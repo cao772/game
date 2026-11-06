@@ -1,5 +1,18 @@
 # Source development log
 
+## GAME-WORLD-MODERN-010 — 2026-11-06
+
+Added a separate modern residential street with first-person and close shoulder
+camera controls, six-storey blocks, street/alley/rear-path loops and bundled CC0
+plaster, asphalt and paving maps. The explorer saves before entry and the street
+returns through an exported path. Existing atlas, state/save contracts, quest data
+and the earlier world controller remain unchanged. Modern street position is temporary.
+
+This is an authored scale/material source study: shop interiors, traffic and urban
+resident simulation are not implemented. Offline grammar/resource/asset checks and
+cross-author source review do not establish rendered appearance, camera collision,
+performance or gameplay acceptance. Godot, game, tests and Windows build are NOT_RUN.
+
 ## GAME-WORLD-RESIDENTS-009 — 2026-11-06
 
 Residents now follow authored, clock-derived routes through the three regions.

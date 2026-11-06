@@ -14,6 +14,7 @@ const COURIER = preload("res://art/resident_courier/courier.glb")
 @export_file("*.tscn") var story_scene := "res://scenes/explorer_dispatch.tscn"
 @export_file("*.json") var resident_routes_path := "res://content/resident_routes.json"
 @export_file("*.json") var resident_lines_path := "res://content/resident_lines.json"
+@export_file("*.tscn") var modern_scene := "res://scenes/modern_street.tscn"
 
 var _state := State.new()
 var _store := Store.new()
@@ -136,6 +137,7 @@ func _build_ui() -> void:
 	_button(box, "恢复最新保存 · F9", _request_load)
 	_button(box, "整理较早存档（保留最近32份）", _archive)
 	_button(box, "去登记区（先保存街外进度）", _open_story)
+	_button(box, "去现代街区（先保存街外进度）", _open_modern)
 	_map = PanelContainer.new()
 	_map.position = Vector2(335, 28)
 	_map.custom_minimum_size = Vector2(650, 0)
@@ -439,6 +441,15 @@ func _toggle_map() -> void:
 	_map.visible = not _map.visible
 	_player.release_pointer()
 	_refresh_hud()
+
+func _open_modern() -> void:
+	if not _save():
+		return
+	_close_chat()
+	_player.release_pointer()
+	var error := get_tree().change_scene_to_file(modern_scene)
+	if error != OK:
+		_notice.text = "现代街区暂时无法进入：%s" % error
 
 func _refresh_hud() -> void:
 	var state: Dictionary = _projection["state"]

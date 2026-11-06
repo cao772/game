@@ -25,3 +25,9 @@ The next source slice adds [residents on the road](docs/development/resident-act
 two authored daily itineraries, walking models, optional conversation, live directions
 and cancellable manual companion markers. Route changes preserve the 008 atlas and
 world save identity. Runtime acceptance is still pending.
+
+A separate [modern residential street](docs/development/modern-street-v10.md) adds
+first-person and close third-person source controls, human-scale apartment blocks,
+looping street/alley paths and three bundled CC0 PBR materials. It can be entered
+from the regional explorer after saving. This is a source-only scale/material study;
+rendering, collision and performance remain unverified.
