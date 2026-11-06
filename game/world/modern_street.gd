@@ -10,6 +10,7 @@ const ResidentPanel = preload("res://ui/urban_resident_panel.gd")
 const Terrace = preload("res://world/urban_terrace.gd")
 const ReadingRoom = preload("res://world/urban_reading_room.gd")
 const ReadingVisitor = preload("res://world/urban_reading_visitor.gd")
+const WashShelter = preload("res://world/urban_wash_shelter.gd")
 @export_file("*.tscn") var return_scene_path: String = "res://scenes/world_explorer.tscn"
 @export_file("*.json") var resident_lines_path: String = "res://content/urban_resident_lines.json"
 @export_file("*.json") var visitor_lines_path: String = "res://content/reading_visitor_lines.json"
@@ -39,6 +40,7 @@ var _toolbar: Array[Button] = []
 var _terrace: Terrace
 var _reading_room: ReadingRoom
 var _reading_visitor: ReadingVisitor
+var _wash_shelter: WashShelter
 var _seat_label: String = "长椅"
 var _seated_forward := Vector3.FORWARD
 
@@ -61,6 +63,9 @@ func _ready() -> void:
 	_reading_room = ReadingRoom.new()
 	add_child(_reading_room)
 	_reading_room.setup(_materials, _font)
+	_wash_shelter = WashShelter.new()
+	add_child(_wash_shelter)
+	_wash_shelter.setup(_materials, _font)
 	_walker = Walker.new()
 	_walker.position = Vector3(0, 0, 20)
 	_walker.recover_pos = Vector3(0, 0.1, 20)
@@ -95,11 +100,25 @@ func _process(_delta: float) -> void:
 		if _walker.is_seated():
 			_action.text = "E：离开" + _seat_label + " · 起身位置被挡时会留在座位上"
 		else:
-			_action.text = "E：" + _target_caption(_nearest, view) if not _nearest.is_empty() else "西侧阅览室可穿行到后巷 · 东侧工坊通后院与晒台"
+			_action.text = "E：" + _target_caption(_nearest, view) if not _nearest.is_empty() else "阅览室后巷有洗择棚 · 东侧工坊通后院与晒台"
 		if _reading_room.is_carrying():
 			_action.text += " · 手持书盘 · F 翻页"
 		elif not _nearest.is_empty() and _reading_room.has_tray(str(_nearest["id"])):
-			_action.text += " · F 翻页" if _walker.is_seated() else " · R 拿起书盘"
+			if _walker.is_seated():
+				_action.text += " · F 翻页"
+			elif _wash_shelter.is_carrying() or view["toolbox_anchor"] == "carried":
+				_action.text += " · F 翻页 · 先放好手中物品再拿书盘"
+			else:
+				_action.text += " · R 拿起书盘"
+		if _wash_shelter.is_carrying():
+			_action.text += " · 手持公共盆"
+		if not _nearest.is_empty() and WashShelter.ANCHORS.has(str(_nearest["id"])):
+			if _wash_shelter.is_carrying():
+				_action.text += " · R 放盆"
+			elif _wash_shelter.has_basin(str(_nearest["id"])):
+				_action.text += " · 先放好手中物品再拿盆" if _reading_room.is_carrying() or view["toolbox_anchor"] == "carried" else " · R 拿盆"
+		if _wash_shelter.is_carrying() or (not _nearest.is_empty() and WashShelter.ANCHORS.has(str(_nearest["id"]))):
+			_action.text += "\n" + _wash_shelter.summary()
 		_action.text += " · 手持工具箱" if view["toolbox_anchor"] == "carried" else ""
 		_action.text += " · 尚未保存" if _dirty else ""
 		if is_instance_valid(_resident):
@@ -117,6 +136,7 @@ func _physics_process(delta: float) -> void:
 		_workshop.present_activity(_resident.status() if enabled else {})
 	if is_instance_valid(_reading_visitor):
 		_reading_visitor.advance(delta, _reading_room.visitor_view(), enabled)
+	_wash_shelter.advance(delta, enabled)
 	if not enabled:
 		_interact_queued = false
 		_reading_action = ""
@@ -130,7 +150,10 @@ func _physics_process(delta: float) -> void:
 		_reading_action = ""
 		_interact(delta)
 	elif reading_action == "move":
-		_move_reading_tray(delta)
+		if _wash_shelter.is_carrying() or (not _nearest.is_empty() and WashShelter.ANCHORS.has(str(_nearest["id"]))):
+			_move_wash_basin(delta)
+		else:
+			_move_reading_tray(delta)
 	elif reading_action == "read":
 		_read_page()
 	_reading_visitor.refresh_reading(_reading_room.visitor_view())
@@ -144,6 +167,8 @@ func _notification(what: int) -> void:
 			_resident.suspend_activity()
 		if is_instance_valid(_reading_visitor):
 			_reading_visitor.suspend_activity()
+		if is_instance_valid(_wash_shelter):
+			_wash_shelter.suspend_activity()
 		if is_instance_valid(_workshop):
 			_workshop.present_activity({})
 
@@ -393,13 +418,13 @@ func _build_ui() -> void:
 	column.add_child(_action)
 	_load_confirm = ConfirmationDialog.new()
 	_load_confirm.title = "恢复现代街区"
-	_load_confirm.dialog_text = "恢复最近保存的工坊门、工作灯与工具箱位置，并回到街上起点？当前未保存改动会被替换；书盘回阅览台，阅览灯和书页回到初始状态；阅览来客从前廊重新开始这次来访。"
+	_load_confirm.dialog_text = "恢复最近保存的工坊门、工作灯与工具箱位置，并回到街上起点？当前未保存改动会被替换；书盘回阅览台，阅览灯和书页回到初始状态；阅览来客从前廊重新来访；公共盆回水槽，水、菜、龙头和滴水复位。"
 	_load_confirm.confirmed.connect(_restore_latest.bind(false))
 	_load_confirm.visibility_changed.connect(_update_modal_controls)
 	canvas.add_child(_load_confirm)
 	_leave_confirm = ConfirmationDialog.new()
 	_leave_confirm.title = "不保存返回"
-	_leave_confirm.dialog_text = "离开现代街区并放弃本次未保存的布置？原有存档保留；公共书盘回阅览台，下次进入时来客重新开始来访。"
+	_leave_confirm.dialog_text = "离开现代街区并放弃本次未保存的布置？原有存档保留；公共书盘回阅览台，公共盆回水槽且水菜复位，下次进入时来客重新来访。"
 	_leave_confirm.confirmed.connect(_leave_without_save)
 	_leave_confirm.visibility_changed.connect(_update_modal_controls)
 	canvas.add_child(_leave_confirm)
@@ -469,6 +494,7 @@ func _update_modal_controls() -> void:
 		if not _walker.controls_enabled:
 			_resident.suspend_activity()
 			_reading_visitor.suspend_activity()
+			_wash_shelter.suspend_activity()
 			_workshop.present_activity({})
 			_walker.release_pointer()
 			_interact_queued = false
@@ -483,7 +509,7 @@ func _save_urban() -> bool:
 	var saved: Dictionary = _store.write_record("urban_free", _urban.snapshot())
 	if saved.get("ok", false):
 		_dirty = false
-		_last_error = "已保存工坊门、工作灯和工具箱；书盘位置、阅览灯、书页与来客进度只保留到离场或恢复。"
+		_last_error = "已保存工坊门、工作灯和工具箱；书盘、阅览灯、书页、来客与洗择棚状态只保留到离场或成功恢复。"
 	else:
 		_last_error = "保存失败：%s。当前布置仍保留，可整理旧档后重试。" % saved.get("code", "UNKNOWN")
 	return saved.get("ok", false)
@@ -507,6 +533,8 @@ func _restore_latest(initial: bool) -> void:
 			# Resident motion is scene-local, not part of the five-field layout save.
 			# Reset before restored shutters can become solid around an old pose.
 			_resident.reset_routine()
+			# Clear scene-local held objects before projecting the restored toolbox.
+			_wash_shelter.reset_visit()
 			_reading_room.reset_visit()
 			_reading_visitor.reset_visit()
 			_last_error = "已恢复街区布置，回到街上起点。"
@@ -551,6 +579,7 @@ func _find_target() -> Dictionary:
 	candidates.append(_reading_visitor.interaction_target())
 	candidates.append_array(_terrace.targets())
 	candidates.append_array(_reading_room.targets())
+	candidates.append_array(_wash_shelter.targets())
 	if _resident_copy_ready:
 		candidates.append(_resident.interaction_target())
 	for target in candidates:
@@ -584,6 +613,8 @@ func _target_caption(target: Dictionary, view: Dictionary) -> String:
 	var id: String = target["id"]
 	if ReadingRoom.TRAY_ANCHORS.has(id):
 		return _reading_room.caption(id)
+	if WashShelter.ANCHORS.has(id):
+		return _wash_shelter.caption(id)
 	match id:
 		"reading_lamp", "reading_seat":
 			return _reading_room.caption(id)
@@ -627,6 +658,10 @@ func _interact(delta: float) -> void:
 		_nearest.clear()
 		_interact_queued = false
 		_reading_action = ""
+		return
+	elif WashShelter.ANCHORS.has(id):
+		_last_error = _wash_shelter.use_station(id)
+		_nearest.clear()
 		return
 	elif ReadingRoom.TRAY_ANCHORS.has(id):
 		if _reading_room.is_carrying():
@@ -673,6 +708,9 @@ func _interact(delta: float) -> void:
 			return
 		result = _urban.place_toolbox(id)
 	else:
+		if _wash_shelter.is_carrying():
+			_last_error = "手里已有公共盆，请先放回洗择棚任一台面。"
+			return
 		if _reading_room.is_carrying():
 			_last_error = "手里已有书盘，请先放到阅览台、座旁低台或前廊窄台。"
 			return
@@ -703,6 +741,9 @@ func _move_reading_tray(delta: float) -> void:
 		return
 	var id: String = _nearest["id"]
 	if not _reading_room.is_carrying():
+		if _wash_shelter.is_carrying():
+			_last_error = "手里已有公共盆，请先放回洗择棚，再拿书盘。"
+			return
 		var toolbox_carried: bool = _urban.view()["toolbox_anchor"] == "carried"
 		if not _reading_room.take_tray(id, toolbox_carried):
 			_last_error = "手里已有工具箱，请先放回工坊或院台。" if toolbox_carried else "这里没有可拿的书盘。"
@@ -717,6 +758,34 @@ func _move_reading_tray(delta: float) -> void:
 		if not _reading_room.place_tray(id):
 			return
 		_last_error = "已放到" + str(ReadingRoom.TRAY_LABELS[id]) + "；书页保留，可就近翻阅。"
+	_nearest.clear()
+	_interact_queued = false
+	_reading_action = ""
+
+
+func _move_wash_basin(delta: float) -> void:
+	if _walker.is_seated():
+		_last_error = "请先按 E 起身，再拿放公共盆。"
+		return
+	if _nearest.is_empty() or not WashShelter.ANCHORS.has(str(_nearest["id"])):
+		_last_error = "看向洗择棚的接水槽、择洗台或沥水台，再按 R 拿放盆。"
+		return
+	var id: String = _nearest["id"]
+	if not _wash_shelter.is_carrying():
+		var occupied: bool = _reading_room.is_carrying() or _urban.view()["toolbox_anchor"] == "carried"
+		if not _wash_shelter.take_basin(id, occupied):
+			_last_error = "手里已有物品，请先归位，再拿公共盆。" if occupied else "这里没有公共盆，可以先把盆带过来。"
+			return
+		_sync_held()
+		_last_error = "拿起公共盆；水和菜随盆移动。看向洗择棚台面按 R 放下。"
+	else:
+		for feet in [_walker.global_position, _walker.global_position + _walker.velocity * delta, _resident.global_position, _resident.possible_next_position(delta), _reading_visitor.global_position, _reading_visitor.possible_next_position(delta)]:
+			if _wash_shelter.placement_occupied(id, feet):
+				_last_error = "放置位置有人，稍等让开后再放盆。"
+				return
+		if not _wash_shelter.place_basin(id):
+			return
+		_last_error = "公共盆已放到" + str(WashShelter.LABELS[id]) + "。按 E 使用台面。"
 	_nearest.clear()
 	_interact_queued = false
 	_reading_action = ""
@@ -743,6 +812,7 @@ func _sync_held() -> void:
 	_held.position = _walker.position + Vector3.UP * held_height + forward * held_distance
 	_held.rotation.y = atan2(-forward.x, -forward.z)
 	_reading_room.present_carried(_held.global_position, _held.global_rotation.y)
+	_wash_shelter.present_carried(_held.global_position, _held.global_rotation.y)
 
 
 func _sign(text: String, p: Vector3, yaw: float) -> void:

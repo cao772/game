@@ -1,3 +1,7 @@
+## 019 — 2026-11-07
+
+Adds a west rear-lane wash shelter and one public basin with continuous fill, one-time preparation and draining. Three station uses, three-way pickup exclusion, actor-aware placement and pause/success-only-reset semantics are integrated without expanding existing save schemas.31 scripts parsed offline; fixed geometry and resource checks only. Godot/gameplay/tests/builds NOT_RUN.
+
 ## 018 — 2026-11-07
 
 Adds one finite reading visitor with tray-aware observation, a private notebook visual, window/quiet drawing spots and rear-lane return. Routes wait, retreat physically and replan around blocked edges. Existing player interactions and save schemas remain unchanged; success-only reset and modal/focus suspension are integrated. Offline grammar and source/geometry checks only; Godot/gameplay/builds NOT_RUN.
