@@ -182,3 +182,5 @@ The desk, bench-side table and covered-frontage ledge are the three supports.
 Page number follows the tray. Its position is visit-local and resets to the desk
 on re-entry or successful F9 restore; it is not part of F5 saves. See
 `../docs/development/urban-reading-tray-v17.md`. Source-only; runtime NOT_RUN.
+
+018: 一名阅览来客会自行看公共册、画自己的本子、经后巷回廊下。近处看向来客按E了解当前活动，时间继续；不抢玩家椅或公共盘。来访进度不入旧档，重进/成功恢复重新开始，失败/取消保留。角色、册/笔为代理表现，Godot/游戏仍未运行验收。

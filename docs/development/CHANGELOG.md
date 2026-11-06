@@ -1,3 +1,7 @@
+## 018 — 2026-11-07
+
+Adds one finite reading visitor with tray-aware observation, a private notebook visual, window/quiet drawing spots and rear-lane return. Routes wait, retreat physically and replan around blocked edges. Existing player interactions and save schemas remain unchanged; success-only reset and modal/focus suspension are integrated. Offline grammar and source/geometry checks only; Godot/gameplay/builds NOT_RUN.
+
 # Source development log
 
 ## GAME-WORLD-READING-TRAY-017 — 2026-11-07

@@ -9,8 +9,10 @@ const Resident = preload("res://world/urban_resident.gd")
 const ResidentPanel = preload("res://ui/urban_resident_panel.gd")
 const Terrace = preload("res://world/urban_terrace.gd")
 const ReadingRoom = preload("res://world/urban_reading_room.gd")
+const ReadingVisitor = preload("res://world/urban_reading_visitor.gd")
 @export_file("*.tscn") var return_scene_path: String = "res://scenes/world_explorer.tscn"
 @export_file("*.json") var resident_lines_path: String = "res://content/urban_resident_lines.json"
+@export_file("*.json") var visitor_lines_path: String = "res://content/reading_visitor_lines.json"
 
 var _walker: Walker
 var _hint: Label
@@ -36,6 +38,7 @@ var _resident_copy_ready := false
 var _toolbar: Array[Button] = []
 var _terrace: Terrace
 var _reading_room: ReadingRoom
+var _reading_visitor: ReadingVisitor
 var _seat_label: String = "长椅"
 var _seated_forward := Vector3.FORWARD
 
@@ -66,6 +69,14 @@ func _ready() -> void:
 	_walker.collision_mask |= 4
 	_resident = Resident.new()
 	add_child(_resident)
+	_reading_visitor = ReadingVisitor.new()
+	add_child(_reading_visitor)
+	var visitor_file := FileAccess.open(visitor_lines_path, FileAccess.READ)
+	if visitor_file != null:
+		var copy: Variant = JSON.parse_string(visitor_file.get_as_text())
+		visitor_file.close()
+		if copy is Dictionary:
+			_reading_visitor.configure(copy)
 	_build_ui()
 	_build_held()
 	_restore_latest(true)
@@ -93,6 +104,9 @@ func _process(_delta: float) -> void:
 		_action.text += " · 尚未保存" if _dirty else ""
 		if is_instance_valid(_resident):
 			_action.text += "\n工坊住户：" + str(_resident.status()["activity"])
+		if is_instance_valid(_reading_visitor):
+			var visitor_status: Dictionary = _reading_visitor.status()
+			_action.text += "\n" + str(visitor_status["name"]) + "：" + str(visitor_status["activity"])
 		_sync_held()
 
 
@@ -101,6 +115,8 @@ func _physics_process(delta: float) -> void:
 	if is_instance_valid(_resident):
 		_resident.advance(delta, _urban.view(), enabled)
 		_workshop.present_activity(_resident.status() if enabled else {})
+	if is_instance_valid(_reading_visitor):
+		_reading_visitor.advance(delta, _reading_room.visitor_view(), enabled)
 	if not enabled:
 		_interact_queued = false
 		_reading_action = ""
@@ -117,6 +133,7 @@ func _physics_process(delta: float) -> void:
 		_move_reading_tray(delta)
 	elif reading_action == "read":
 		_read_page()
+	_reading_visitor.refresh_reading(_reading_room.visitor_view())
 
 
 func _notification(what: int) -> void:
@@ -125,6 +142,8 @@ func _notification(what: int) -> void:
 		_reading_action = ""
 		if is_instance_valid(_resident):
 			_resident.suspend_activity()
+		if is_instance_valid(_reading_visitor):
+			_reading_visitor.suspend_activity()
 		if is_instance_valid(_workshop):
 			_workshop.present_activity({})
 
@@ -374,13 +393,13 @@ func _build_ui() -> void:
 	column.add_child(_action)
 	_load_confirm = ConfirmationDialog.new()
 	_load_confirm.title = "恢复现代街区"
-	_load_confirm.dialog_text = "恢复最近保存的工坊门、工作灯与工具箱位置，并回到街上起点？当前未保存改动会被替换；书盘回阅览台，阅览灯和书页回到初始状态。"
+	_load_confirm.dialog_text = "恢复最近保存的工坊门、工作灯与工具箱位置，并回到街上起点？当前未保存改动会被替换；书盘回阅览台，阅览灯和书页回到初始状态；阅览来客从前廊重新开始这次来访。"
 	_load_confirm.confirmed.connect(_restore_latest.bind(false))
 	_load_confirm.visibility_changed.connect(_update_modal_controls)
 	canvas.add_child(_load_confirm)
 	_leave_confirm = ConfirmationDialog.new()
 	_leave_confirm.title = "不保存返回"
-	_leave_confirm.dialog_text = "离开现代街区并放弃本次未保存的布置？原有存档保留；公共书盘回阅览台。"
+	_leave_confirm.dialog_text = "离开现代街区并放弃本次未保存的布置？原有存档保留；公共书盘回阅览台，下次进入时来客重新开始来访。"
 	_leave_confirm.confirmed.connect(_leave_without_save)
 	_leave_confirm.visibility_changed.connect(_update_modal_controls)
 	canvas.add_child(_leave_confirm)
@@ -449,6 +468,7 @@ func _update_modal_controls() -> void:
 			_resident.set_conversing(talking)
 		if not _walker.controls_enabled:
 			_resident.suspend_activity()
+			_reading_visitor.suspend_activity()
 			_workshop.present_activity({})
 			_walker.release_pointer()
 			_interact_queued = false
@@ -463,7 +483,7 @@ func _save_urban() -> bool:
 	var saved: Dictionary = _store.write_record("urban_free", _urban.snapshot())
 	if saved.get("ok", false):
 		_dirty = false
-		_last_error = "已保存工坊门、工作灯和工具箱；书盘位置、阅览灯与书页只保留到离场或恢复。"
+		_last_error = "已保存工坊门、工作灯和工具箱；书盘位置、阅览灯、书页与来客进度只保留到离场或恢复。"
 	else:
 		_last_error = "保存失败：%s。当前布置仍保留，可整理旧档后重试。" % saved.get("code", "UNKNOWN")
 	return saved.get("ok", false)
@@ -488,6 +508,7 @@ func _restore_latest(initial: bool) -> void:
 			# Reset before restored shutters can become solid around an old pose.
 			_resident.reset_routine()
 			_reading_room.reset_visit()
+			_reading_visitor.reset_visit()
 			_last_error = "已恢复街区布置，回到街上起点。"
 			if record.get("code") == "RECOVERED_OLDER_RECORD" or not record.get("skipped", []).is_empty():
 				_last_error += " 最近记录不可用，采用了较早的有效存档。"
@@ -527,6 +548,7 @@ func _find_target() -> Dictionary:
 	var best: Dictionary = {}
 	var best_score := -INF
 	var candidates: Array[Dictionary] = _workshop.targets()
+	candidates.append(_reading_visitor.interaction_target())
 	candidates.append_array(_terrace.targets())
 	candidates.append_array(_reading_room.targets())
 	if _resident_copy_ready:
@@ -548,7 +570,7 @@ func _find_target() -> Dictionary:
 		var ray := PhysicsRayQueryParameters3D.create(eye, target["position"], 1 | 4)
 		ray.hit_from_inside = true
 		var hit := get_world_3d().direct_space_state.intersect_ray(ray)
-		var own_resident: bool = id == "workshop_resident" and hit.get("collider") == _resident
+		var own_resident: bool = (id == "workshop_resident" and hit.get("collider") == _resident) or (id == "reading_visitor" and hit.get("collider") == _reading_visitor)
 		if not hit.is_empty() and not own_resident and not _workshop.is_gate_collider(id, hit.get("collider")):
 			continue
 		var score := facing * 3.0 - distance
@@ -569,6 +591,8 @@ func _target_caption(target: Dictionary, view: Dictionary) -> String:
 			return "坐在晒台长椅上"
 		"workshop_resident":
 			return "和工坊住户聊聊"
+		"reading_visitor":
+			return "看看" + str(target["label"]) + "在忙什么"
 		"front_gate", "back_gate":
 			var opened: bool = view["front_open" if id == "front_gate" else "back_open"]
 			return ("关闭" if opened else "打开") + target["label"]
@@ -615,6 +639,10 @@ func _interact(delta: float) -> void:
 		_nearest.clear()
 		_interact_queued = false
 		_reading_action = ""
+		return
+	elif id == "reading_visitor":
+		# A passing remark, not a modal conversation or timer reset.
+		_last_error = _reading_visitor.describe()
 		return
 	elif id == "workshop_resident":
 		_walker.release_pointer()
@@ -682,7 +710,7 @@ func _move_reading_tray(delta: float) -> void:
 		_sync_held()
 		_last_error = "拿起了公共书盘；F 翻页，看向另一处台面按 E 或 R 放下。"
 	else:
-		for feet in [_walker.global_position, _walker.global_position + _walker.velocity * delta, _resident.global_position, _resident.possible_next_position(delta)]:
+		for feet in [_walker.global_position, _walker.global_position + _walker.velocity * delta, _resident.global_position, _resident.possible_next_position(delta), _reading_visitor.global_position, _reading_visitor.possible_next_position(delta)]:
 			if _reading_room.placement_occupied(id, feet):
 				_last_error = "放置位置有人，等让开后再放。"
 				return

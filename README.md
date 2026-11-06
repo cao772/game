@@ -65,3 +65,5 @@ A [movable reading tray](docs/development/urban-reading-tray-v17.md) lets the pl
 choose the desk, bench-side table or covered frontage. Book and toolbox pickups
 share one hand slot. Pages follow the tray; seated reading retains range/occlusion
 checks. Tray layout lasts for the visit and does not alter legacy save schemas.
+
+018 adds a finite reading-room visitor with a personal sketchbook, tray-aware observation and checked retreat/routing. See [source behavior and limits](docs/development/urban-reading-visitor-v18.md). This remains a source-only candidate, without Godot/gameplay execution.

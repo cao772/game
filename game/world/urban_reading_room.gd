@@ -104,6 +104,11 @@ func has_tray(id: String) -> bool:
 	return TRAY_ANCHORS.has(id) and _tray_anchor == id
 
 
+func visitor_view() -> Dictionary:
+	# A detached observation, never permission to take, move or turn the book.
+	return {"anchor": _tray_anchor, "page": _page_index}
+
+
 func take_tray(id: String, toolbox_carried: bool) -> bool:
 	if toolbox_carried or not has_tray(id):
 		return false
