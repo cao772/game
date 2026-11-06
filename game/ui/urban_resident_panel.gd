@@ -4,6 +4,7 @@ extends PanelContainer
 
 signal closed
 
+const WorkRules = preload("res://runtime/urban_work_rules.gd")
 const RESIDENT_ID := "workshop_resident"
 const LEGACY_PHASES := ["bench", "shelf", "yard"]
 const PHASES := ["bench", "shelf", "yard", "terrace"]
@@ -27,6 +28,7 @@ var _view: Dictionary = {}
 var _is_open := false
 var _talk_index := 0
 var _location_talk_indices: Dictionary = {}
+var _work_talk_indices: Dictionary = {}
 var _name_label: Label
 var _activity_label: Label
 var _reply_label: Label
@@ -70,9 +72,11 @@ func _ready() -> void:
 func configure(data: Dictionary) -> Dictionary:
 	if _is_open:
 		return {"ok": false, "code": "CONVERSATION_OPEN"}
-	var extended_fields: Array = CONFIG_FIELDS.duplicate()
-	extended_fields.append("location_small_talk")
-	if not (_exact_keys(data, CONFIG_FIELDS) or _exact_keys(data, extended_fields)) or not _version_one(data["schema_version"]):
+	var expected_fields: Array = CONFIG_FIELDS.duplicate()
+	for optional in ["location_small_talk", "work_small_talk"]:
+		if data.has(optional):
+			expected_fields.append(optional)
+	if not _exact_keys(data, expected_fields) or not _version_one(data["schema_version"]):
 		return {"ok": false, "code": "INVALID_RESIDENT_CONFIG"}
 	if typeof(data["resident_id"]) != TYPE_STRING or data["resident_id"] != RESIDENT_ID:
 		return {"ok": false, "code": "INVALID_RESIDENT_ID"}
@@ -93,8 +97,10 @@ func configure(data: Dictionary) -> Dictionary:
 	for line in data["small_talk"]:
 		if not _valid_text(line, 240):
 			return {"ok": false, "code": "INVALID_SMALL_TALK"}
-	if data.has("location_small_talk") and not _valid_location_talk(data["location_small_talk"]):
+	if data.has("location_small_talk") and not _valid_place_talk(data["location_small_talk"], PHASES):
 		return {"ok": false, "code": "INVALID_LOCATION_SMALL_TALK"}
+	if data.has("work_small_talk") and not _valid_place_talk(data["work_small_talk"], ["bench", "yard"]):
+		return {"ok": false, "code": "INVALID_WORK_SMALL_TALK"}
 	# Validate everything before replacing an earlier, usable configuration.
 	_copy = data.duplicate(true)
 	_copy["schema_version"] = 1
@@ -102,6 +108,7 @@ func configure(data: Dictionary) -> Dictionary:
 		_copy["destination_names"]["terrace"] = "公共晒台"
 	_talk_index = 0
 	_location_talk_indices.clear()
+	_work_talk_indices.clear()
 	return {"ok": true, "code": "RESIDENT_LINES_READY"}
 
 
@@ -184,6 +191,18 @@ func _answer_toolbox() -> void:
 func _answer_small_talk() -> void:
 	if not _is_open:
 		return
+	var working: String = WorkRules.work_site(_status, _view)
+	if not working.is_empty():
+		if _copy.has("work_small_talk"):
+			var work_lines: Array = _copy["work_small_talk"][working]
+			var work_index: int = int(_work_talk_indices.get(working, 0))
+			_show_reply(work_lines[work_index])
+			_work_talk_indices[working] = (work_index + 1) % work_lines.size()
+		else:
+			# Legacy place copy may say the resident is resting. Use its general
+			# topics while working unless explicit work copy is configured.
+			_show_general_talk()
+		return
 	var phase: String = _status["phase"]
 	# A phase can name the destination while the resident is still on the road.
 	# Use local observations only after arrival; blocked greetings stay truthful.
@@ -193,6 +212,10 @@ func _answer_small_talk() -> void:
 		_show_reply(local_lines[index])
 		_location_talk_indices[phase] = (index + 1) % local_lines.size()
 		return
+	_show_general_talk()
+
+
+func _show_general_talk() -> void:
 	_show_reply(_copy["small_talk"][_talk_index])
 	_talk_index = (_talk_index + 1) % 3
 
@@ -273,10 +296,10 @@ func _text_map(value: Variant, fields: Array, limit: int) -> bool:
 	return true
 
 
-func _valid_location_talk(value: Variant) -> bool:
-	if not _exact_keys(value, PHASES):
+func _valid_place_talk(value: Variant, places: Array) -> bool:
+	if not _exact_keys(value, places):
 		return false
-	for phase in PHASES:
+	for phase in places:
 		if typeof(value[phase]) != TYPE_ARRAY or value[phase].size() != 2:
 			return false
 		for line in value[phase]:

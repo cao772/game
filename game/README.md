@@ -109,7 +109,7 @@ acceptance has been performed.
 
 ## A resident using the modern workshop
 
-The workshop resident alternates between the bench, shelving, yard and terrace. Walking
+The workshop resident uses the bench, shelving, yard and terrace. Walking
 uses an authored graph and physical collisions: closed shutters change available
 routes, and player obstruction pauses progress. E opens optional conversation
 nearby and in sight; Esc says goodbye. Replies reflect the current toolbox and
@@ -122,7 +122,7 @@ only the existing five-field layout is saved. Gate protection includes both the
 player and resident. Existing region residents and their schedules are unchanged.
 
 The current character is a licensed animated proxy, not the photorealistic concept
-image. See ../docs/development/urban-life-v14.md for current scope and pending runtime
+image. See ../docs/development/urban-yard-work-v15.md for current scope and pending runtime
 acceptance; no Godot import, gameplay or game tests have been executed.
 
 ## The public terrace
@@ -145,3 +145,18 @@ seating and camera behavior remain source-only and need runtime acceptance.
 At each resting place, optional small talk can reflect the surroundings. Moving
 or blocked conversations use general copy instead of implying the next stop has
 already been reached. Existing three-destination dialogue files remain supported.
+
+## Working indoors or in the yard
+
+The yard anchor is now a standing-height workbench. Place the same toolbox there
+to make outdoor tool organizing available when the resident arrives. Indoor work
+needs the box at the bench and its lamp on; yard work does not use that switch.
+Taking the box stops work and closes its hinged lid. Work and rest have distinct
+optional small talk. There are no repair orders, crafted products or rewards.
+
+After the indoor bench or terrace dwell, a box in the yard selects the yard as
+the next destination; otherwise the previous shelf/bench continuation remains.
+Shelf leads to yard and yard leads to terrace. Moving the box does not interrupt
+an active walk or remove the resident's rest. Box-lid pose is not saved; the same
+five-field layout remains. Details and pending acceptance are in
+`../docs/development/urban-yard-work-v15.md`.

@@ -4,6 +4,7 @@ extends CharacterBody3D
 ## Graph coordinates are world-space feet positions in the modern street.
 
 const MODEL: PackedScene = preload("res://art/resident_merchant/merchant.glb")
+const WorkRules = preload("res://runtime/urban_work_rules.gd")
 const SPEED: float = 1.05
 const ARRIVAL: float = 0.025
 const LEVEL_TOLERANCE: float = 0.08
@@ -12,7 +13,7 @@ const PHASES := ["bench", "shelf", "yard", "terrace"]
 const DWELL := {"bench": 25.0, "shelf": 12.0, "yard": 20.0, "terrace": 24.0}
 const POINTS := {
 	"bench": Vector3(18, 0, 11.5), "shelf": Vector3(22.5, 0, 23.1),
-	"yard": Vector3(27, 0, 18.8), "center": Vector3(19, 0, 17.5),
+	"yard": Vector3(27, 0, 19.3), "center": Vector3(19, 0, 17.5),
 	"front_in": Vector3(15.3, 0, 17.5), "front_out": Vector3(13.2, 0, 17.5),
 	"back_in": Vector3(22.9, 0, 17.5), "back_out": Vector3(25, 0, 17.5),
 	"south_front": Vector3(13.2, 0, 29.5), "south_back": Vector3(25, 0, 29.5),
@@ -51,7 +52,8 @@ var _conversing: bool = false
 var _enabled: bool = true
 var _moving: bool = false
 var _blocked: String = ""
-var _activity: String = "在工作台前等照明"
+var _at_destination: bool = false
+var _activity: String = "在工作台前歇一会儿"
 var _view: Dictionary = {}
 
 
@@ -109,7 +111,8 @@ func reset_routine() -> void:
 	_enabled = true
 	_moving = false
 	_blocked = ""
-	_activity = "在工作台前等照明"
+	_at_destination = false
+	_activity = "在工作台前歇一会儿"
 	if is_instance_valid(_visual):
 		_visual.rotation.y = PI
 	_play(&"Idle")
@@ -133,18 +136,22 @@ func advance(delta: float, view: Dictionary, enabled: bool) -> void:
 	if _edge_to.is_empty() and _node == _phase():
 		_settle(delta)
 		if not _at_point(POINTS[_node]):
+			_at_destination = false
 			_blocked = "obstacle"
 			_activity = "等脚下站稳"
 			_play(&"Idle")
 			return
+		_at_destination = true
 		_remaining = maxf(0.0, _remaining - minf(delta, MAX_STEP))
 		if _remaining > 0.0:
 			_work_or_rest()
 			return
-		_phase_index = (_phase_index + 1) % PHASES.size()
+		_at_destination = false
+		_phase_index = _next_phase_index()
 	if _edge_to.is_empty():
 		var route := _route(_node, _phase())
 		if route.size() < 2:
+			_at_destination = false
 			velocity = Vector3.ZERO
 			_blocked = "gate"
 			_activity = "通路关着，等门打开"
@@ -179,10 +186,31 @@ func set_conversing(value: bool) -> void:
 		_play(&"Idle")
 
 
+func refresh_work_view(view: Dictionary) -> void:
+	# Input can change the box/lamp after advance() in the same physics frame.
+	# Refresh presentation only: no timer, path selection, movement or query.
+	_view = view.duplicate()
+	if not _enabled or _conversing or _moving or not _blocked.is_empty() or not _at_destination:
+		return
+	if _edge_to.is_empty() and _node == _phase():
+		_work_or_rest()
+
+
+func suspend_activity() -> void:
+	# UI/focus changes can occur between physics frames. Stop presentation now,
+	# preserving route, dwell time and validated arrival for the next advance().
+	_enabled = false
+	velocity = Vector3.ZERO
+	_moving = false
+	if not _conversing:
+		_activity = "暂时停步"
+		_play(&"Idle", 0.0)
+
+
 func status() -> Dictionary:
 	var goal: String = _phase()
-	if _edge_to.is_empty() and _node == _phase():
-		goal = PHASES[(_phase_index + 1) % PHASES.size()]
+	if _at_destination and _edge_to.is_empty() and _node == _phase():
+		goal = PHASES[_next_phase_index()]
 	return {"id": "workshop_resident", "activity": _activity, "goal": goal,
 		"moving": _moving, "blocked": _blocked, "phase": _phase()}
 
@@ -201,9 +229,9 @@ func possible_next_position(delta: float) -> Vector3:
 		from = _node
 		var destination := _phase()
 		if _node == destination:
-			if _remaining > minf(delta, MAX_STEP):
+			if not _at_destination or _remaining > minf(delta, MAX_STEP):
 				return global_position
-			destination = PHASES[(_phase_index + 1) % PHASES.size()]
+			destination = PHASES[_next_phase_index()]
 		var route := _route(_node, destination)
 		if route.size() < 2:
 			return global_position
@@ -233,6 +261,7 @@ func _walk_edge(delta: float) -> void:
 		if _at_point(POINTS[_edge_to]):
 			_arrive()
 		else:
+			_at_destination = false
 			_blocked = "obstacle"
 			_activity = "等脚下站稳"
 		_play(&"Idle")
@@ -249,6 +278,7 @@ func _walk_edge(delta: float) -> void:
 	if _blocked.is_empty() and test_move(global_transform, intended * delta, probe, safe_margin, false, 4):
 		_blocked = _collision_kind(probe)
 	if not _blocked.is_empty():
+		_at_destination = false
 		_settle(delta)
 		_activity = "等你先过" if _blocked == "player" else "前面暂时走不过去"
 		_play(&"Idle")
@@ -327,6 +357,7 @@ func _at_point(point: Vector3) -> bool:
 func _arrive() -> void:
 	_node = _edge_to
 	_clear_edge()
+	_at_destination = _node == _phase()
 	if _node == _phase():
 		_remaining = float(DWELL[_phase()])
 
@@ -361,19 +392,37 @@ func _collision_kind(hit: KinematicCollision3D) -> String:
 
 
 func _work_or_rest() -> void:
-	var working: bool = _phase() == "shelf" or (_phase() == "bench" and bool(_view.get("lamp_on", false)) and str(_view.get("toolbox_anchor", "")) == "bench")
+	var site: String = WorkRules.work_site(status(), _view)
+	var working: bool = _phase() == "shelf" or not site.is_empty()
 	if _phase() == "bench":
-		_activity = "在工作台前整理工具" if working else ("在工作台前等照明" if not bool(_view.get("lamp_on", false)) else "在工作台前等工具箱")
+		_activity = "在工作台前整理工具" if working else "在工作台前歇一会儿"
 	elif _phase() == "shelf":
 		_activity = "整理货架上的物件"
 	elif _phase() == "terrace":
 		_activity = "站在晒台边看看街景"
 	else:
-		_activity = "在后院歇一会儿"
+		_activity = "在院内工作台前整理工具" if site == "yard" else "在后院歇一会儿"
 	if is_instance_valid(_visual):
 		# The northward view follows the open cross street, not the adjacent facade.
 		_visual.rotation.y = PI if _phase() in ["bench", "terrace"] else 0.0
-	_play(&"Interact" if working else &"Idle")
+	# Losing the box or indoor light stops the work clip without a lingering blend.
+	_play(&"Interact" if working else &"Idle", 0.12 if working else 0.0)
+
+
+func _next_phase_index() -> int:
+	# Select only when departing a completed dwell. Status and close-door
+	# prediction use this same preview; an already selected phase stays fixed.
+	var yard_box: bool = typeof(_view.get("toolbox_anchor")) == TYPE_STRING and _view["toolbox_anchor"] == "yard"
+	match _phase():
+		"bench":
+			return 2 if yard_box else 1
+		"shelf":
+			return 2
+		"yard":
+			return 3
+		"terrace":
+			return 2 if yard_box else 0
+	return 0
 
 
 func _phase() -> String:
@@ -429,10 +478,10 @@ func _horizontal(vector: Vector3) -> Vector3:
 	return Vector3(vector.x, 0.0, vector.z)
 
 
-func _play(clip: StringName) -> void:
+func _play(clip: StringName, blend: float = 0.12) -> void:
 	if not is_instance_valid(_animation) or not _animation.has_animation(clip):
 		return
 	if _animation.current_animation == clip and _animation.is_playing():
 		return
 	_animation.clear_queue()
-	_animation.play(clip, 0.12)
+	_animation.play(clip, blend)

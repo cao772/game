@@ -1,5 +1,20 @@
 # Source development log
 
+## GAME-WORLD-YARD-WORK-015 — 2026-11-06
+
+Raised the existing yard support into a workbench while retaining its save anchor.
+The same resident can organize tools there independently of the indoor work light,
+and toolbox placement influences the next destination when a dwell ends. Active
+walks retain their destination. A pure work rule connects actor activity, the
+hinged toolbox lid and optional work-specific conversation. Layout changes refresh
+work in the same input turn without moving or advancing the resident. Legacy
+dialogue forms, the five-field urban save and old world/quest content remain.
+Resident probing and modern-street camera directions also use the Godot 4.1
+`global_transform.basis` access path.
+
+Source, offline grammar and static review only. Godot, gameplay, tests, save I/O,
+animation/visual acceptance and Windows export remain NOT_RUN.
+
 ## GAME-WORLD-LIFE-014 — 2026-11-06
 
 Extended the existing workshop resident's routine to a separate terrace lookout.

@@ -50,3 +50,8 @@ The same [resident now visits the terrace](docs/development/urban-life-v14.md)
 independently, using the stair route to a separate standing lookout before returning
 to work. Optional small talk varies by the actual resting place, with older
 conversation configurations retained. This remains source-only development.
+
+The [yard workbench](docs/development/urban-yard-work-v15.md) gives toolbox placement
+an additional use: the resident can work outside and choose that destination on
+departure. A hinged lid and work-specific conversation reflect the same conditions;
+the existing layout save and earlier dialogue configurations remain compatible.

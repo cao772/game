@@ -89,6 +89,7 @@ func _physics_process(delta: float) -> void:
 	var enabled: bool = _walker != null and _walker.interaction_allowed()
 	if is_instance_valid(_resident):
 		_resident.advance(delta, _urban.view(), enabled)
+		_workshop.present_activity(_resident.status() if enabled else {})
 	if not enabled:
 		_interact_queued = false
 		_nearest.clear()
@@ -97,6 +98,14 @@ func _physics_process(delta: float) -> void:
 	if _interact_queued:
 		_interact_queued = false
 		_interact(delta)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT or what == NOTIFICATION_PAUSED:
+		if is_instance_valid(_resident):
+			_resident.suspend_activity()
+		if is_instance_valid(_workshop):
+			_workshop.present_activity({})
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -412,6 +421,8 @@ func _update_modal_controls() -> void:
 		if is_instance_valid(_resident):
 			_resident.set_conversing(talking)
 		if not _walker.controls_enabled:
+			_resident.suspend_activity()
+			_workshop.present_activity({})
 			_walker.release_pointer()
 			_interact_queued = false
 			_nearest.clear()
@@ -467,7 +478,11 @@ func _archive_urban() -> void:
 
 func _apply_urban_view() -> void:
 	var view: Dictionary = _urban.view()
+	# Input and restore callbacks must refresh work without advancing time or
+	# clearing an in-flight route. Use this same layout for the visible box.
+	_resident.refresh_work_view(view)
 	_workshop.apply_view(view)
+	_workshop.present_activity(_resident.status() if _walker.interaction_allowed() else {})
 	_sync_held()
 	_held.visible = view["toolbox_anchor"] == "carried"
 	_nearest.clear()
@@ -478,7 +493,7 @@ func _find_target() -> Dictionary:
 	if _walker.is_seated():
 		return {}
 	var eye: Vector3 = _walker.global_position + Vector3.UP * Walker.EYE_HEIGHT
-	var forward: Vector3 = -_walker.interaction_camera().global_basis.z
+	var forward: Vector3 = -_walker.interaction_camera().global_transform.basis.z
 	var view: Dictionary = _urban.view()
 	var best: Dictionary = {}
 	var best_score := -INF
@@ -601,7 +616,7 @@ func _build_held() -> void:
 
 
 func _sync_held() -> void:
-	var forward: Vector3 = _seated_forward if _walker.is_seated() else -_walker.interaction_camera().global_basis.z
+	var forward: Vector3 = _seated_forward if _walker.is_seated() else -_walker.interaction_camera().global_transform.basis.z
 	forward.y = 0
 	forward = forward.normalized()
 	var held_height: float = 0.78 if _walker.is_seated() else 1.12
