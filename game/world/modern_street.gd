@@ -7,6 +7,7 @@ const UrbanState = preload("res://runtime/urban_state.gd")
 const UrbanStore = preload("res://runtime/urban_save_store.gd")
 const Resident = preload("res://world/urban_resident.gd")
 const ResidentPanel = preload("res://ui/urban_resident_panel.gd")
+const Terrace = preload("res://world/urban_terrace.gd")
 @export_file("*.tscn") var return_scene_path: String = "res://scenes/world_explorer.tscn"
 @export_file("*.json") var resident_lines_path: String = "res://content/urban_resident_lines.json"
 
@@ -31,6 +32,8 @@ var _resident: Resident
 var _resident_panel: ResidentPanel
 var _resident_copy_ready := false
 var _toolbar: Array[Button] = []
+var _terrace: Terrace
+var _seated_forward := Vector3.FORWARD
 
 
 func _ready() -> void:
@@ -45,6 +48,9 @@ func _ready() -> void:
 	_workshop = Workshop.new()
 	add_child(_workshop)
 	_workshop.setup(_materials, _font)
+	_terrace = Terrace.new()
+	add_child(_terrace)
+	_terrace.setup(_materials, _font)
 	_walker = Walker.new()
 	_walker.position = Vector3(0, 0, 20)
 	_walker.recover_pos = Vector3(0, 0.1, 20)
@@ -62,10 +68,16 @@ func _process(_delta: float) -> void:
 	if _hint != null and _walker != null:
 		_hint.text = "WASD 行走 · Shift 跑步 · 空格 跳跃 · V 切视角  |  " + _walker.mode_label()
 		_hint.text += "\n按住右键环视 · 松开 / Esc 释放"
+		if _walker.is_seated():
+			_hint.text = "坐着歇一会儿 · E 起身 · V 切视角  |  " + _walker.mode_label()
+			_hint.text += "\n按住右键看周围 · 松开 / Esc 释放 · 工坊住户继续自己的活动"
 		if not _last_error.is_empty():
 			_hint.text += "\n" + _last_error
 		var view: Dictionary = _urban.view()
-		_action.text = "E：" + _target_caption(_nearest, view) if not _nearest.is_empty() else "沿东侧廊檐找到维修工坊 · 靠近并看向门、开关或工具箱"
+		if _walker.is_seated():
+			_action.text = "E：离开长椅 · 起身位置被挡时会留在座位上"
+		else:
+			_action.text = "E：" + _target_caption(_nearest, view) if not _nearest.is_empty() else "东侧工坊可穿行到后院 · 沿楼梯或缓坡登上公共晒台"
 		_action.text += " · 手持工具箱" if view["toolbox_anchor"] == "carried" else ""
 		_action.text += " · 尚未保存" if _dirty else ""
 		if is_instance_valid(_resident):
@@ -463,12 +475,15 @@ func _apply_urban_view() -> void:
 
 
 func _find_target() -> Dictionary:
+	if _walker.is_seated():
+		return {}
 	var eye: Vector3 = _walker.global_position + Vector3.UP * Walker.EYE_HEIGHT
 	var forward: Vector3 = -_walker.interaction_camera().global_basis.z
 	var view: Dictionary = _urban.view()
 	var best: Dictionary = {}
 	var best_score := -INF
 	var candidates: Array[Dictionary] = _workshop.targets()
+	candidates.append_array(_terrace.targets())
 	if _resident_copy_ready:
 		candidates.append(_resident.interaction_target())
 	for target in candidates:
@@ -499,6 +514,8 @@ func _find_target() -> Dictionary:
 func _target_caption(target: Dictionary, view: Dictionary) -> String:
 	var id: String = target["id"]
 	match id:
+		"terrace_seat":
+			return "坐在晒台长椅上"
 		"workshop_resident":
 			return "和工坊住户聊聊"
 		"front_gate", "back_gate":
@@ -511,12 +528,29 @@ func _target_caption(target: Dictionary, view: Dictionary) -> String:
 
 
 func _interact(delta: float) -> void:
+	if _walker.is_seated():
+		var stood: Dictionary = _walker.stand_up()
+		_last_error = "已起身，可以继续探索。" if stood.get("ok", false) else "起身位置暂时被挡住了；仍留在座位上，稍后再试。"
+		_nearest.clear()
+		_interact_queued = false
+		return
 	if _nearest.is_empty():
 		return
 	var id: String = _nearest["id"]
 	var view: Dictionary = _urban.view()
 	var result: Dictionary
-	if id == "workshop_resident":
+	if id == "terrace_seat":
+		var stand_candidates: Array[Vector3] = []
+		for point in _nearest["stand_candidates"]:
+			stand_candidates.append(point)
+		var seated: Dictionary = _walker.seat_at(_nearest["feet"], float(_nearest["yaw"]), stand_candidates)
+		if seated.get("ok", false):
+			_seated_forward = Basis(Vector3.UP, float(_nearest["yaw"])) * Vector3.FORWARD
+		_last_error = "坐下了。可以环视街区，按 E 随时尝试起身。" if seated.get("ok", false) else "先走到长椅前的空位，站稳后再坐下。"
+		_nearest.clear()
+		_interact_queued = false
+		return
+	elif id == "workshop_resident":
 		_walker.release_pointer()
 		if not _resident_panel.open_resident(_resident.status(), view):
 			_last_error = "暂时无法交谈，可以继续探索。"
@@ -567,10 +601,12 @@ func _build_held() -> void:
 
 
 func _sync_held() -> void:
-	var forward: Vector3 = -_walker.interaction_camera().global_basis.z
+	var forward: Vector3 = _seated_forward if _walker.is_seated() else -_walker.interaction_camera().global_basis.z
 	forward.y = 0
 	forward = forward.normalized()
-	_held.position = _walker.position + Vector3.UP * 1.12 + forward * 0.8
+	var held_height: float = 0.78 if _walker.is_seated() else 1.12
+	var held_distance: float = 0.6 if _walker.is_seated() else 0.8
+	_held.position = _walker.position + Vector3.UP * held_height + forward * held_distance
 	_held.rotation.y = atan2(-forward.x, -forward.z)
 
 

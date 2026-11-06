@@ -124,3 +124,19 @@ player and resident. Existing region residents and their schedules are unchanged
 The current character is a licensed animated proxy, not the photorealistic concept
 image. See ../docs/development/urban-resident-v12.md for scope and pending runtime
 acceptance; no Godot import, gameplay or game tests have been executed.
+
+## The public terrace
+
+In the east yard, stairs and a switchback ramp reach a 3 m public terrace. The
+ground rear lane remains open underneath. Approach its bench on the same level
+and press E to sit; use right-drag to look and V to change camera mode. E gets up
+only when a supported, unobstructed exit is available. WASD and Space do not move
+the seated player. A carried toolbox remains carried, displayed in front of the
+body. Resident activity continues while sitting.
+
+Posture is not part of the save. A successful layout restore returns the player
+standing at the street entrance; cancelled or failed restore preserves the pose.
+The existing save-before-return and failed-write behavior remain. No character
+has been added to the terrace and no task unlock is required. The seated player
+is a geometric proxy. See ../docs/development/urban-terrace-v13.md; slopes, seams,
+seating and camera behavior remain source-only and need runtime acceptance.

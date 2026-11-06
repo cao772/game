@@ -1,5 +1,17 @@
 # Source development log
 
+## GAME-WORLD-TERRACE-013 — 2026-11-06
+
+Added a public yard terrace at 3 m with a short stair route, a switchback ramp and
+a seated observation point. The ground lane and resident graph remain intact.
+Sitting and standing validate body clearance, supporting floor and the full path;
+blocked exits preserve the seated pose. Both camera modes and carried-toolbox
+presentation support sitting. Successful layout restoration clears the posture;
+old world/quest data and the five-field urban save remain unchanged.
+
+Source, offline grammar and static review only. No Godot import, game tests,
+runtime traversal, animation/visual acceptance or Windows export was performed.
+
 ## GAME-WORLD-RESIDENT-012 — 2026-11-06
 
 Added one workshop resident with workbench, shelving and yard activities, physical

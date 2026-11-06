@@ -41,3 +41,7 @@ A [workshop resident](docs/development/urban-resident-v12.md) now has a scene-lo
 work/shelf/yard routine, gate-aware routes and optional conversation about the
 current layout. This reuses a licensed staging character and keeps the five-field
 urban save unchanged; it is not a full-day city simulation or final character art.
+
+The [public terrace](docs/development/urban-terrace-v13.md) adds an elevated yard
+loop reached by stairs or a switchback ramp, plus optional seated observation.
+The same layout save is retained; posture and temporary movement remain unsaved.
