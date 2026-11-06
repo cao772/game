@@ -8,6 +8,7 @@ const UrbanStore = preload("res://runtime/urban_save_store.gd")
 const Resident = preload("res://world/urban_resident.gd")
 const ResidentPanel = preload("res://ui/urban_resident_panel.gd")
 const Terrace = preload("res://world/urban_terrace.gd")
+const ReadingRoom = preload("res://world/urban_reading_room.gd")
 @export_file("*.tscn") var return_scene_path: String = "res://scenes/world_explorer.tscn"
 @export_file("*.json") var resident_lines_path: String = "res://content/urban_resident_lines.json"
 
@@ -33,6 +34,8 @@ var _resident_panel: ResidentPanel
 var _resident_copy_ready := false
 var _toolbar: Array[Button] = []
 var _terrace: Terrace
+var _reading_room: ReadingRoom
+var _seat_label: String = "长椅"
 var _seated_forward := Vector3.FORWARD
 
 
@@ -51,6 +54,9 @@ func _ready() -> void:
 	_terrace = Terrace.new()
 	add_child(_terrace)
 	_terrace.setup(_materials, _font)
+	_reading_room = ReadingRoom.new()
+	add_child(_reading_room)
+	_reading_room.setup(_materials, _font)
 	_walker = Walker.new()
 	_walker.position = Vector3(0, 0, 20)
 	_walker.recover_pos = Vector3(0, 0.1, 20)
@@ -69,15 +75,15 @@ func _process(_delta: float) -> void:
 		_hint.text = "WASD 行走 · Shift 跑步 · 空格 跳跃 · V 切视角  |  " + _walker.mode_label()
 		_hint.text += "\n按住右键环视 · 松开 / Esc 释放"
 		if _walker.is_seated():
-			_hint.text = "坐着歇一会儿 · E 起身 · V 切视角  |  " + _walker.mode_label()
+			_hint.text = _seat_label + " · E 起身 · V 切视角  |  " + _walker.mode_label()
 			_hint.text += "\n按住右键看周围 · 松开 / Esc 释放 · 工坊住户继续自己的活动"
 		if not _last_error.is_empty():
 			_hint.text += "\n" + _last_error
 		var view: Dictionary = _urban.view()
 		if _walker.is_seated():
-			_action.text = "E：离开长椅 · 起身位置被挡时会留在座位上"
+			_action.text = "E：离开" + _seat_label + " · 起身位置被挡时会留在座位上"
 		else:
-			_action.text = "E：" + _target_caption(_nearest, view) if not _nearest.is_empty() else "东侧工坊可穿行到后院 · 沿楼梯或缓坡登上公共晒台"
+			_action.text = "E：" + _target_caption(_nearest, view) if not _nearest.is_empty() else "西侧阅览室可穿行到后巷 · 东侧工坊通后院与晒台"
 		_action.text += " · 手持工具箱" if view["toolbox_anchor"] == "carried" else ""
 		_action.text += " · 尚未保存" if _dirty else ""
 		if is_instance_valid(_resident):
@@ -195,7 +201,7 @@ func _build_block(side: float, center_z: float) -> void:
 	# Four 13 x 21m blocks, frontage x=+/-11, six storeys at 3m each.
 	_box(Vector3(side * 17.5, 10.5, center_z), Vector3(13, 15, 21), "concrete", true)
 	# Recessed ground floor creates an actually walkable 3.2m covered frontage.
-	var enterable: bool = side > 0 and center_z > 0
+	var enterable: bool = center_z > 0 # Workshop east; reading passage west.
 	if not enterable:
 		_box(Vector3(side * 19.1, 1.5, center_z), Vector3(9.8, 3, 21), "concrete", true)
 	_box(Vector3(side * 17.5, 18.14, center_z), Vector3(13.25, 0.28, 21.25), "trim")
@@ -349,7 +355,7 @@ func _build_ui() -> void:
 	column.add_child(_action)
 	_load_confirm = ConfirmationDialog.new()
 	_load_confirm.title = "恢复现代街区"
-	_load_confirm.dialog_text = "恢复最近保存的门、照明与工具箱位置，并回到街上起点？当前未保存改动会被替换。"
+	_load_confirm.dialog_text = "恢复最近保存的工坊门、工作灯与工具箱位置，并回到街上起点？当前未保存改动会被替换；阅览灯和书页回到初始状态。"
 	_load_confirm.confirmed.connect(_restore_latest.bind(false))
 	_load_confirm.visibility_changed.connect(_update_modal_controls)
 	canvas.add_child(_load_confirm)
@@ -435,7 +441,7 @@ func _save_urban() -> bool:
 	var saved: Dictionary = _store.write_record("urban_free", _urban.snapshot())
 	if saved.get("ok", false):
 		_dirty = false
-		_last_error = "已保存门、照明和工具箱；下次从街上起点进入。"
+		_last_error = "已保存工坊门、工作灯和工具箱；阅览灯与书页只保留到离场或恢复。"
 	else:
 		_last_error = "保存失败：%s。当前布置仍保留，可整理旧档后重试。" % saved.get("code", "UNKNOWN")
 	return saved.get("ok", false)
@@ -446,7 +452,7 @@ func _restore_latest(initial: bool) -> void:
 	if record.get("code") == "NO_SAVES":
 		if initial:
 			_persistence_ready = true
-			_last_error = "东侧维修工坊已开放；门、灯和工具箱都可使用。"
+			_last_error = "西侧阅览室与东侧工坊已开放，可以从主街穿到后巷。"
 		else:
 			_last_error = "还没有现代街区存档；当前布置保留。"
 			_last_error += "可以先保存。" if _persistence_ready else "之前的读取问题尚未解决，写入仍暂停；可不保存返回。"
@@ -459,6 +465,7 @@ func _restore_latest(initial: bool) -> void:
 			# Resident motion is scene-local, not part of the five-field layout save.
 			# Reset before restored shutters can become solid around an old pose.
 			_resident.reset_routine()
+			_reading_room.reset_visit()
 			_last_error = "已恢复街区布置，回到街上起点。"
 			if record.get("code") == "RECOVERED_OLDER_RECORD" or not record.get("skipped", []).is_empty():
 				_last_error += " 最近记录不可用，采用了较早的有效存档。"
@@ -499,6 +506,7 @@ func _find_target() -> Dictionary:
 	var best_score := -INF
 	var candidates: Array[Dictionary] = _workshop.targets()
 	candidates.append_array(_terrace.targets())
+	candidates.append_array(_reading_room.targets())
 	if _resident_copy_ready:
 		candidates.append(_resident.interaction_target())
 	for target in candidates:
@@ -529,6 +537,8 @@ func _find_target() -> Dictionary:
 func _target_caption(target: Dictionary, view: Dictionary) -> String:
 	var id: String = target["id"]
 	match id:
+		"reading_book", "reading_lamp", "reading_seat":
+			return _reading_room.caption(id)
 		"terrace_seat":
 			return "坐在晒台长椅上"
 		"workshop_resident":
@@ -554,14 +564,20 @@ func _interact(delta: float) -> void:
 	var id: String = _nearest["id"]
 	var view: Dictionary = _urban.view()
 	var result: Dictionary
-	if id == "terrace_seat":
+	if id == "terrace_seat" or id == "reading_seat":
 		var stand_candidates: Array[Vector3] = []
 		for point in _nearest["stand_candidates"]:
 			stand_candidates.append(point)
 		var seated: Dictionary = _walker.seat_at(_nearest["feet"], float(_nearest["yaw"]), stand_candidates)
 		if seated.get("ok", false):
+			_seat_label = _nearest["label"]
 			_seated_forward = Basis(Vector3.UP, float(_nearest["yaw"])) * Vector3.FORWARD
 		_last_error = "坐下了。可以环视街区，按 E 随时尝试起身。" if seated.get("ok", false) else "先走到长椅前的空位，站稳后再坐下。"
+		_nearest.clear()
+		_interact_queued = false
+		return
+	elif id == "reading_book" or id == "reading_lamp":
+		_last_error = _reading_room.turn_page() if id == "reading_book" else _reading_room.toggle_lamp()
 		_nearest.clear()
 		_interact_queued = false
 		return

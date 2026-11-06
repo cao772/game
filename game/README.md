@@ -9,7 +9,8 @@ shutters, a light and a toolbox movable between three supports. Approach and loo
 at a target, then press E. F5 saves; F9 confirms a restore. The independent
 urban_free slot saves these interactions; player position resets to the entrance.
 Returning normally saves first, with a separate confirmed no-save exit available.
-Other interiors and driving remain unavailable; engine/rendering acceptance is NOT_RUN.
+The southwest reading room is also enterable; driving remains unavailable.
+Engine/rendering acceptance is NOT_RUN.
 See `../docs/development/modern-street-v10.md` for scope and verification boundaries.
 
 The consolidated source includes a quest runtime, a free/chapter session owner, an immutable save store and an application boundary for world interaction and dialogue. It is **not a playable game or exported Windows build**. A bounded synthetic main scene now connects movement, nearby interaction, quest choices, visible delivery feedback and explicit save recovery; it has not been imported or run. Godot import, compilation, execution, tests and export are **NOT_RUN**; development has been limited to source authoring and static review.
@@ -160,3 +161,13 @@ Shelf leads to yard and yard leads to terrace. Moving the box does not interrupt
 an active walk or remove the resident's rest. Box-lid pose is not saved; the same
 five-field layout remains. Details and pending acceptance are in
 `../docs/development/urban-yard-work-v15.md`.
+
+## Public reading room
+
+Enter the southwest ground floor from the street or rear alley. Walk on either side
+of the central shelf; E flips the reading booklet, switches its light or sits at the
+bench. E stands up; RMB and V retain their usual view controls. Light and pages are
+temporary for this visit and are not included in F5 saves; re-entry or a successful
+F9 layout restore resets them. Failed/cancelled restores preserve the current room.
+The existing workshop resident continues independently. See
+`../docs/development/urban-reading-room-v16.md`. All runtime acceptance is NOT_RUN.

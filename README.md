@@ -55,3 +55,8 @@ The [yard workbench](docs/development/urban-yard-work-v15.md) gives toolbox plac
 an additional use: the resident can work outside and choose that destination on
 departure. A hinged lid and work-specific conversation reflect the same conditions;
 the existing layout save and earlier dialogue configurations remain compatible.
+
+The [public reading room](docs/development/urban-reading-room-v16.md) opens the
+southwest ground floor as a second street-to-alley passage, with two routes around
+a shelf, optional reading, a light and a seat. Reading state lasts for the visit;
+legacy saves and the existing resident routine remain unchanged. Source only.

@@ -1,5 +1,17 @@
 # Source development log
 
+## GAME-WORLD-READING-ROOM-016 — 2026-11-06
+
+Opened the southwest ground floor as a public reading passage with two always-open
+doorways, two shelf-side routes and the original outdoor loop. Added three-page
+reading with physical heading/bookmark feedback, a local light and checked bench
+sitting. Page/light changes last for the visit and reset only on scene entry or
+successful layout restore. Existing saves, quest APIs, workshop behavior and the
+resident routine are unchanged. No new external assets or characters.
+
+Offline grammar, resource and fixed-geometry checks plus source review only.
+Godot import, gameplay, tests, save I/O, rendering and builds are NOT_RUN.
+
 ## GAME-WORLD-YARD-WORK-015 — 2026-11-06
 
 Raised the existing yard support into a workbench while retaining its save anchor.
