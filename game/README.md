@@ -49,8 +49,10 @@ restore confirmation open. Rest advances one hour. F5 saves, F9 requests restora
 The three regions form a reversible triangle. One region's geometry is present at a
 time; crossings are explicit transfers, not seamless streaming. Crates can cross
 regions and persist at fixed anchors; arbitrary construction, crafting, voxel terrain
-and systemic reactions are future work. Resident positions derive from three daily
-periods; pathfinding, needs, conversations and off-screen simulation are not implemented.
+and systemic reactions are future work. Residents follow two authored daily paths, with positions derived from the world
+clock. Optional conversations pause time; directions and manual companion markers
+help the player travel with them. Autonomous needs and obstacle-aware pathfinding
+are not implemented. See ../docs/development/resident-activities-v9.md.
 The explorer uses `world_free`; existing free/chapter quest snapshots are unchanged.
 The optional desk wrapper restores the free quest record on entry, saves its current
 mode on return, and leaves the explorer clock stopped while away.
@@ -75,3 +77,20 @@ The second clerk uses the [unhooded Rogue model](art/records_actor/SOURCE.md). T
 At the southeast stall the player can start an optional errand at any point during delivery. Picking a replacement resolves it there. Tracking the original closes the stall and leads to the southwest workbench, the shelf east of the counter and back to the workbench. On return the stall offers either prices or a shared-tool register. Each stop checks proximity and the active revision before accepting a choice.
 
 Both quests are stored in one generation for the selected mode. A schema 1 save opens with its original delivery progress and a fresh side quest. A schema 2 save restores both quests after validating both snapshots. Open these newer generations with this version. Pending Windows checks include saving between the shelf and workbench, reloading a prior delivery-only generation, and completing a different market route in chapter replay.
+
+
+## Meeting residents on the road
+
+Approach within three meters and press E to greet a resident. Two optional topics
+reveal ordinary interests; “接下来去哪？” reads their actual next destination.
+“我跟你走一段” closes the conversation and marks their current distance or exit;
+walk manually, or cancel the marker at any time. While the resident is at an
+activity point, “等到出发” shows how many game minutes it will advance before
+starting a shared walk. It changes the world clock for everyone.
+
+The atlas and world snapshot contract are unchanged from 008. Restoring reconstructs
+residents at the saved whole minute and clears temporary conversation/companion
+state. Routes and optional dialogue are in separate content files. Each resident
+keeps Idle, Walking_A, Interact and Cheer with its CC0 source notice; the previous
+merchant apron is preserved. Source only; no import, animation or collision runtime
+acceptance has been performed.

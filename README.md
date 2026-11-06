@@ -20,3 +20,8 @@ movement, three connected areas, six directed crossings, persistent movable crat
 landmark discovery and scheduled resident positions. It keeps its own `world_free`
 save slot and can enter the earlier desk scene. See [world foundation](docs/development/world-foundation-v8.md)
 for the precise implemented scope, adopted open-source code and pending acceptance.
+
+The next source slice adds [residents on the road](docs/development/resident-activities-v9.md):
+two authored daily itineraries, walking models, optional conversation, live directions
+and cancellable manual companion markers. Route changes preserve the 008 atlas and
+world save identity. Runtime acceptance is still pending.

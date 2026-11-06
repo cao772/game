@@ -14,7 +14,7 @@ var _clip := ""
 
 func _ready() -> void:
 	collision_layer = 2
-	collision_mask = 1
+	collision_mask = 5 # World layer 1 and moving residents on layer 4.
 	floor_snap_length = 0.35
 	var collider := CollisionShape3D.new()
 	var shape := CapsuleShape3D.new()
@@ -77,6 +77,9 @@ func _physics_process(delta: float) -> void:
 		release_pointer()
 		_jump = false
 		velocity = Vector3.ZERO
+		if _animation != null and _clip != "Idle" and _animation.has_animation("Idle"):
+			_animation.play("Idle", 0.15)
+			_clip = "Idle"
 		return
 	if _looking and not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		release_pointer()

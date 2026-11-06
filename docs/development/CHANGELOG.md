@@ -1,5 +1,15 @@
 # Source development log
 
+## GAME-WORLD-RESIDENTS-009 — 2026-11-06
+
+Residents now follow authored, clock-derived routes through the three regions.
+Added moving models, optional conversations, live directions, manual companion
+markers and explicit waiting until departure. Routine prop refreshes retain actors;
+chat, map and restore dialogs pause movement/time. Routes and dialogue are separate
+from the unchanged 008 atlas and world snapshot format. Added two CC0 walking model
+variants with original geometry, skin and clips verified statically. Independent
+source review and offline checks completed; engine/game/tests/build remain NOT_RUN.
+
 ## GAME-WORLD-008 — 2026-11-06
 
 Added an optional-quest-independent exploration entry with three connected regions,

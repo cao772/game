@@ -5,14 +5,19 @@ const State = preload("res://runtime/world_state.gd")
 const Store = preload("res://runtime/world_save_store.gd")
 const Player = preload("res://world/world_player.gd")
 const Landscape = preload("res://world/world_landscape.gd")
-const Actor = preload("res://world/counter_actor.gd")
-const MERCHANT = preload("res://art/market_actor/merchant.glb")
-const COURIER = preload("res://art/records_actor/clerk.glb")
+const Schedule = preload("res://runtime/resident_schedule.gd")
+const Resident = preload("res://world/world_resident.gd")
+const ResidentPanel = preload("res://ui/resident_panel.gd")
+const MERCHANT = preload("res://art/resident_merchant/merchant.glb")
+const COURIER = preload("res://art/resident_courier/courier.glb")
 @export_file("*.json") var atlas_path := "res://content/world_atlas.json"
 @export_file("*.tscn") var story_scene := "res://scenes/explorer_dispatch.tscn"
+@export_file("*.json") var resident_routes_path := "res://content/resident_routes.json"
+@export_file("*.json") var resident_lines_path := "res://content/resident_lines.json"
 
 var _state := State.new()
 var _store := Store.new()
+var _schedule := Schedule.new()
 var _player: Player
 var _region: Node3D
 var _props: Node3D
@@ -31,6 +36,13 @@ var _projection: Dictionary = {}
 var _elapsed := 0.0
 var _ready_ok := false
 var _landmark_names: Dictionary = {}
+var _resident_nodes: Dictionary = {}
+var _resident_views: Dictionary = {}
+var _chat: ResidentPanel
+var _chat_id := ""
+var _follow_id := ""
+var _guide: Label
+var _stop_follow_button: Button
 
 func _ready() -> void:
 	_build_ui()
@@ -45,6 +57,22 @@ func _ready() -> void:
 	var configured: Dictionary = _state.configure(data)
 	if not configured["ok"]:
 		_notice.text = "地图初始化失败：" + configured["code"]
+		return
+	var routes: Variant = _read_optional_json(resident_routes_path)
+	var lines: Variant = _read_optional_json(resident_lines_path)
+	if not routes is Dictionary or not lines is Dictionary:
+		_notice.text = "居民路线或交谈资料无法读取。"
+		return
+	configured = _schedule.configure(data, routes)
+	if not configured["ok"]:
+		_notice.text = "居民路线无法准备：" + configured["code"]
+		return
+	var resident_ids: Array = []
+	for resident in data["npcs"]:
+		resident_ids.append(resident["id"])
+	configured = _chat.configure(lines, resident_ids)
+	if not configured["ok"]:
+		_notice.text = "居民交谈资料无法准备：" + configured["code"]
 		return
 	for landmark in data["landmarks"]:
 		_landmark_names[landmark["id"]] = landmark["label"]
@@ -77,6 +105,12 @@ func _ready() -> void:
 		_notice.text = "未能恢复旧档，当前为新起点：" + str(record.get("code"))
 	_show_region()
 
+func _read_optional_json(path: String) -> Variant:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null or file.get_length() > 1048576:
+		return null
+	return JSON.parse_string(file.get_as_text())
+
 func _build_ui() -> void:
 	var canvas := CanvasLayer.new()
 	add_child(canvas)
@@ -90,6 +124,10 @@ func _build_ui() -> void:
 	_title = _label(box, "正在展开地图", 22)
 	_time = _label(box, "", 16)
 	_hint = _label(box, "", 17)
+	_guide = _label(box, "", 15)
+	_guide.hide()
+	_stop_follow_button = _button(box, "不再同行", _stop_follow)
+	_stop_follow_button.hide()
 	_notice = _label(box, "随处走走。路牌通往山脊与湖岸，木台上的箱子可以搬走。", 15)
 	_label(box, "WASD 行走 · Shift 跑步 · 空格跳跃\n右键拖动 / ← → 转镜头 · 滚轮缩放\nE 互动 · Q 转木箱 · M 地图", 14)
 	_button(box, "地图与发现 · M", _toggle_map)
@@ -110,9 +148,15 @@ func _build_ui() -> void:
 	_map.hide()
 	_confirm = ConfirmationDialog.new()
 	_confirm.title = "恢复世界"
-	_confirm.dialog_text = "用最近保存替换当前地点、时段和物件摆放？尚未保存的变化会丢失。"
+	_confirm.dialog_text = "用最近保存替换当前地点、时段和物件摆放？尚未保存的变化会丢失。\n读档会回到保存时的整分钟，并结束当前交谈和同行提示。"
 	_confirm.confirmed.connect(_load)
 	canvas.add_child(_confirm)
+	_chat = ResidentPanel.new()
+	canvas.add_child(_chat)
+	_chat.closed.connect(_close_chat)
+	_chat.directions_requested.connect(_resident_directions)
+	_chat.follow_requested.connect(_follow_resident)
+	_chat.departure_requested.connect(_wait_for_departure)
 
 func _label(parent: Node, caption: String, font_size: int) -> Label:
 	var label := Label.new()
@@ -123,14 +167,17 @@ func _label(parent: Node, caption: String, font_size: int) -> Label:
 	parent.add_child(label)
 	return label
 
-func _button(parent: Node, caption: String, action: Callable) -> void:
+func _button(parent: Node, caption: String, action: Callable) -> Button:
 	var button := Button.new()
 	button.text = caption
 	button.focus_mode = Control.FOCUS_NONE
 	button.pressed.connect(action)
 	parent.add_child(button)
+	return button
 
 func _show_region() -> void:
+	_close_chat()
+	_clear_residents()
 	if _region != null:
 		remove_child(_region)
 		_region.queue_free()
@@ -146,8 +193,9 @@ func _show_region() -> void:
 	_player.recovery_position = _vector(_projection["current_region"]["spawn"])
 	_player.set_heading(float(player_state["heading"]))
 	_props = null
-	_refresh_props()
 	_elapsed = 0.0
+	_refresh_props()
+	_update_residents(false)
 
 func _refresh_props() -> void:
 	_projection = _state.view()
@@ -176,14 +224,6 @@ func _refresh_props() -> void:
 		var at := _vector(item["position"])
 		_sign(item["label"] + (" · 已记录" if item["visited"] else ""), at + Vector3(0, 2.4, 0), Color("f5edcc"))
 		_target("discover", item["id"], "看看" + item["label"], at, float(item["radius"]), item["description"])
-	for npc in _projection["npcs"]:
-		var actor := Actor.new()
-		actor.model_scene = MERCHANT if npc["id"] == "merchant" else COURIER
-		actor.position = _vector(npc["position"])
-		actor.rotation.y = float(npc["heading"])
-		_props.add_child(actor)
-		_sign(npc["label"], actor.position + Vector3(0, 2.15, 0), Color("d5efdf"))
-		_target("npc", npc["id"], "招呼" + npc["label"], actor.position, 3.0, npc["activity"])
 	if _held != null:
 		remove_child(_held)
 		_held.queue_free()
@@ -240,23 +280,27 @@ func _physics_process(delta: float) -> void:
 	if not _ready_ok:
 		return
 	_sync_held()
-	_player.controls_enabled = not _map.visible and not _confirm.visible
-	if not get_window().has_focus() or not _player.controls_enabled:
-		return
-	_elapsed += delta
-	if _elapsed >= 5.0:
-		_elapsed -= 5.0
-		var previous: Array = _projection["npcs"]
-		_state.advance_minutes(1)
-		_projection = _state.view()
-		if previous != _projection["npcs"]:
-			_refresh_props()
-		else:
+	_player.controls_enabled = not _map.visible and not _confirm.visible and not _chat.visible
+	var paused := not get_window().has_focus() or not _player.controls_enabled
+	if not paused:
+		_elapsed = minf(_elapsed + delta, 5.1)
+		if _elapsed >= 5.0:
+			var advanced: Dictionary = _state.advance_minutes(1)
+			_elapsed = _elapsed - 5.0 if advanced["ok"] else 0.0
+			_projection = _state.view()
 			_refresh_hud()
+	_update_residents(paused)
+	if paused:
+		return
 	_nearest = {}
 	var nearest_distance := INF
 	var carrying: bool = _projection["state"]["carried"] != ""
-	for target in _targets:
+	var candidates: Array[Dictionary] = _targets.duplicate()
+	for id in _resident_nodes:
+		var actor: Resident = _resident_nodes[id]
+		var resident: Dictionary = _resident_views[id]
+		candidates.append({"kind": "npc", "id": id, "label": "招呼" + resident["label"], "position": actor.global_position, "radius": 3.0})
+	for target in candidates:
 		if (target["kind"] == "place" and not carrying) or (target["kind"] == "take" and carrying):
 			continue
 		var distance := _player.position.distance_to(target["position"])
@@ -284,14 +328,15 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_F9:
 			_request_load()
 		KEY_Q:
-			if not _map.visible:
+			if not _map.visible and not _chat.visible:
 				var result: Dictionary = _state.rotate_carried()
 				if result["ok"]:
 					_refresh_props()
 		KEY_E:
-			if not _map.visible:
+			if not _map.visible and not _chat.visible:
 				_interact()
 		KEY_ESCAPE:
+			_close_chat()
 			_map.hide()
 			_player.release_pointer()
 
@@ -319,7 +364,7 @@ func _interact() -> void:
 		"discover":
 			result = _state.discover(target["id"])
 		"npc":
-			_notice.text = target["label"].trim_prefix("招呼") + " · " + target["detail"]
+			_open_chat(target["id"])
 			return
 		_:
 			return
@@ -336,10 +381,15 @@ func _interact() -> void:
 func _rest() -> void:
 	if not _ready_ok:
 		return
+	if _chat.visible:
+		_notice.text = "先道别，再找地方休息。"
+		return
 	var result: Dictionary = _state.advance_minutes(60)
 	if result["ok"]:
-		_refresh_props()
 		_elapsed = 0.0
+		_clear_residents()
+		_refresh_props()
+		_update_residents(_map.visible)
 		_notice.text = "歇了一小时。可以去别处看看熟人的去向。"
 	else:
 		_notice.text = "未能休息：" + result["code"]
@@ -363,6 +413,7 @@ func _load() -> void:
 		return
 	var result: Dictionary = _state.restore(record["payload"])
 	if result["ok"]:
+		_stop_follow()
 		_show_region()
 	_notice.text = "已恢复地点、时段、发现和木箱摆放。" if result["ok"] else "旧档未应用：" + result["code"]
 
@@ -375,6 +426,7 @@ func _archive() -> void:
 func _open_story() -> void:
 	if not _save():
 		return
+	_close_chat()
 	_player.release_pointer()
 	var error := get_tree().change_scene_to_file(story_scene)
 	if error != OK:
@@ -383,6 +435,7 @@ func _open_story() -> void:
 func _toggle_map() -> void:
 	if not _ready_ok:
 		return
+	_close_chat()
 	_map.visible = not _map.visible
 	_player.release_pointer()
 	_refresh_hud()
@@ -401,6 +454,144 @@ func _refresh_hud() -> void:
 	for id in state["visited"]:
 		discovered.append(_landmark_names.get(id, "未命名地点"))
 	_map_text.text = "街外路线\n\n登记街区 ↔ 风脊步道 ↔ 湖岸码头 ↔ 登记街区\n\n当前位置：" + _title.text + "\n" + "\n".join(route_names) + "\n\n路口可直接通行。木箱能随身跨区，放到空木台上。\n地图和读档窗口打开时，世界时钟暂停。\n\n发现记录：" + ("、".join(discovered) if not discovered.is_empty() else "还没有。走近地标，按 E 看看。")
+	_map_text.text += "\n\n居民也沿道路去工作和休息。走近打招呼，可以问去向或陪走一段；交谈时钟暂停，结束后继续。"
+	_map_text.text += "\n同行会提示去向，需要自己走；可以随时取消。读档会结束同行提示。"
+
+func _update_residents(paused: bool) -> void:
+	var clock: Dictionary = _projection["state"]["clock"]
+	var projected: Dictionary = _schedule.project(int(clock["day"]), float(clock["minute"]) + _elapsed / 5.0)
+	if not projected.get("ok", false):
+		_notice.text = "居民日程暂不可用：" + str(projected.get("code"))
+		return
+	_resident_views.clear()
+	var wanted: Dictionary = {}
+	for resident in projected["residents"]:
+		var id: String = resident["id"]
+		_resident_views[id] = resident
+		if resident["region"] != _projection["current_region"]["id"]:
+			continue
+		wanted[id] = true
+		if not _resident_nodes.has(id):
+			var created_actor := Resident.new()
+			created_actor.configure(MERCHANT if id == "merchant" else COURIER)
+			# Place before entering the physics tree: spawns/restores must not sweep
+			# an animatable collider across the region from the origin.
+			created_actor.position = _vector(resident["position"])
+			created_actor.rotation.y = float(resident["heading"])
+			_region.add_child(created_actor)
+			_resident_nodes[id] = created_actor
+			var nameplate := Label3D.new()
+			nameplate.name = "Nameplate"
+			nameplate.position.y = 2.15
+			nameplate.font_size = 34
+			nameplate.pixel_size = 0.008
+			nameplate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			nameplate.modulate = Color("d5efdf")
+			created_actor.add_child(nameplate)
+		var actor: Resident = _resident_nodes[id]
+		actor.apply_projection(_vector(resident["position"]), float(resident["heading"]), bool(resident["moving"]) and not paused)
+		var plate: Label3D = actor.get_node("Nameplate")
+		plate.text = resident["label"] + (" · 同行" if _follow_id == id else "")
+	for id in _resident_nodes.keys():
+		if not wanted.has(id):
+			var retired_actor: Resident = _resident_nodes[id]
+			retired_actor.get_parent().remove_child(retired_actor)
+			retired_actor.queue_free()
+			_resident_nodes.erase(id)
+	_refresh_follow()
+
+func _clear_residents() -> void:
+	for actor in _resident_nodes.values():
+		actor.get_parent().remove_child(actor)
+		actor.queue_free()
+	_resident_nodes.clear()
+	_resident_views.clear()
+
+func _open_chat(id: String) -> void:
+	if _chat.visible or not _resident_nodes.has(id) or not _resident_views.has(id):
+		return
+	var actor: Resident = _resident_nodes[id]
+	if _player.global_position.distance_to(actor.global_position) > 3.0:
+		_notice.text = "对方已经走远了。靠近再打招呼。"
+		return
+	if not _chat.open_resident(_resident_views[id]):
+		return
+	_chat_id = id
+	actor.set_conversing(true)
+	_map.hide()
+	_player.controls_enabled = false
+	_player.release_pointer()
+	_hint.text = "正在交谈 · Esc 告辞"
+
+func _close_chat() -> void:
+	if _resident_nodes.has(_chat_id):
+		_resident_nodes[_chat_id].set_conversing(false)
+	_chat_id = ""
+	if _chat != null:
+		_chat.close_panel()
+
+func _resident_directions(id: String) -> void:
+	if not _chat.visible or id != _chat_id or not _resident_views.has(id):
+		return
+	var resident: Dictionary = _resident_views[id]
+	var text: String
+	if resident["moving"]:
+		text = "正往%s去。%s。想一起走的话，跟着我就行。" % [resident["destination"], resident["activity"]]
+	else:
+		var wait_minutes: int = int(ceil(float(resident.get("departure_in_minutes", 0))))
+		text = "现在还在这儿忙，大约 %d 分钟后去%s。你也可以先去别处逛，不用等我。" % [wait_minutes, resident["destination"]]
+	_chat.show_directions(text)
+
+func _follow_resident(id: String) -> void:
+	if not _chat.visible or id != _chat_id or not _resident_views.has(id):
+		return
+	_follow_id = id
+	_close_chat()
+	_refresh_follow()
+	_notice.text = "记住了同行人的去向。你可以陪走，也可以随时改道。"
+
+func _wait_for_departure(id: String) -> void:
+	if not _chat.visible or id != _chat_id or not _resident_views.has(id):
+		return
+	var resident: Dictionary = _resident_views[id]
+	if resident["moving"]:
+		return
+	var minutes: int = int(ceil(float(resident["departure_in_minutes"])))
+	var advanced: Dictionary = _state.advance_minutes(minutes)
+	if not advanced["ok"]:
+		_notice.text = "暂时不能等待：" + str(advanced["code"])
+		return
+	_follow_id = id
+	_close_chat()
+	_elapsed = 0.0
+	_clear_residents()
+	_refresh_props()
+	_update_residents(false)
+	_notice.text = "等到了出发的时候。可以陪走，也可以随时改道。"
+
+func _stop_follow() -> void:
+	_follow_id = ""
+	if _guide != null:
+		_guide.hide()
+		_stop_follow_button.hide()
+
+func _refresh_follow() -> void:
+	if _follow_id.is_empty() or not _resident_views.has(_follow_id):
+		return
+	var resident: Dictionary = _resident_views[_follow_id]
+	var description: String = resident["activity"]
+	if _resident_nodes.has(_follow_id):
+		var actor: Resident = _resident_nodes[_follow_id]
+		description = "%dm · %s" % [int(ceil(_player.global_position.distance_to(actor.global_position))), description]
+	else:
+		description = "已到另一片区域。"
+		for route in _projection["routes"]:
+			if route["to"] == resident["region"]:
+				description = "已离开这里，可" + route["label"] + "。"
+				break
+	_guide.text = "同行：" + resident["label"] + "\n" + description
+	_guide.show()
+	_stop_follow_button.show()
 
 func _vector(value: Array) -> Vector3:
 	return Vector3(float(value[0]), float(value[1]), float(value[2]))
