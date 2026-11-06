@@ -1,5 +1,20 @@
 # Source development log
 
+## GAME-WORLD-RESIDENT-012 — 2026-11-06
+
+Added one workshop resident with workbench, shelving and yard activities, physical
+walking and gate-aware route selection. A closed rear gate can cause a detour via
+the front door and south lane; no available exit means waiting. Nearby optional
+conversation reads the actual lamp/toolbox/route state without quest or inventory
+mutations. Door-close protection now includes the resident; conversation and modal
+UI pause both movement and the local routine. The five-field urban layout schema,
+old world data and quest interfaces are unchanged. Resident progress resets on
+scene entry and successful layout restoration; it is not persisted.
+
+This uses the existing CC0 animated staging model. Source/grammar/geometry review
+does not establish Godot imports, UI layout, physics, animation or save I/O at
+runtime. Game, tests and Windows export remain NOT_RUN.
+
 ## GAME-WORLD-WORKSHOP-011 — 2026-11-06
 
 Opened one modern block's ground floor into a front-to-yard workshop. Added nearby

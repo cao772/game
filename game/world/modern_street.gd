@@ -5,7 +5,10 @@ const Walker = preload("res://world/urban_walkthrough_player.gd")
 const Workshop = preload("res://world/urban_workshop.gd")
 const UrbanState = preload("res://runtime/urban_state.gd")
 const UrbanStore = preload("res://runtime/urban_save_store.gd")
+const Resident = preload("res://world/urban_resident.gd")
+const ResidentPanel = preload("res://ui/urban_resident_panel.gd")
 @export_file("*.tscn") var return_scene_path: String = "res://scenes/world_explorer.tscn"
+@export_file("*.json") var resident_lines_path: String = "res://content/urban_resident_lines.json"
 
 var _walker: Walker
 var _hint: Label
@@ -24,6 +27,10 @@ var _nearest: Dictionary = {}
 var _interact_queued := false
 var _persistence_ready := false
 var _dirty := false
+var _resident: Resident
+var _resident_panel: ResidentPanel
+var _resident_copy_ready := false
+var _toolbar: Array[Button] = []
 
 
 func _ready() -> void:
@@ -42,6 +49,10 @@ func _ready() -> void:
 	_walker.position = Vector3(0, 0, 20)
 	_walker.recover_pos = Vector3(0, 0.1, 20)
 	add_child(_walker)
+	# Residents use their own layer. Existing street/world geometry is unchanged.
+	_walker.collision_mask |= 4
+	_resident = Resident.new()
+	add_child(_resident)
 	_build_ui()
 	_build_held()
 	_restore_latest(true)
@@ -57,11 +68,16 @@ func _process(_delta: float) -> void:
 		_action.text = "E：" + _target_caption(_nearest, view) if not _nearest.is_empty() else "沿东侧廊檐找到维修工坊 · 靠近并看向门、开关或工具箱"
 		_action.text += " · 手持工具箱" if view["toolbox_anchor"] == "carried" else ""
 		_action.text += " · 尚未保存" if _dirty else ""
+		if is_instance_valid(_resident):
+			_action.text += "\n工坊住户：" + str(_resident.status()["activity"])
 		_sync_held()
 
 
 func _physics_process(delta: float) -> void:
-	if _walker == null or not _walker.interaction_allowed():
+	var enabled: bool = _walker != null and _walker.interaction_allowed()
+	if is_instance_valid(_resident):
+		_resident.advance(delta, _urban.view(), enabled)
+	if not enabled:
 		_interact_queued = false
 		_nearest.clear()
 		return
@@ -322,6 +338,21 @@ func _build_ui() -> void:
 	_leave_confirm.confirmed.connect(_leave_without_save)
 	_leave_confirm.visibility_changed.connect(_update_modal_controls)
 	canvas.add_child(_leave_confirm)
+	_resident_panel = ResidentPanel.new()
+	var conversation_theme := Theme.new()
+	conversation_theme.default_font = _font
+	_resident_panel.theme = conversation_theme
+	canvas.add_child(_resident_panel)
+	_resident_panel.closed.connect(_update_modal_controls)
+	_resident_panel.visibility_changed.connect(_update_modal_controls)
+	var file := FileAccess.open(resident_lines_path, FileAccess.READ)
+	if file != null:
+		var data: Variant = JSON.parse_string(file.get_as_text())
+		file.close()
+		if data is Dictionary:
+			_resident_copy_ready = _resident_panel.configure(data).get("ok", false)
+	if not _resident_copy_ready:
+		push_warning("Workshop resident copy unavailable; walking and workshop interactions remain available.")
 
 
 func _ui_button(parent: Node, caption: String, action: Callable) -> void:
@@ -331,6 +362,7 @@ func _ui_button(parent: Node, caption: String, action: Callable) -> void:
 	button.add_theme_font_override("font", _font)
 	button.pressed.connect(action)
 	parent.add_child(button)
+	_toolbar.append(button)
 
 
 func _return_to_world() -> void:
@@ -360,8 +392,15 @@ func _request_restore() -> void:
 
 func _update_modal_controls() -> void:
 	if _load_confirm != null and _leave_confirm != null:
-		_walker.controls_enabled = not (_load_confirm.visible or _leave_confirm.visible)
+		var talking: bool = is_instance_valid(_resident_panel) and _resident_panel.visible
+		var modal: bool = _load_confirm.visible or _leave_confirm.visible or talking
+		_walker.controls_enabled = not modal
+		for button in _toolbar:
+			button.disabled = modal
+		if is_instance_valid(_resident):
+			_resident.set_conversing(talking)
 		if not _walker.controls_enabled:
+			_walker.release_pointer()
 			_interact_queued = false
 			_nearest.clear()
 
@@ -394,6 +433,9 @@ func _restore_latest(initial: bool) -> void:
 			_persistence_ready = true
 			_dirty = false
 			_walker.reset_pose(Vector3(0, 0.1, 20))
+			# Resident motion is scene-local, not part of the five-field layout save.
+			# Reset before restored shutters can become solid around an old pose.
+			_resident.reset_routine()
 			_last_error = "已恢复街区布置，回到街上起点。"
 			if record.get("code") == "RECOVERED_OLDER_RECORD" or not record.get("skipped", []).is_empty():
 				_last_error += " 最近记录不可用，采用了较早的有效存档。"
@@ -426,7 +468,10 @@ func _find_target() -> Dictionary:
 	var view: Dictionary = _urban.view()
 	var best: Dictionary = {}
 	var best_score := -INF
-	for target in _workshop.targets():
+	var candidates: Array[Dictionary] = _workshop.targets()
+	if _resident_copy_ready:
+		candidates.append(_resident.interaction_target())
+	for target in candidates:
 		var id: String = target["id"]
 		if Workshop.ANCHORS.has(id) and view["toolbox_anchor"] != "carried" and view["toolbox_anchor"] != id:
 			continue
@@ -438,10 +483,11 @@ func _find_target() -> Dictionary:
 		if facing < 0.45:
 			continue
 		# A gate may occlude its own handle from inside; accept only that exact body.
-		var ray := PhysicsRayQueryParameters3D.create(eye, target["position"], 1)
+		var ray := PhysicsRayQueryParameters3D.create(eye, target["position"], 1 | 4)
 		ray.hit_from_inside = true
 		var hit := get_world_3d().direct_space_state.intersect_ray(ray)
-		if not hit.is_empty() and not _workshop.is_gate_collider(id, hit.get("collider")):
+		var own_resident: bool = id == "workshop_resident" and hit.get("collider") == _resident
+		if not hit.is_empty() and not own_resident and not _workshop.is_gate_collider(id, hit.get("collider")):
 			continue
 		var score := facing * 3.0 - distance
 		if score > best_score:
@@ -453,6 +499,8 @@ func _find_target() -> Dictionary:
 func _target_caption(target: Dictionary, view: Dictionary) -> String:
 	var id: String = target["id"]
 	match id:
+		"workshop_resident":
+			return "和工坊住户聊聊"
 		"front_gate", "back_gate":
 			var opened: bool = view["front_open" if id == "front_gate" else "back_open"]
 			return ("关闭" if opened else "打开") + target["label"]
@@ -468,10 +516,19 @@ func _interact(delta: float) -> void:
 	var id: String = _nearest["id"]
 	var view: Dictionary = _urban.view()
 	var result: Dictionary
-	if id == "front_gate" or id == "back_gate":
+	if id == "workshop_resident":
+		_walker.release_pointer()
+		if not _resident_panel.open_resident(_resident.status(), view):
+			_last_error = "暂时无法交谈，可以继续探索。"
+		_update_modal_controls()
+		return
+	elif id == "front_gate" or id == "back_gate":
 		var opened: bool = view["front_open" if id == "front_gate" else "back_open"]
 		if opened and (_workshop.gate_occupied(id, _walker.global_position) or _workshop.gate_occupied(id, _walker.global_position + _walker.velocity * delta)):
 			_last_error = "先离开门洞，再关卷帘门。"
+			return
+		if opened and (_workshop.gate_occupied(id, _resident.global_position) or _workshop.gate_occupied(id, _resident.possible_next_position(delta))):
+			_last_error = "工坊住户正在通过，等他离开门洞再关门。"
 			return
 		result = _urban.toggle_gate(id)
 	elif id == "lamp_switch":
@@ -481,6 +538,10 @@ func _interact(delta: float) -> void:
 		var p := _walker.global_position
 		if absf(p.x - base.x) < 0.7 and absf(p.z - base.z) < 0.55 and p.y < base.y + 0.48 and p.y + 1.75 > base.y:
 			_last_error = "先让开放置位置，再放下工具箱。"
+			return
+		var resident_pos: Vector3 = _resident.global_position
+		if absf(resident_pos.x - base.x) < 0.7 and absf(resident_pos.z - base.z) < 0.55 and resident_pos.y < base.y + 0.48 and resident_pos.y + 1.75 > base.y:
+			_last_error = "工坊住户还在这个位置，稍等他让开再放。"
 			return
 		result = _urban.place_toolbox(id)
 	else:

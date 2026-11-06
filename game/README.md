@@ -106,3 +106,21 @@ state. Routes and optional dialogue are in separate content files. Each resident
 keeps Idle, Walking_A, Interact and Cheer with its CC0 source notice; the previous
 merchant apron is preserved. Source only; no import, animation or collision runtime
 acceptance has been performed.
+
+## A resident using the modern workshop
+
+The workshop resident alternates between the bench, shelving and yard. Walking
+uses an authored graph and physical collisions: closed shutters change available
+routes, and player obstruction pauses progress. E opens optional conversation
+nearby and in sight; Esc says goodbye. Replies reflect the current toolbox and
+lamp state. No task, payment, relationship score or inventory transfer is required.
+
+The routine pauses with conversation, confirmation UI or lost input focus. Its
+bench/shelf/yard dwell times are 25/12/20 active seconds plus walking time, not a
+day/night schedule. Entry and successful F9 restoration restart it at the bench;
+only the existing five-field layout is saved. Gate protection includes both the
+player and resident. Existing region residents and their schedules are unchanged.
+
+The current character is a licensed animated proxy, not the photorealistic concept
+image. See ../docs/development/urban-resident-v12.md for scope and pending runtime
+acceptance; no Godot import, gameplay or game tests have been executed.

@@ -36,3 +36,8 @@ The [enterable workshop](docs/development/urban-workshop-v11.md) now connects on
 street frontage to its rear yard. Nearby visible shutters, a lamp and a movable
 toolbox can be used freely; their layout persists in an independent `urban_free`
 slot. This source increment keeps old world and quest saves unchanged.
+
+A [workshop resident](docs/development/urban-resident-v12.md) now has a scene-local
+work/shelf/yard routine, gate-aware routes and optional conversation about the
+current layout. This reuses a licensed staging character and keeps the five-field
+urban save unchanged; it is not a full-day city simulation or final character art.
