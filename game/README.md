@@ -39,7 +39,27 @@ The feature declaration is 4.1 because the save store uses GDScript static varia
 
 ## Using the delivery scene
 
-`scenes/sample_location.tscn` is the configured main scene. `world/sample_location.gd` owns one application for the scene lifetime; `world/sample_player.gd` supplies WASD movement with a fixed elevated camera. E interacts with the nearest overlapping station. Dialogue freezes movement; Esc closes it. A scrolling sidebar exposes the journal, mode, manual save, latest restore, explicit archive and restore by generation. User-facing sample text is Chinese and remains wholly synthetic.
+The configured main entry is now `scenes/world_explorer.tscn`. WASD moves relative to
+the camera, Shift runs, Space jumps, right-drag or arrow keys turns the view and
+the wheel changes distance. E uses a nearby crossing, landmark, resident or crate;
+Q rotates a carried crate. Empty marked pads accept it. M opens the route map.
+The world advances one minute per five focused seconds and pauses with the map or
+restore confirmation open. Rest advances one hour. F5 saves, F9 requests restoration.
+
+The three regions form a reversible triangle. One region's geometry is present at a
+time; crossings are explicit transfers, not seamless streaming. Crates can cross
+regions and persist at fixed anchors; arbitrary construction, crafting, voxel terrain
+and systemic reactions are future work. Resident positions derive from three daily
+periods; pathfinding, needs, conversations and off-screen simulation are not implemented.
+The explorer uses `world_free`; existing free/chapter quest snapshots are unchanged.
+The optional desk wrapper restores the free quest record on entry, saves its current
+mode on return, and leaves the explorer clock stopped while away.
+
+Movement direction uses a small adaptation of the MIT Godot 4.1 platformer demo.
+The new CC0 Knight stand-in retains six clips. Source and licenses are bundled.
+All of this remains **source-only / NOT_RUN**, including import, rendering and collision.
+
+`scenes/sample_location.tscn` is the earlier delivery scene, reachable through the explorer's optional desk entry. `world/sample_location.gd` owns one application for the scene lifetime; `world/sample_player.gd` supplies WASD movement with a fixed elevated camera. E interacts with the nearest overlapping station. Dialogue freezes movement; Esc closes it. A scrolling sidebar exposes the journal, mode, manual save, latest restore, explicit archive and restore by generation. User-facing sample text is Chinese and remains wholly synthetic.
 
 At the collection station: start and collect, inspect either route or speak to the helper, then return to choose a route. WAIT/RETRY remains available. Carry the green-banded parcel to the lamp-lit desk; E opens the clerk's dialogue in a closer view. Handing it over moves the parcel onto the desk and shows the clerk's reply. Dismiss the receipt, then interact again for a different greeting. Before the parcel is ready the clerk directs you to collection. The desk sign, journal and parcel are derived from quest state, including after restore. Restoring a save never initiates the handover animation.
 

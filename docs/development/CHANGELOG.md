@@ -1,5 +1,16 @@
 # Source development log
 
+## GAME-WORLD-008 — 2026-11-06
+
+Added an optional-quest-independent exploration entry with three connected regions,
+camera-relative movement, six crossings, two movable crates, persistent landmarks,
+daily resident positions and a dedicated world save slot. The earlier desk scene
+remains available through an opt-in save/restore wrapper. Adopted the official
+MIT platformer's movement-direction conversion and a reduced CC0 Knight model.
+Independent source review corrected arrival headings, held-prop placement during
+pause and solid-crate overlap with the player. Source grammar/resources/data were
+checked; engine import, game/tests and Windows acceptance remain NOT_RUN.
+
 ## GAME-RUNTIME-MARKET-006 — 2026-11-05
 
 Added an optional stall errand with a quick replacement and a three-stop recovery route. The merchant, tool, signs and available return visit reflect the active side-quest state. Session schema 2 saves both quests in one generation and restores earlier delivery-only records. The original configure signatures remain available.

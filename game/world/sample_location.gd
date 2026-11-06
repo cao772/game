@@ -22,6 +22,8 @@ const MarketScene = preload("res://scenes/loan_market.tscn")
 @export var terminal_notes: Dictionary = {}
 @export_file("*.json") var records_path := "res://content/records_lines.json"
 @export_file("*.json") var market_lines_path := "res://content/market_lines.json"
+@export_file("*.tscn") var world_return_scene := ""
+@export var restore_saved_on_enter := false
 
 const SPAWN := Vector3(0, 1, 5)
 const DOOR := Vector3(7.0, 0, -9.45)
@@ -89,6 +91,12 @@ func _ready() -> void:
 		_player.controls_enabled = false
 		return
 	_dialogue.bind_application(_application)
+	if restore_saved_on_enter:
+		var restored: Dictionary = _application.load_latest(_application.present()["revision"])
+		if restored.get("ok", false):
+			_notice.text = "已恢复登记区的自由模式保存。章节记录可在进入重玩后恢复。"
+		elif restored.get("code") != "NO_SAVES":
+			_notice.text = "登记区旧档未应用：" + str(restored.get("code"))
 	_refresh()
 
 func _read_json(path: String) -> Variant:
@@ -278,11 +286,24 @@ func _build_ui() -> void:
 	_generation.step = 1
 	column.add_child(_generation)
 	_button(column, "恢复指定归档…", _request.bind("restore"))
+	if not world_return_scene.is_empty():
+		_button(column, "回到街外（保存当前模式）", _return_to_world)
 	_confirm = ConfirmationDialog.new()
 	_confirm.title = "确认存档操作"
 	_confirm.confirmed.connect(_execute_pending)
 	_confirm.canceled.connect(_cancel_pending)
 	canvas.add_child(_confirm)
+
+func _return_to_world() -> void:
+	if not _ready_ok:
+		return
+	var saved: Dictionary = _application.save(_application.present()["revision"])
+	if not saved.get("ok", false):
+		_notice.text = "未能保存，仍留在登记区：" + str(saved.get("code"))
+		return
+	var error := get_tree().change_scene_to_file(world_return_scene)
+	if error != OK:
+		_notice.text = "街外暂时无法进入：%s" % error
 
 func _label(parent: Node, caption: String) -> Label:
 	var label := Label.new()

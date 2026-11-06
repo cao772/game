@@ -14,3 +14,9 @@ and speak to the animated clerk. The door beside the desk leads to a records roo
 The archivist can discuss the slip the player finds in the trays.
 It is source-reviewed only: runtime, tests and Windows packaging are NOT_RUN.
 See [development roadmap](docs/development/delivery-roadmap.md) for the next milestones.
+
+The configured entry now opens a regional exploration source candidate: camera-relative
+movement, three connected areas, six directed crossings, persistent movable crates,
+landmark discovery and scheduled resident positions. It keeps its own `world_free`
+save slot and can enter the earlier desk scene. See [world foundation](docs/development/world-foundation-v8.md)
+for the precise implemented scope, adopted open-source code and pending acceptance.

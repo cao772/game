@@ -1,0 +1,453 @@
+{
+  "schema_version": 1,
+  "initial_region": "YARD",
+  "initial_day": 1,
+  "initial_minute": 480,
+  "regions": [
+    {
+      "id": "YARD",
+      "label": "登记街区",
+      "description": "巷道绕过旧井和摊位，一条登坡，一条通向湖岸。",
+      "color": [
+        0.46,
+        0.53,
+        0.36
+      ],
+      "bounds": {
+        "min": [
+          -32,
+          -2,
+          -32
+        ],
+        "max": [
+          32,
+          12,
+          32
+        ]
+      },
+      "spawn": [
+        0,
+        1,
+        8
+      ]
+    },
+    {
+      "id": "RIDGE",
+      "label": "风脊步道",
+      "description": "高处的步道可以望见湖面，石阶把山脊与街区、码头连在一起。",
+      "color": [
+        0.47,
+        0.48,
+        0.39
+      ],
+      "bounds": {
+        "min": [
+          -32,
+          -2,
+          -32
+        ],
+        "max": [
+          32,
+          12,
+          32
+        ]
+      },
+      "spawn": [
+        0,
+        1,
+        8
+      ]
+    },
+    {
+      "id": "SHORE",
+      "label": "湖岸码头",
+      "description": "栈桥旁留着水位记号，装卸用的木台沿着岸阶散开。",
+      "color": [
+        0.4,
+        0.55,
+        0.57
+      ],
+      "bounds": {
+        "min": [
+          -32,
+          -2,
+          -32
+        ],
+        "max": [
+          32,
+          12,
+          32
+        ]
+      },
+      "spawn": [
+        0,
+        1,
+        8
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "id": "yard_to_ridge",
+      "reverse_id": "ridge_to_yard",
+      "from": "YARD",
+      "to": "RIDGE",
+      "exit": [
+        0,
+        1,
+        -28
+      ],
+      "spawn": [
+        0,
+        1,
+        25
+      ],
+      "spawn_heading": 0,
+      "travel_minutes": 8,
+      "label": "沿北坡去风脊"
+    },
+    {
+      "id": "ridge_to_yard",
+      "reverse_id": "yard_to_ridge",
+      "from": "RIDGE",
+      "to": "YARD",
+      "exit": [
+        0,
+        1,
+        28
+      ],
+      "spawn": [
+        0,
+        1,
+        -25
+      ],
+      "spawn_heading": 3.141592653589793,
+      "travel_minutes": 8,
+      "label": "下坡回登记街区"
+    },
+    {
+      "id": "yard_to_shore",
+      "reverse_id": "shore_to_yard",
+      "from": "YARD",
+      "to": "SHORE",
+      "exit": [
+        28,
+        1,
+        6
+      ],
+      "spawn": [
+        -25,
+        1,
+        6
+      ],
+      "spawn_heading": -1.5707963267948966,
+      "travel_minutes": 10,
+      "label": "沿东巷去湖岸"
+    },
+    {
+      "id": "shore_to_yard",
+      "reverse_id": "yard_to_shore",
+      "from": "SHORE",
+      "to": "YARD",
+      "exit": [
+        -28,
+        1,
+        6
+      ],
+      "spawn": [
+        25,
+        1,
+        6
+      ],
+      "spawn_heading": 1.5707963267948966,
+      "travel_minutes": 10,
+      "label": "沿西巷回登记街区"
+    },
+    {
+      "id": "ridge_to_shore",
+      "reverse_id": "shore_to_ridge",
+      "from": "RIDGE",
+      "to": "SHORE",
+      "exit": [
+        28,
+        1,
+        -5
+      ],
+      "spawn": [
+        0,
+        1,
+        -25
+      ],
+      "spawn_heading": 3.141592653589793,
+      "travel_minutes": 12,
+      "label": "沿石阶下到湖岸"
+    },
+    {
+      "id": "shore_to_ridge",
+      "reverse_id": "ridge_to_shore",
+      "from": "SHORE",
+      "to": "RIDGE",
+      "exit": [
+        0,
+        1,
+        -28
+      ],
+      "spawn": [
+        25,
+        1,
+        -5
+      ],
+      "spawn_heading": 1.5707963267948966,
+      "travel_minutes": 12,
+      "label": "沿石阶登上风脊"
+    }
+  ],
+  "anchors": [
+    {
+      "id": "yard_west_pad",
+      "label": "街区西侧木台",
+      "region": "YARD",
+      "position": [
+        -6,
+        0,
+        7
+      ]
+    },
+    {
+      "id": "yard_east_pad",
+      "label": "街区东侧木台",
+      "region": "YARD",
+      "position": [
+        6,
+        0,
+        7
+      ]
+    },
+    {
+      "id": "ridge_path_pad",
+      "label": "步道歇脚台",
+      "region": "RIDGE",
+      "position": [
+        4,
+        0,
+        8
+      ]
+    },
+    {
+      "id": "ridge_lookout_pad",
+      "label": "望台旁木座",
+      "region": "RIDGE",
+      "position": [
+        -12,
+        0,
+        -8
+      ]
+    },
+    {
+      "id": "shore_dock_pad",
+      "label": "码头装卸台",
+      "region": "SHORE",
+      "position": [
+        9,
+        0,
+        8
+      ]
+    },
+    {
+      "id": "shore_steps_pad",
+      "label": "岸阶旁木台",
+      "region": "SHORE",
+      "position": [
+        -8,
+        0,
+        0
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "id": "crate_a",
+      "label": "浅色木箱",
+      "kind": "crate",
+      "size": [
+        0.9,
+        0.9,
+        0.9
+      ],
+      "initial_anchor": "yard_west_pad",
+      "initial_quarter_turns": 0
+    },
+    {
+      "id": "crate_b",
+      "label": "蓝带木箱",
+      "kind": "crate",
+      "size": [
+        0.9,
+        0.9,
+        0.9
+      ],
+      "initial_anchor": "shore_dock_pad",
+      "initial_quarter_turns": 1
+    }
+  ],
+  "landmarks": [
+    {
+      "id": "yard_well",
+      "label": "旧石井",
+      "description": "井沿被绳子磨出浅槽，街区里的人仍在这里歇脚。",
+      "region": "YARD",
+      "position": [
+        -9,
+        0,
+        2
+      ],
+      "radius": 4
+    },
+    {
+      "id": "yard_notice",
+      "label": "路口告示柱",
+      "description": "两枚方向牌分别指向风脊和湖岸，也能沿另一条路绕回来。",
+      "region": "YARD",
+      "position": [
+        8,
+        0,
+        -6
+      ],
+      "radius": 4
+    },
+    {
+      "id": "ridge_lookout",
+      "label": "观湖望台",
+      "description": "越过栏杆可以辨出湖面的栈桥和街区的屋顶。",
+      "region": "RIDGE",
+      "position": [
+        -8,
+        2.4,
+        -14
+      ],
+      "radius": 4
+    },
+    {
+      "id": "ridge_bridge",
+      "label": "风脊木桥",
+      "description": "短桥跨过浅沟，桥板上留着往返送件的磨痕。",
+      "region": "RIDGE",
+      "position": [
+        14,
+        0,
+        1.5
+      ],
+      "radius": 4
+    },
+    {
+      "id": "shore_jetty",
+      "label": "旧栈桥",
+      "description": "末端的系船桩已晒白，木箱会在靠岸前先摆在岸边。",
+      "region": "SHORE",
+      "position": [
+        12,
+        0,
+        11
+      ],
+      "radius": 4
+    },
+    {
+      "id": "shore_tide_mark",
+      "label": "岸边水位石",
+      "description": "一排刻线记录过往的水位，最低处仍覆着一层浅色泥痕。",
+      "region": "SHORE",
+      "position": [
+        4,
+        0,
+        -13
+      ],
+      "radius": 4
+    }
+  ],
+  "npcs": [
+    {
+      "id": "merchant",
+      "label": "旧货商",
+      "schedule": [
+        {
+          "start": 0,
+          "end": 480,
+          "region": "RIDGE",
+          "position": [
+            -6,
+            0,
+            3
+          ],
+          "heading": 0,
+          "activity": "在歇脚处收整货袋"
+        },
+        {
+          "start": 480,
+          "end": 1020,
+          "region": "YARD",
+          "position": [
+            8,
+            0,
+            -3
+          ],
+          "heading": 0,
+          "activity": "照看街口的旧货摊"
+        },
+        {
+          "start": 1020,
+          "end": 1440,
+          "region": "SHORE",
+          "position": [
+            -7,
+            0,
+            8
+          ],
+          "heading": 1.5707963267948966,
+          "activity": "在湖岸清点晚到的货件"
+        }
+      ]
+    },
+    {
+      "id": "courier",
+      "label": "送件人",
+      "schedule": [
+        {
+          "start": 0,
+          "end": 480,
+          "region": "YARD",
+          "position": [
+            -8,
+            0,
+            -4
+          ],
+          "heading": 0,
+          "activity": "整理第二天的配送袋"
+        },
+        {
+          "start": 480,
+          "end": 1020,
+          "region": "RIDGE",
+          "position": [
+            -4,
+            0,
+            -6
+          ],
+          "heading": 1.5707963267948966,
+          "activity": "沿步道核对路线与路标"
+        },
+        {
+          "start": 1020,
+          "end": 1440,
+          "region": "SHORE",
+          "position": [
+            -12,
+            0,
+            -6
+          ],
+          "heading": 0,
+          "activity": "在岸边等候最后一班摆渡"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/sample_location.tscn" id="1"]
+
+[node name="ExplorerDispatch" instance=ExtResource("1")]
+world_return_scene = "res://scenes/world_explorer.tscn"
+restore_saved_on_enter = true
