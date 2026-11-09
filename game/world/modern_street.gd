@@ -589,6 +589,9 @@ func _find_target() -> Dictionary:
 	var view: Dictionary = _urban.view()
 	var best: Dictionary = {}
 	var best_score := -INF
+	# These two targets can appear together above the same counter.
+	var precise_sink_target: Dictionary = {}
+	var precise_facing := cos(deg_to_rad(5.0))
 	var candidates: Array[Dictionary] = _workshop.targets()
 	candidates.append(_cup_visitor.interaction_target())
 	candidates.append(_reading_visitor.interaction_target())
@@ -617,10 +620,15 @@ func _find_target() -> Dictionary:
 		var own_resident: bool = (id == "workshop_resident" and hit.get("collider") == _resident) or (id == "reading_visitor" and hit.get("collider") == _reading_visitor) or (id == "cup_visitor" and hit.get("collider") == _cup_visitor)
 		if not hit.is_empty() and not own_resident and not _workshop.is_gate_collider(id, hit.get("collider")):
 			continue
+		if id in ["wash_sink", "cup_visitor"] and facing > precise_facing:
+			precise_sink_target = target
+			precise_facing = facing
 		var score := facing * 3.0 - distance
 		if score > best_score:
 			best_score = score
 			best = target
+	if not precise_sink_target.is_empty() and best.get("id", "") in ["wash_sink", "cup_visitor"]:
+		return precise_sink_target
 	return best
 
 
