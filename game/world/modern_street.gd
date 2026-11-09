@@ -10,10 +10,14 @@ const ResidentPanel = preload("res://ui/urban_resident_panel.gd")
 const Terrace = preload("res://world/urban_terrace.gd")
 const ReadingRoom = preload("res://world/urban_reading_room.gd")
 const ReadingVisitor = preload("res://world/urban_reading_visitor.gd")
+const CupVisitor = preload("res://world/urban_cup_visitor.gd")
 const WashShelter = preload("res://world/urban_wash_shelter.gd")
 @export_file("*.tscn") var return_scene_path: String = "res://scenes/world_explorer.tscn"
 @export_file("*.json") var resident_lines_path: String = "res://content/urban_resident_lines.json"
 @export_file("*.json") var visitor_lines_path: String = "res://content/reading_visitor_lines.json"
+
+@export var cup_visitor_name := "带布包的来客"
+@export var cup_keep_line := "这对杯碟我想自己留着。"
 
 var _walker: Walker
 var _hint: Label
@@ -40,6 +44,7 @@ var _toolbar: Array[Button] = []
 var _terrace: Terrace
 var _reading_room: ReadingRoom
 var _reading_visitor: ReadingVisitor
+var _cup_visitor: CupVisitor
 var _wash_shelter: WashShelter
 var _seat_label: String = "长椅"
 var _seated_forward := Vector3.FORWARD
@@ -76,6 +81,10 @@ func _ready() -> void:
 	add_child(_resident)
 	_reading_visitor = ReadingVisitor.new()
 	add_child(_reading_visitor)
+	_cup_visitor = CupVisitor.new()
+	_cup_visitor.display_name = cup_visitor_name
+	_cup_visitor.keep_line = cup_keep_line
+	add_child(_cup_visitor)
 	var visitor_file := FileAccess.open(visitor_lines_path, FileAccess.READ)
 	if visitor_file != null:
 		var copy: Variant = JSON.parse_string(visitor_file.get_as_text())
@@ -136,6 +145,7 @@ func _physics_process(delta: float) -> void:
 		_workshop.present_activity(_resident.status() if enabled else {})
 	if is_instance_valid(_reading_visitor):
 		_reading_visitor.advance(delta, _reading_room.visitor_view(), enabled)
+	_cup_visitor.advance(delta, enabled)
 	_wash_shelter.advance(delta, enabled)
 	if not enabled:
 		_interact_queued = false
@@ -167,6 +177,8 @@ func _notification(what: int) -> void:
 			_resident.suspend_activity()
 		if is_instance_valid(_reading_visitor):
 			_reading_visitor.suspend_activity()
+		if is_instance_valid(_cup_visitor):
+			_cup_visitor.suspend_activity()
 		if is_instance_valid(_wash_shelter):
 			_wash_shelter.suspend_activity()
 		if is_instance_valid(_workshop):
@@ -493,6 +505,7 @@ func _update_modal_controls() -> void:
 			_resident.set_conversing(talking)
 		if not _walker.controls_enabled:
 			_resident.suspend_activity()
+			_cup_visitor.suspend_activity()
 			_reading_visitor.suspend_activity()
 			_wash_shelter.suspend_activity()
 			_workshop.present_activity({})
@@ -536,6 +549,7 @@ func _restore_latest(initial: bool) -> void:
 			# Clear scene-local held objects before projecting the restored toolbox.
 			_wash_shelter.reset_visit()
 			_reading_room.reset_visit()
+			_cup_visitor.reset_visit()
 			_reading_visitor.reset_visit()
 			_last_error = "已恢复街区布置，回到街上起点。"
 			if record.get("code") == "RECOVERED_OLDER_RECORD" or not record.get("skipped", []).is_empty():
@@ -576,6 +590,7 @@ func _find_target() -> Dictionary:
 	var best: Dictionary = {}
 	var best_score := -INF
 	var candidates: Array[Dictionary] = _workshop.targets()
+	candidates.append(_cup_visitor.interaction_target())
 	candidates.append(_reading_visitor.interaction_target())
 	candidates.append_array(_terrace.targets())
 	candidates.append_array(_reading_room.targets())
@@ -599,7 +614,7 @@ func _find_target() -> Dictionary:
 		var ray := PhysicsRayQueryParameters3D.create(eye, target["position"], 1 | 4)
 		ray.hit_from_inside = true
 		var hit := get_world_3d().direct_space_state.intersect_ray(ray)
-		var own_resident: bool = (id == "workshop_resident" and hit.get("collider") == _resident) or (id == "reading_visitor" and hit.get("collider") == _reading_visitor)
+		var own_resident: bool = (id == "workshop_resident" and hit.get("collider") == _resident) or (id == "reading_visitor" and hit.get("collider") == _reading_visitor) or (id == "cup_visitor" and hit.get("collider") == _cup_visitor)
 		if not hit.is_empty() and not own_resident and not _workshop.is_gate_collider(id, hit.get("collider")):
 			continue
 		var score := facing * 3.0 - distance
@@ -622,7 +637,7 @@ func _target_caption(target: Dictionary, view: Dictionary) -> String:
 			return "坐在晒台长椅上"
 		"workshop_resident":
 			return "和工坊住户聊聊"
-		"reading_visitor":
+		"reading_visitor", "cup_visitor":
 			return "看看" + str(target["label"]) + "在忙什么"
 		"front_gate", "back_gate":
 			var opened: bool = view["front_open" if id == "front_gate" else "back_open"]
@@ -674,6 +689,9 @@ func _interact(delta: float) -> void:
 		_nearest.clear()
 		_interact_queued = false
 		_reading_action = ""
+		return
+	elif id == "cup_visitor":
+		_last_error = _cup_visitor.describe(_wash_shelter.is_carrying())
 		return
 	elif id == "reading_visitor":
 		# A passing remark, not a modal conversation or timer reset.
@@ -751,7 +769,7 @@ func _move_reading_tray(delta: float) -> void:
 		_sync_held()
 		_last_error = "拿起了公共书盘；F 翻页，看向另一处台面按 E 或 R 放下。"
 	else:
-		for feet in [_walker.global_position, _walker.global_position + _walker.velocity * delta, _resident.global_position, _resident.possible_next_position(delta), _reading_visitor.global_position, _reading_visitor.possible_next_position(delta)]:
+		for feet in [_walker.global_position, _walker.global_position + _walker.velocity * delta, _resident.global_position, _resident.possible_next_position(delta), _reading_visitor.global_position, _reading_visitor.possible_next_position(delta), _cup_visitor.global_position, _cup_visitor.possible_next_position(delta)]:
 			if _reading_room.placement_occupied(id, feet):
 				_last_error = "放置位置有人，等让开后再放。"
 				return
@@ -779,7 +797,7 @@ func _move_wash_basin(delta: float) -> void:
 		_sync_held()
 		_last_error = "拿起公共盆；水和菜随盆移动。看向洗择棚台面按 R 放下。"
 	else:
-		for feet in [_walker.global_position, _walker.global_position + _walker.velocity * delta, _resident.global_position, _resident.possible_next_position(delta), _reading_visitor.global_position, _reading_visitor.possible_next_position(delta)]:
+		for feet in [_walker.global_position, _walker.global_position + _walker.velocity * delta, _resident.global_position, _resident.possible_next_position(delta), _reading_visitor.global_position, _reading_visitor.possible_next_position(delta), _cup_visitor.global_position, _cup_visitor.possible_next_position(delta)]:
 			if _wash_shelter.placement_occupied(id, feet):
 				_last_error = "放置位置有人，稍等让开后再放盆。"
 				return

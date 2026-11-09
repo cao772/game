@@ -1,3 +1,7 @@
+## 020 — 2026-11-09
+
+A visitor unfolds a personal cup and saucer at the west counter, adjusts the pair and carries it home. The public basin remains available throughout. Both visitors use the same checked movement primitives. Source and static geometry review only.
+
 ## 019 — 2026-11-07
 
 Adds a west rear-lane wash shelter and one public basin with continuous fill, one-time preparation and draining. Three station uses, three-way pickup exclusion, actor-aware placement and pause/success-only-reset semantics are integrated without expanding existing save schemas.31 scripts parsed offline; fixed geometry and resource checks only. Godot/gameplay/tests/builds NOT_RUN.

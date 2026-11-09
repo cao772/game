@@ -69,3 +69,5 @@ checks. Tray layout lasts for the visit and does not alter legacy save schemas.
 018 adds a finite reading-room visitor with a personal sketchbook, tray-aware observation and checked retreat/routing. See [source behavior and limits](docs/development/urban-reading-visitor-v18.md). This remains a source-only candidate, without Godot/gameplay execution.
 
 019 adds a west-lane wash shelter with one movable basin, timed filling, preparation and draining. The three held object types are mutually exclusive; legacy saves stay unchanged. See [behavior and source-only validation](docs/development/urban-wash-shelter-v19.md).
+
+020 adds a visitor who brings personal cups to the dry end of the wash counter and takes them home. [Visit and controls](docs/development/urban-cup-visitor-v20.md).
