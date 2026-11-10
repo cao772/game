@@ -817,6 +817,7 @@ func _plan_command(action: String, argument: String, revision: int) -> void:
 	if not _plan_panel.visible or not get_window().has_focus() or get_tree().paused:
 		return
 	var message := ""
+	var fresh_card := ""
 	if action == "browse" and argument == _plan_origin:
 		_plan_panel.show_book(_plan_book,_plan_origin)
 		return
@@ -832,11 +833,15 @@ func _plan_command(action: String, argument: String, revision: int) -> void:
 		else:
 			message = "整理未完成：" + str(result.get("code","IO"))
 	elif action == "draw" and argument == _plan_origin:
+		var previous_count: int = _plan_book.data.get("owned", []).size()
 		message = _plan_book.act(action,argument,revision)
+		# The live collection changes only after the ledger confirms the write.
+		if _plan_book.data.get("owned", []).size() == previous_count + 1:
+			fresh_card = str(_plan_book.data.owned.back())
 	elif _plan_origin == "board" and action in ["offer","accept","skip"]:
 		message = _plan_book.act(action,argument,revision)
 	_plan_sites.refresh(_plan_book)
-	_plan_panel.show_book(_plan_book,_plan_origin,message)
+	_plan_panel.show_book(_plan_book,_plan_origin,message,fresh_card)
 
 
 func _read_page() -> void:

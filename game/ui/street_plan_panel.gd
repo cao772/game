@@ -1,5 +1,6 @@
 extends CenterContainer
 const Book = preload("res://runtime/street_plan_book.gd")
+const CardArt = preload("res://ui/street_plan_card_art.gd")
 signal requested(action: String, argument: String, revision: int)
 var _list: VBoxContainer
 var _scroll: ScrollContainer
@@ -43,7 +44,7 @@ func _input(event: InputEvent) -> void:
 		hide()
 
 
-func show_book(book: Book, origin: String, notice: String = "") -> void:
+func show_book(book: Book, origin: String, notice: String = "", fresh_card: String = "") -> void:
 	for child in _list.get_children():
 		_list.remove_child(child)
 		child.queue_free()
@@ -58,7 +59,7 @@ func show_book(book: Book, origin: String, notice: String = "") -> void:
 		if book.problem.contains("SAVE_DIRECTORY_LIMIT"):
 			_button("整理建设旧记录（保留最近32份）","archive","",book.generation)
 	else:
-		_contents(book, origin, notice.begins_with("新图样"))
+		_contents(book, origin, fresh_card)
 	var close := Button.new()
 	close.text = "收起 · Esc"
 	close.pressed.connect(hide)
@@ -68,7 +69,7 @@ func show_book(book: Book, origin: String, notice: String = "") -> void:
 	_scroll.scroll_vertical = 0
 
 
-func _contents(book: Book, origin: String, reveal: bool) -> void:
+func _contents(book: Book, origin: String, fresh_card: String) -> void:
 	var d := book.data
 	var rest := PackedStringArray()
 	_text("我的图样 · %d/3" % d.owned.size())
@@ -76,10 +77,10 @@ func _contents(book: Book, origin: String, reveal: bool) -> void:
 	_list.add_child(cards)
 	for id in Book.CARDS:
 		var owned: bool = d.owned.has(id)
-		_card(cards,id,owned,reveal and owned and d.owned.back()==id)
+		_card(cards,id,owned,owned and id == fresh_card)
 		if not owned:
 			rest.append(Book.NAMES[id])
-	if reveal:
+	if not fresh_card.is_empty():
 		_button("查看图册与建设进度","browse",origin,book.generation)
 		return
 	_text("首张在主街板前免费领。再勘察两个不同地块，各得一次免费领取；可先勘察存次数。图样永久复用。")
@@ -140,12 +141,7 @@ func _card(row: Control, id: String, owned: bool, fresh: bool) -> void:
 	row.add_child(frame)
 	var column := VBoxContainer.new()
 	frame.add_child(column)
-	var art := TextureRect.new()
-	art.texture = ART[id]
-	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	art.custom_minimum_size = Vector2(148,88)
-	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var art := CardArt.new(ART[id], owned, fresh)
 	if not owned:
 		art.modulate = Color(0.65,0.65,0.65,0.75)
 	column.add_child(art)

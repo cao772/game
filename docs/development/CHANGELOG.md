@@ -1,3 +1,7 @@
+## 021a — 2026-11-10
+
+A newly saved street plan gets a half-second ink stamp. Opening the collection shows the finished imprint on owned cards. The reveal can be dismissed immediately.
+
 ## 021 — 2026-11-10
 
 Adds three collectible street plans, two survey credits, eligible site offers and persistent facilities. Target a completed light, seat or pedestrian guide to use it. Source and static checks only.
