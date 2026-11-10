@@ -167,23 +167,28 @@ func _json_equal(left: Variant, right: Variant) -> bool:
     return left == right
 
 
+func _root_component() -> String:
+    return ROOT_NAME
+
+
 func _open_root(create: bool) -> Dictionary:
+    var component := _root_component()
     var user_dir := DirAccess.open("user://")
     if user_dir == null:
         return _error("USER_DIRECTORY_UNAVAILABLE")
-    if user_dir.is_link(ROOT_NAME):
+    if user_dir.is_link(component):
         return _error("SAVE_ROOT_IS_LINK")
-    if not user_dir.dir_exists(ROOT_NAME):
-        if user_dir.file_exists(ROOT_NAME):
+    if not user_dir.dir_exists(component):
+        if user_dir.file_exists(component):
             return _error("SAVE_ROOT_NOT_DIRECTORY")
         if not create:
             return {"ok": true, "code": "ROOT_ABSENT", "directory": null}
-        var creation: Error = user_dir.make_dir(ROOT_NAME)
+        var creation: Error = user_dir.make_dir(component)
         if creation != OK:
             return _error("SAVE_ROOT_CREATE_FAILED", str(creation))
-    if user_dir.is_link(ROOT_NAME):
+    if user_dir.is_link(component):
         return _error("SAVE_ROOT_IS_LINK")
-    var directory := DirAccess.open(ROOT)
+    var directory := DirAccess.open("user://".path_join(component))
     if directory == null:
         return _error("SAVE_ROOT_OPEN_FAILED")
     return {"ok": true, "code": "ROOT_READY", "directory": directory}
@@ -384,7 +389,7 @@ func _write_locked(slot: String, payload: Dictionary) -> Dictionary:
     var temp_name: String = ".pending-%s-%s.tmp" % [slot, random_bytes.hex_encode()]
     if _name_exists(directory, temp_name):
         return _error("TEMP_ALREADY_EXISTS")
-    var temp_path: String = ROOT.path_join(temp_name)
+    var temp_path: String = directory.get_current_dir().path_join(temp_name)
     var file := FileAccess.open(temp_path, FileAccess.WRITE)
     if file == null:
         return _error("TEMP_OPEN_FAILED", temp_name)
@@ -554,7 +559,7 @@ func _archive_locked(slot: String, keep: int) -> Dictionary:
             return _archive_result(false, "ARCHIVE_MOVE_FAILED", moved, remaining, retained, diagnostics)
         remaining.erase(record)
         archive_count += 1
-        var move_receipt: Dictionary = {"generation": record["generation"], "from": ROOT.path_join(record["name"]), "path": target_path, "readback_verified": false}
+        var move_receipt: Dictionary = {"generation": record["generation"], "from": "user://".path_join(_root_component()).path_join(record["name"]), "path": target_path, "readback_verified": false}
         moved.append(move_receipt)
         # A failed readback after rename is a moved-but-unverified record, not
         # an atomic rollback. Keep every file and return the exact partial state.

@@ -1,3 +1,7 @@
+## 021 — 2026-11-10
+
+Adds three collectible street plans, two survey credits, eligible site offers and persistent facilities. Target a completed light, seat or pedestrian guide to use it. Source and static checks only.
+
 ## 020 — 2026-11-09
 
 A visitor unfolds a personal cup and saucer at the west counter, adjusts the pair and carries it home. The public basin remains available throughout. Both visitors use the same checked movement primitives. Source and static geometry review only.

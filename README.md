@@ -71,3 +71,5 @@ checks. Tray layout lasts for the visit and does not alter legacy save schemas.
 019 adds a west-lane wash shelter with one movable basin, timed filling, preparation and draining. The three held object types are mutually exclusive; legacy saves stay unchanged. See [behavior and source-only validation](docs/development/urban-wash-shelter-v19.md).
 
 020 adds a visitor who brings personal cups to the dry end of the wash counter and takes them home. [Visit and controls](docs/development/urban-cup-visitor-v20.md).
+
+021 connects free three-plan collection and survey credits with site-specific construction, permanent installations and separate save records. [Play flow and save behavior](docs/development/street-construction-v21.md).

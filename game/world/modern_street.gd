@@ -11,6 +11,9 @@ const Terrace = preload("res://world/urban_terrace.gd")
 const ReadingRoom = preload("res://world/urban_reading_room.gd")
 const ReadingVisitor = preload("res://world/urban_reading_visitor.gd")
 const CupVisitor = preload("res://world/urban_cup_visitor.gd")
+const StreetPlanBook = preload("res://runtime/street_plan_book.gd")
+const StreetPlanSites = preload("res://world/street_plan_sites.gd")
+const StreetPlanPanel = preload("res://ui/street_plan_panel.gd")
 const WashShelter = preload("res://world/urban_wash_shelter.gd")
 @export_file("*.tscn") var return_scene_path: String = "res://scenes/world_explorer.tscn"
 @export_file("*.json") var resident_lines_path: String = "res://content/urban_resident_lines.json"
@@ -46,6 +49,10 @@ var _reading_room: ReadingRoom
 var _reading_visitor: ReadingVisitor
 var _cup_visitor: CupVisitor
 var _wash_shelter: WashShelter
+var _plan_book := StreetPlanBook.new()
+var _plan_sites: StreetPlanSites
+var _plan_panel: StreetPlanPanel
+var _plan_origin := "board"
 var _seat_label: String = "长椅"
 var _seated_forward := Vector3.FORWARD
 
@@ -71,6 +78,11 @@ func _ready() -> void:
 	_wash_shelter = WashShelter.new()
 	add_child(_wash_shelter)
 	_wash_shelter.setup(_materials, _font)
+	_plan_book.load_book()
+	_plan_sites = StreetPlanSites.new()
+	add_child(_plan_sites)
+	_plan_sites.setup(_font)
+	_plan_sites.refresh(_plan_book)
 	_walker = Walker.new()
 	_walker.position = Vector3(0, 0, 20)
 	_walker.recover_pos = Vector3(0, 0.1, 20)
@@ -109,7 +121,7 @@ func _process(_delta: float) -> void:
 		if _walker.is_seated():
 			_action.text = "E：离开" + _seat_label + " · 起身位置被挡时会留在座位上"
 		else:
-			_action.text = "E：" + _target_caption(_nearest, view) if not _nearest.is_empty() else "阅览室后巷有洗择棚 · 东侧工坊通后院与晒台"
+			_action.text = "E：" + _target_caption(_nearest, view) if not _nearest.is_empty() else "主街西侧有街坊图样板 · 免费领图样，去街角建设"
 		if _reading_room.is_carrying():
 			_action.text += " · 手持书盘 · F 翻页"
 		elif not _nearest.is_empty() and _reading_room.has_tray(str(_nearest["id"])):
@@ -135,6 +147,13 @@ func _process(_delta: float) -> void:
 		if is_instance_valid(_reading_visitor):
 			var visitor_status: Dictionary = _reading_visitor.status()
 			_action.text += "\n" + str(visitor_status["name"]) + "：" + str(visitor_status["activity"])
+		if _plan_book.data.get("accepted","") != "":
+			var plot: String = _plan_book.data.offer
+			var distance: float = _walker.global_position.distance_to(StreetPlanSites.SITES[plot])
+			_action.text += "\n待施工 · %s的%s，约%d米 · %s" % [StreetPlanBook.PLACES[plot],StreetPlanBook.NAMES[_plan_book.data.accepted],roundi(distance),StreetPlanBook.DIRECTIONS[plot]]
+		var directions := _plan_sites.guide_text(_walker.global_position)
+		if not directions.is_empty():
+			_action.text += "\n" + directions
 		_sync_held()
 
 
@@ -430,16 +449,23 @@ func _build_ui() -> void:
 	column.add_child(_action)
 	_load_confirm = ConfirmationDialog.new()
 	_load_confirm.title = "恢复现代街区"
-	_load_confirm.dialog_text = "恢复最近保存的工坊门、工作灯与工具箱位置，并回到街上起点？当前未保存改动会被替换；书盘回阅览台，阅览灯和书页回到初始状态；阅览来客从前廊重新来访；公共盆回水槽，水、菜、龙头和滴水复位。"
+	_load_confirm.dialog_text = "恢复最近保存的工坊门、工作灯与工具箱位置，并回到街上起点？当前未保存改动会被替换；书盘回阅览台，阅览灯和书页回到初始状态；阅览来客从前廊重新来访；公共盆回水槽，水、菜、龙头和滴水复位。图样与建设已单独保存。"
 	_load_confirm.confirmed.connect(_restore_latest.bind(false))
 	_load_confirm.visibility_changed.connect(_update_modal_controls)
 	canvas.add_child(_load_confirm)
 	_leave_confirm = ConfirmationDialog.new()
 	_leave_confirm.title = "不保存返回"
-	_leave_confirm.dialog_text = "离开现代街区并放弃本次未保存的布置？原有存档保留；公共书盘回阅览台，公共盆回水槽且水菜复位，下次进入时来客重新来访。"
+	_leave_confirm.dialog_text = "离开现代街区并放弃本次未保存的布置？原有存档保留；公共书盘回阅览台，公共盆回水槽且水菜复位，下次进入时来客重新来访。图样与建设进度已单独保存。"
 	_leave_confirm.confirmed.connect(_leave_without_save)
 	_leave_confirm.visibility_changed.connect(_update_modal_controls)
 	canvas.add_child(_leave_confirm)
+	_plan_panel = StreetPlanPanel.new()
+	var book_theme := Theme.new()
+	book_theme.default_font = _font
+	_plan_panel.theme = book_theme
+	canvas.add_child(_plan_panel)
+	_plan_panel.requested.connect(_plan_command)
+	_plan_panel.visibility_changed.connect(_update_modal_controls)
 	_resident_panel = ResidentPanel.new()
 	var conversation_theme := Theme.new()
 	conversation_theme.default_font = _font
@@ -497,7 +523,7 @@ func _request_restore() -> void:
 func _update_modal_controls() -> void:
 	if _load_confirm != null and _leave_confirm != null:
 		var talking: bool = is_instance_valid(_resident_panel) and _resident_panel.visible
-		var modal: bool = _load_confirm.visible or _leave_confirm.visible or talking
+		var modal: bool = _load_confirm.visible or _leave_confirm.visible or talking or (is_instance_valid(_plan_panel) and _plan_panel.visible)
 		_walker.controls_enabled = not modal
 		for button in _toolbar:
 			button.disabled = modal
@@ -593,6 +619,7 @@ func _find_target() -> Dictionary:
 	var precise_sink_target: Dictionary = {}
 	var precise_facing := cos(deg_to_rad(5.0))
 	var candidates: Array[Dictionary] = _workshop.targets()
+	candidates.append_array(_plan_sites.targets())
 	candidates.append(_cup_visitor.interaction_target())
 	candidates.append(_reading_visitor.interaction_target())
 	candidates.append_array(_terrace.targets())
@@ -634,6 +661,10 @@ func _find_target() -> Dictionary:
 
 func _target_caption(target: Dictionary, view: Dictionary) -> String:
 	var id: String = target["id"]
+	if id == "plan_board":
+		return "翻开街坊图样板"
+	if target.has("site"):
+		return _plan_sites.caption(target.site, _plan_book)
 	if ReadingRoom.TRAY_ANCHORS.has(id):
 		return _reading_room.caption(id)
 	if WashShelter.ANCHORS.has(id):
@@ -669,7 +700,7 @@ func _interact(delta: float) -> void:
 	var id: String = _nearest["id"]
 	var view: Dictionary = _urban.view()
 	var result: Dictionary
-	if id == "terrace_seat" or id == "reading_seat":
+	if id == "terrace_seat" or id == "reading_seat" or _nearest.get("kind","") == "seat":
 		var stand_candidates: Array[Vector3] = []
 		for point in _nearest["stand_candidates"]:
 			stand_candidates.append(point)
@@ -681,6 +712,12 @@ func _interact(delta: float) -> void:
 		_nearest.clear()
 		_interact_queued = false
 		_reading_action = ""
+		return
+	elif id == "plan_board":
+		_open_plan("board")
+		return
+	elif _nearest.has("site"):
+		_interact_plot(str(_nearest.site), str(_nearest.kind), delta)
 		return
 	elif WashShelter.ANCHORS.has(id):
 		_last_error = _wash_shelter.use_station(id)
@@ -747,6 +784,59 @@ func _interact(delta: float) -> void:
 		_apply_urban_view()
 	else:
 		_last_error = "暂时无法操作：" + result["code"]
+
+
+func _open_plan(origin: String, notice: String = "") -> void:
+	_plan_origin = origin
+	_walker.release_pointer()
+	_interact_queued = false
+	_reading_action = ""
+	_plan_book.start_book()
+	_plan_panel.show_book(_plan_book,origin,notice)
+
+
+func _interact_plot(site: String, kind: String, delta: float) -> void:
+	if kind in ["lamp","guide"]:
+		_last_error = _plan_sites.use_fixture(site)
+		return
+	_plan_book.start_book()
+	var d := _plan_book.data
+	var build: bool = d.get("offer","") == site and d.get("accepted","") != ""
+	if build:
+		var feet := [_walker.global_position, _walker.global_position + _walker.velocity * delta, _resident.global_position, _resident.possible_next_position(delta), _reading_visitor.global_position, _reading_visitor.possible_next_position(delta), _cup_visitor.global_position, _cup_visitor.possible_next_position(delta)]
+		for point in feet:
+			if _plan_sites.occupied(site,point):
+				_last_error = "施工位置有人，从地块前退开一步再试。"
+				return
+	var message := _plan_book.act("build" if build else "survey",site,_plan_book.generation)
+	_plan_sites.refresh(_plan_book)
+	_open_plan(site,message)
+
+
+func _plan_command(action: String, argument: String, revision: int) -> void:
+	if not _plan_panel.visible or not get_window().has_focus() or get_tree().paused:
+		return
+	var message := ""
+	if action == "browse" and argument == _plan_origin:
+		_plan_panel.show_book(_plan_book,_plan_origin)
+		return
+	if action == "retry":
+		_plan_book.load_book()
+		_plan_book.start_book()
+	elif action == "archive":
+		var result := _plan_book.archive_older(StreetPlanBook.SLOT)
+		if result.get("ok",false):
+			_plan_book.load_book()
+			_plan_book.start_book()
+			message = "已整理旧记录。"
+		else:
+			message = "整理未完成：" + str(result.get("code","IO"))
+	elif action == "draw" and argument == _plan_origin:
+		message = _plan_book.act(action,argument,revision)
+	elif _plan_origin == "board" and action in ["offer","accept","skip"]:
+		message = _plan_book.act(action,argument,revision)
+	_plan_sites.refresh(_plan_book)
+	_plan_panel.show_book(_plan_book,_plan_origin,message)
 
 
 func _read_page() -> void:
