@@ -2,16 +2,18 @@ extends Node3D
 ## A ground-floor public passage and optional reading stop. Scene-local state only.
 ## All coordinates share modern_street's origin; no quest or save-store ownership.
 
+const SalvageSites = preload("res://world/salvage_sites.gd")
 const SEAT_FEET := Vector3(-21, 0, 20.8)
 const SEAT_TARGET := Vector3(-21, 0.75, 20)
 const STAND_POINTS := [Vector3(-21, 0, 19.45), Vector3(-22, 0, 19.45), Vector3(-20, 0, 19.45)]
 const TRAY_SIZE := Vector3(0.62, 0.12, 0.42)
 const TRAY_ANCHORS := {
+	"salvage_book": SalvageSites.BOOK,
 	"reading_book": Vector3(-21.4, 0.76, 10.1),
 	"reading_side": Vector3(-19.5, 0.58, 20.5),
 	"reading_porch": Vector3(-13.35, 0.82, 17.4),
 }
-const TRAY_LABELS := {"reading_book": "阅览台", "reading_side": "长椅旁低台", "reading_porch": "前廊窄台"}
+const TRAY_LABELS := {"salvage_book": "旧料书托", "reading_book": "阅览台", "reading_side": "长椅旁低台", "reading_porch": "前廊窄台"}
 const PAGES := [
 	["01 · 两条走法", "从临街门进来，穿过书架两侧都能到后巷。\n不想进屋，也可以沿外廊绕过楼角。"],
 	["02 · 留一条路", "看完把书留在台上，后来的人也能翻。\n门口和书架两边留空，赶路的人就不用打断谁。"],
@@ -27,6 +29,7 @@ var _bulb_material: StandardMaterial3D
 var _page_index: int = -1
 var _lamp_on: bool = true
 var _tray: Node3D
+var book_rest_installed := false
 var _tray_anchor: String = "reading_book"
 
 
@@ -55,16 +58,20 @@ func targets() -> Array[Dictionary]:
 			"feet": to_global(SEAT_FEET), "yaw": global_rotation.y, "stand_candidates": standing},
 	]
 	for id in TRAY_ANCHORS:
-		if is_carrying() or _tray_anchor == id:
+		if tray_anchor_available(id) and (is_carrying() or _tray_anchor == id or id == "salvage_book"):
 			result.append({"id": id, "label": TRAY_LABELS[id], "position": to_global(TRAY_ANCHORS[id] + Vector3(0, 0.18, 0))})
 	return result
 
 
+func tray_anchor_available(id: String) -> bool:
+	return TRAY_ANCHORS.has(id) and (id != "salvage_book" or book_rest_installed)
+
+
 func caption(id: String) -> String:
-	if TRAY_ANCHORS.has(id):
+	if tray_anchor_available(id):
 		if is_carrying():
 			return "把书盘放到" + str(TRAY_LABELS[id])
-		return "翻阅公共册"
+		return "翻阅公共册" if has_tray(id) else "空书托 · 从" + str(TRAY_LABELS.get(_tray_anchor, "阅览室")) + "把公共书盘带来"
 	match id:
 		"reading_lamp":
 			return "关掉阅览灯" if _lamp_on else "打开阅览灯"
@@ -101,7 +108,7 @@ func is_carrying() -> bool:
 
 
 func has_tray(id: String) -> bool:
-	return TRAY_ANCHORS.has(id) and _tray_anchor == id
+	return tray_anchor_available(id) and _tray_anchor == id
 
 
 func visitor_view() -> Dictionary:
@@ -118,7 +125,7 @@ func take_tray(id: String, toolbox_carried: bool) -> bool:
 
 
 func place_tray(id: String) -> bool:
-	if not is_carrying() or not TRAY_ANCHORS.has(id):
+	if not is_carrying() or not tray_anchor_available(id):
 		return false
 	_tray_anchor = id
 	_project_tray()
@@ -126,7 +133,7 @@ func place_tray(id: String) -> bool:
 
 
 func placement_occupied(id: String, feet: Vector3) -> bool:
-	if not TRAY_ANCHORS.has(id):
+	if not tray_anchor_available(id):
 		return true
 	var base: Vector3 = to_global(TRAY_ANCHORS[id])
 	return absf(feet.x - base.x) < TRAY_SIZE.x * 0.5 + 0.34 and absf(feet.z - base.z) < TRAY_SIZE.z * 0.5 + 0.34 and feet.y < base.y + TRAY_SIZE.y + 0.04 and feet.y + 1.75 > base.y
@@ -139,9 +146,9 @@ func present_carried(at: Vector3, yaw: float) -> void:
 
 
 func _project_tray() -> void:
-	if TRAY_ANCHORS.has(_tray_anchor):
+	if tray_anchor_available(_tray_anchor):
 		_tray.position = TRAY_ANCHORS[_tray_anchor]
-		_tray.rotation = Vector3.ZERO
+		_tray.rotation = Vector3(0, PI if _tray_anchor == "salvage_book" else 0.0, 0)
 
 
 func _build_tray() -> void:

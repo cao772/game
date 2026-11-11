@@ -2,18 +2,21 @@ extends Node3D
 ## A public wash/preparation stop. All state belongs to this street visit.
 ## The root owns input qualification and single-hand arbitration, never this scene.
 
+const SalvageSites = preload("res://world/salvage_sites.gd")
 const BASIN_SIZE := Vector3(0.60, 0.24, 0.45)
 const ANCHORS := {
+	"salvage_drain": SalvageSites.DRAIN,
 	"wash_sink": Vector3(-43.6, 0.85, 8.3),
 	"wash_prep": Vector3(-39, 0.78, 11.2),
 	"wash_drain": Vector3(-34.5, 0.85, 8.3),
 }
 const TARGETS := {
+	"salvage_drain": SalvageSites.DRAIN_AIM,
 	"wash_sink": Vector3(-43.6, 1.20, 8.55),
 	"wash_prep": Vector3(-39, 1.12, 11.55),
 	"wash_drain": Vector3(-34.5, 1.20, 8.55),
 }
-const LABELS := {"wash_sink": "接水槽", "wash_prep": "择洗台", "wash_drain": "沥水台"}
+const LABELS := {"salvage_drain":"旧料沥盆架", "wash_sink": "接水槽", "wash_prep": "择洗台", "wash_drain": "沥水台"}
 const TAP_DURATION: float = 6.0
 const FILL_DURATION: float = 2.0
 const DRIP_DURATION: float = 3.0
@@ -29,6 +32,8 @@ var _sorted_produce: Node3D
 var _scraps: Node3D
 var _stream: Node3D
 var _drips: Node3D
+var drain_rack_installed := false
+var _last_drain := "wash_drain"
 var _basin_anchor: String = "wash_sink"
 var _water: String = "empty"
 var _produce: String = "unwashed"
@@ -63,9 +68,15 @@ func setup(materials: Dictionary, font: Font) -> void:
 func targets() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for id in ANCHORS:
+		if not basin_anchor_available(id):
+			continue
 		# Stations remain usable even when their basin slot is empty.
 		result.append({"id": id, "label": LABELS[id], "position": to_global(TARGETS[id])})
 	return result
+
+
+func basin_anchor_available(id: String) -> bool:
+	return ANCHORS.has(id) and (id != "salvage_drain" or drain_rack_installed)
 
 
 func caption(id: String) -> String:
@@ -74,7 +85,9 @@ func caption(id: String) -> String:
 			return "关水（最多6秒自动停）" if _tap_remaining > 0.0 else "打开接水龙头"
 		"wash_prep":
 			return "择洗盆里的菜"
-		"wash_drain":
+		"wash_drain", "salvage_drain":
+			if id == "salvage_drain" and not has_basin(id):
+				return "放稳公共盆后可在架上沥水" if is_carrying() else "空沥盆架 · 从" + str(LABELS[_basin_anchor]) + "把公共盆带来"
 			return "倒掉盆水，保留菜"
 	return ""
 
@@ -87,7 +100,7 @@ func summary() -> String:
 	if _basin_anchor == "wash_sink" and _water == "empty" and _tap_remaining > 0.0:
 		result += " · 连续接水 %.1f/2秒" % _fill_contact_elapsed
 	if _drip_remaining > 0.0:
-		result += " · 沥水台还在滴水"
+		result += " · " + str(LABELS[_last_drain]) + "还在滴水"
 	return result
 
 
@@ -96,7 +109,7 @@ func is_carrying() -> bool:
 
 
 func has_basin(id: String) -> bool:
-	return ANCHORS.has(id) and _basin_anchor == id
+	return basin_anchor_available(id) and _basin_anchor == id
 
 
 func take_basin(id: String, hands_occupied: bool) -> bool:
@@ -110,7 +123,7 @@ func take_basin(id: String, hands_occupied: bool) -> bool:
 
 
 func place_basin(id: String) -> bool:
-	if not is_carrying() or not ANCHORS.has(id):
+	if not is_carrying() or not basin_anchor_available(id):
 		return false
 	_basin_anchor = id
 	_fill_contact_elapsed = 0.0
@@ -143,16 +156,20 @@ func use_station(id: String) -> String:
 			_water = "used"
 			_refresh()
 			return "菜已择洗归拢，水已用过；可以带到沥水台倒水。"
-		"wash_drain":
+		"wash_drain", "salvage_drain":
+			if not basin_anchor_available(id):
+				return "尚未装好沥盆架。"
 			if not has_basin(id):
-				return "先把公共盆放到沥水台，再倒水。"
+				return "先把公共盆放到" + str(LABELS[id]) + "，再倒水。"
 			if _water == "empty":
 				return "盆里已经没有水，菜的状态保持。"
 			_water = "empty"
 			_fill_contact_elapsed = 0.0
+			_last_drain = id
+			_drips.position = SalvageSites.DRAIN + Vector3(0,-0.22,0.05) if id == "salvage_drain" else Vector3(-34.5,0.6,8.84)
 			_drip_remaining = DRIP_DURATION
 			_refresh()
-			return "水已倒掉，菜仍留在盆里；余水在沥水格下滴落。"
+			return "水已倒掉，菜仍留在盆里。余水在" + str(LABELS[id]) + "下滴落。"
 	return ""
 
 
@@ -193,6 +210,7 @@ func reset_visit() -> void:
 	_tap_remaining = 0.0
 	_fill_contact_elapsed = 0.0
 	_drip_remaining = 0.0
+	_last_drain = "wash_drain"
 	_active = true
 	_basin.position = ANCHORS["wash_sink"]
 	_basin.rotation = Vector3.ZERO
@@ -200,7 +218,7 @@ func reset_visit() -> void:
 
 
 func placement_occupied(id: String, feet: Vector3) -> bool:
-	if not ANCHORS.has(id):
+	if not basin_anchor_available(id):
 		return true
 	var base: Vector3 = to_global(ANCHORS[id])
 	return absf(feet.x - base.x) < BASIN_SIZE.x * 0.5 + 0.34 and absf(feet.z - base.z) < BASIN_SIZE.z * 0.5 + 0.34 and feet.y < base.y + BASIN_SIZE.y + 0.04 and feet.y + 1.75 > base.y

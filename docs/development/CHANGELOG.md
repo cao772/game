@@ -1,3 +1,7 @@
+## 023 — 2026-11-11
+
+A salvage rack east of the street entrance registers two different batches. Fit an adapter at the workshop to choose either the reading tray rest or the basin drain rack. Installation consumes the batch. Each completed fitting accepts the original movable object, and the salvage record persists across visits. Source-only delivery with offline checks.
+
 ## 022 — 2026-11-11
 
 After reading or passing up the public tray, the visitor can sketch a completed seat at the south alley. One visit-local draw selects the seat rim or the opening between its legs. Each subject has its own standing position, sightline and pencil strokes. A blocked approach or prolonged occlusion leads back to the visitor's indoor routine. Offline source and geometry review only.
