@@ -47,6 +47,13 @@ func refresh(book: Book) -> void:
 		(_labels[site] as Label3D).text = caption
 
 
+func has_south_seat(book: Book) -> bool:
+	if not book.problem.is_empty() or book.data.get("built", {}).get("south", "") != "seat":
+		return false
+	var seat := _installations.get("south") as Node3D
+	return _kinds.get("south") == "seat" and is_instance_valid(seat) and seat.is_inside_tree() and not seat.is_queued_for_deletion()
+
+
 func targets() -> Array[Dictionary]:
 	var result: Array[Dictionary] = [{"id":"plan_board","label":"街坊图样板","position":BOARD+Vector3.UP*1.53}]
 	for site in SITES:

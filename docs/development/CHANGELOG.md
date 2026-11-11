@@ -1,3 +1,7 @@
+## 022 — 2026-11-11
+
+After reading or passing up the public tray, the visitor can sketch a completed seat at the south alley. One visit-local draw selects the seat rim or the opening between its legs. Each subject has its own standing position, sightline and pencil strokes. A blocked approach or prolonged occlusion leads back to the visitor's indoor routine. Offline source and geometry review only.
+
 ## 021a — 2026-11-10
 
 A newly saved street plan gets a half-second ink stamp. Opening the collection shows the finished imprint on owned cards. The reveal can be dismissed immediately.

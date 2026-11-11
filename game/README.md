@@ -190,3 +190,5 @@ on re-entry or successful F9 restore; it is not part of F5 saves. See
 020 adds a visitor who brings personal cups to the dry end of the wash counter and takes them home. [Visit and controls](../docs/development/urban-cup-visitor-v20.md).
 
 021 connects free three-plan collection and survey credits with site-specific construction, permanent installations and separate save records. [Play flow and save behavior](../docs/development/street-construction-v21.md).
+
+In 022, build the rest seat at the south alley before the reading visitor chooses a subject. Follow the visitor through the back lane or use the seat and turn toward the open notebook. From two different standing positions the visitor draws either a slanted four-sided seat outline or the space between the legs. Moving the public book can end the reading phase. Watching the sketch is optional.

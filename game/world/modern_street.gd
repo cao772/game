@@ -163,7 +163,7 @@ func _physics_process(delta: float) -> void:
 		_resident.advance(delta, _urban.view(), enabled)
 		_workshop.present_activity(_resident.status() if enabled else {})
 	if is_instance_valid(_reading_visitor):
-		_reading_visitor.advance(delta, _reading_room.visitor_view(), enabled)
+		_reading_visitor.advance(delta, _reading_view(), enabled)
 	_cup_visitor.advance(delta, enabled)
 	_wash_shelter.advance(delta, enabled)
 	if not enabled:
@@ -185,7 +185,13 @@ func _physics_process(delta: float) -> void:
 			_move_reading_tray(delta)
 	elif reading_action == "read":
 		_read_page()
-	_reading_visitor.refresh_reading(_reading_room.visitor_view())
+	_reading_visitor.refresh_reading(_reading_view())
+
+
+func _reading_view() -> Dictionary:
+	var view := _reading_room.visitor_view()
+	view["south_seat"] = _plan_sites.has_south_seat(_plan_book)
+	return view
 
 
 func _notification(what: int) -> void:

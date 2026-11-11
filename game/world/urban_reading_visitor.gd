@@ -3,6 +3,8 @@ extends "res://world/urban_visit_actor.gd"
 ## Public tray is read-only. The visitor's notebook is always their own visual.
 
 const ReadingRoom = preload("res://world/urban_reading_room.gd")
+const BenchPage = preload("res://world/bench_sketch_page.gd")
+const Sites = preload("res://world/street_plan_sites.gd")
 const SPEED: float = 0.95
 const POINTS := {
 	"home": Vector3(-12, 0, 18.8), "porch_join": Vector3(-12.4, 0, 18.8),
@@ -15,6 +17,7 @@ const POINTS := {
 	"east": Vector3(-16, 0, 20.5), "side_read": Vector3(-18.45, 0, 20.5),
 	"rear_middle": Vector3(-18.45, 0, 22.2), "rear_east": Vector3(-17, 0, 24),
 	"quiet": Vector3(-17, 0, 25.5),
+	"rim": Vector3(-29.95, 0, 17.65), "gap": Vector3(-30.25, 0, 16.35),
 }
 const EDGES := [
 	["home", "porch_join"], ["home", "porch_read"],
@@ -26,7 +29,10 @@ const EDGES := [
 	["front_in", "east"], ["east", "side_read"], ["side_read", "rear_middle"],
 	["rear_middle", "rear_west"], ["rear_middle", "rear_east"],
 	["rear_east", "rear_in"], ["rear_east", "quiet"],
+	["lane", "rim"], ["lane", "gap"], ["rim", "gap"], ["back_out", "rim"],
 ]
+# The visible front corner and the opening inside the right leg of the south seat.
+const SUBJECT_OFFSETS := {"rim": Vector3(0.71, 0.515, -0.18), "gap": Vector3(0.35, 0.18, -0.12)}
 const READ_POINTS := {"reading_book": "desk_read", "reading_side": "side_read", "reading_porch": "porch_read"}
 const DEFAULT_LINES := {
 	"porch": "先看看公共册，再画自己的本子。",
@@ -42,6 +48,9 @@ var _notebook: Node3D
 var _pages: Node3D
 var _pencil: Node3D
 var _ink: Node3D
+var _bench_page: BenchPage
+var _sketch_rng := RandomNumberGenerator.new()
+var _subject := ""
 var _phase: String = "porch"
 var _node: String = "home"
 var _goal: String = "home"
@@ -53,6 +62,7 @@ var _blocked_time: float = 0.0
 var _remaining: float = 8.0
 var _active_time: float = 0.0
 var _sketch_elapsed: float = 0.0
+var _sketch_finished := false
 var _selected_anchor: String = ""
 var _retargets: int = 0
 var _quiet_selected: bool = false
@@ -66,6 +76,7 @@ var _lines: Dictionary = DEFAULT_LINES.duplicate()
 
 
 func _ready() -> void:
+	_sketch_rng.randomize()
 	_build_actor()
 	_build_notebook()
 	reset_visit()
@@ -103,7 +114,9 @@ func reset_visit() -> void:
 	_remaining = 8.0
 	_active_time = 0.0
 	_sketch_elapsed = 0.0
+	_sketch_finished = false
 	_selected_anchor = ""
+	_subject = ""
 	_retargets = 0
 	_quiet_selected = false
 	_enabled = true
@@ -126,6 +139,8 @@ func advance(delta: float, view: Dictionary, enabled: bool) -> void:
 		return
 	var step := minf(delta, MAX_STEP)
 	_active_time += step
+	if _on_bench_trip() and not _view.get("south_seat", false):
+		_leave_bench()
 	if not _edge_to.is_empty() or _node != _goal:
 		if _edge_to.is_empty():
 			_reconsider_public()
@@ -182,9 +197,16 @@ func describe() -> String:
 		key = "porch"
 	elif key == "approach_sketch":
 		key = "sketch"
+	var line: String = _lines.get(key, _lines["porch"])
 	if _blocked:
-		key = "blocked"
-	return _display_name + " · " + _activity + "\n“" + str(_lines.get(key, _lines["porch"])) + "”"
+		line = _lines["blocked"]
+	elif _phase == "approach_sketch" and _on_bench_trip():
+		line = "我去看一眼南口那张凳。"
+	elif _phase == "done" and not _sketch_finished:
+		line = "改天再接着看吧。"
+	elif _phase == "sketch" and SUBJECT_OFFSETS.has(_goal):
+		line = "我先收住这条长边，再接短边。" if _goal == "rim" else "两只脚之间，我想把纸留白。"
+	return _display_name + " · " + _activity + "\n“" + line + "”"
 
 
 func possible_next_position(delta: float) -> Vector3:
@@ -234,16 +256,29 @@ func _dwell(step: float) -> void:
 				if _blocked_time >= 4.0:
 					_begin_sketch()
 		"approach_sketch":
+			if _goal == "lane":
+				_goal = _subject
+				return
+			if SUBJECT_OFFSETS.has(_goal) and not _bench_visible(step):
+				return
 			_phase = "sketch"
 			_remaining = 30.0
 			_sketch_elapsed = 0.0
-			_face(global_position + (Vector3.LEFT if _goal == "window" else Vector3.FORWARD))
+			if SUBJECT_OFFSETS.has(_goal):
+				_face(_subject_point())
+			else:
+				_face(global_position + (Vector3.LEFT if _goal == "window" else Vector3.FORWARD))
 		"sketch":
+			if SUBJECT_OFFSETS.has(_goal) and not _bench_visible(step):
+				return
 			_sketch_elapsed += step
 			_remaining = maxf(0.0, _remaining - step)
 			_activity = "在窗边补画自己的速写" if _goal == "window" else "在安静角落校对自己的草稿"
+			if SUBJECT_OFFSETS.has(_goal):
+				_activity = "沿座面勾长边，再合上短边" if _goal == "rim" else "描下两只凳脚，把中间留白"
 			if _remaining == 0.0:
 				_phase = "stow"
+				_sketch_finished = true
 				_remaining = 3.0
 		"stow":
 			_activity = "合上自己的本子，收好笔"
@@ -254,12 +289,10 @@ func _dwell(step: float) -> void:
 		"return":
 			if _node == "home":
 				_phase = "done"
-				_activity = "这一趟画完了，在前廊歇着"
+				_activity = "这一趟画完了，在前廊歇着" if _sketch_finished else "今天先收笔，在前廊歇着"
 				_visual.rotation.y = PI * 0.5
 			else:
 				_goal = "home"
-		"done":
-			_activity = "这一趟画完了，在前廊歇着"
 
 
 func _select_public() -> void:
@@ -286,6 +319,41 @@ func _begin_sketch() -> void:
 	_phase = "approach_sketch"
 	_goal = "quiet" if _quiet_selected else "window"
 	_blocked_time = 0.0
+	if _view.get("south_seat", false):
+		_subject = "rim" if _sketch_rng.randi_range(0, 1) == 0 else "gap"
+		_goal = "lane"
+
+
+func _on_bench_trip() -> bool:
+	return not _subject.is_empty() and _phase in ["approach_sketch", "sketch"] and (_goal == "lane" or SUBJECT_OFFSETS.has(_goal))
+
+
+func _subject_point() -> Vector3:
+	return Sites.SITES["south"] + SUBJECT_OFFSETS[_subject]
+
+
+func _bench_visible(step: float) -> bool:
+	if _clear_sight(_subject_point()):
+		_blocked_time = 0.0
+		return true
+	_blocked = true
+	_activity = "收住笔尖，等眼前的人走过"
+	_blocked_time += step
+	if _blocked_time >= 4.0:
+		_leave_bench()
+	return false
+
+
+func _leave_bench() -> void:
+	if not _edge_to.is_empty() and not _retreating:
+		_edge_to = _edge_from
+		_retreating = true
+	_phase = "approach_sketch"
+	_goal = "quiet"
+	_quiet_selected = true
+	_sketch_elapsed = 0.0
+	_blocked_time = 0.0
+	_activity = "收起本子，去安静角落"
 
 
 func _can_see_public() -> bool:
@@ -295,7 +363,11 @@ func _can_see_public() -> bool:
 	var eye := global_position + Vector3.UP * 1.6
 	if eye.distance_to(target) > 2.6:
 		return false
-	var ray := PhysicsRayQueryParameters3D.create(eye, target, 1 | 2 | 4, [get_rid()])
+	return _clear_sight(target)
+
+
+func _clear_sight(target: Vector3) -> bool:
+	var ray := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 1.6, target, 1 | 2 | 4, [get_rid()])
 	ray.hit_from_inside = true
 	return get_world_3d().direct_space_state.intersect_ray(ray).is_empty()
 
@@ -345,9 +417,15 @@ func _wait_for_route(step: float) -> void:
 		_retreating = true
 	if _phase == "approach_public":
 		_begin_sketch()
+	elif _on_bench_trip():
+		_leave_bench()
 	elif _phase == "approach_sketch" and not _quiet_selected:
 		_quiet_selected = true
 		_goal = "quiet"
+	elif _phase == "approach_sketch" and not _subject.is_empty():
+		# The indoor fallback can also be occupied. Finish the visit without a drawing.
+		_phase = "return"
+		_goal = "home"
 	elif _phase == "return":
 		_goal = "home" # A blocked back exit can fall back to the front entrance.
 
@@ -378,6 +456,8 @@ func _route(from: String, to: String) -> Array[String]:
 			break
 		for edge in EDGES:
 			var next: String = str(edge[1]) if edge[0] == current else (str(edge[0]) if edge[1] == current else "")
+			if SUBJECT_OFFSETS.has(next) and not (SUBJECT_OFFSETS.has(from) or SUBJECT_OFFSETS.has(to)):
+				continue
 			if next.is_empty() or not pending.has(next) or float(_blocked_edges.get(_edge_key(current, next), 0.0)) > _active_time:
 				continue
 			var a: Vector3 = POINTS[current]
@@ -406,6 +486,8 @@ func _goal_label() -> String:
 	if _phase == "approach_public":
 		return "公共册旁"
 	if _phase == "approach_sketch":
+		if _on_bench_trip():
+			return "后巷南口的歇脚凳旁"
 		return "安静角落" if _goal == "quiet" else "窗边"
 	return "后巷" if _goal == "lane" else "前廊"
 
@@ -418,6 +500,8 @@ func _build_notebook() -> void:
 	_pages = _piece(_notebook, Vector3(0, 0.023, 0), Vector3(0.36, 0.014, 0.24), Color("e8dec6"))
 	_ink = Node3D.new()
 	_notebook.add_child(_ink)
+	_bench_page = BenchPage.new()
+	_notebook.add_child(_bench_page)
 	for index in range(5):
 		_piece(_ink, Vector3(-0.12 + index * 0.052, 0.032, -0.03 + (index % 2) * 0.02), Vector3(0.037, 0.004, 0.06), Color("636457"))
 	_pencil = _piece(_notebook, Vector3(0.08, 0.05, 0), Vector3(0.012, 0.012, 0.17), Color("6c6651"))
@@ -428,8 +512,14 @@ func _present_notebook() -> void:
 	_notebook.position = Vector3(0, 1.18, 0.46) if open else Vector3(0.30, 0.67, 0.08)
 	_notebook.rotation = Vector3(-0.25, 0, 0) if open else Vector3(0, 0, PI * 0.5)
 	_pages.visible = open
-	_ink.visible = open
+	var bench_open := open and SUBJECT_OFFSETS.has(_goal)
+	_ink.visible = open and not bench_open
+	_bench_page.visible = bench_open
 	_pencil.position = Vector3(0.06 + sin(_sketch_elapsed * 3.0) * 0.04, 0.05, 0.01) if open else Vector3(0.16, 0.03, 0)
+	if bench_open:
+		_notebook.position.y = 1.25 if _subject == "rim" else 1.06
+		_notebook.rotation.x = 0.56 if _subject == "rim" else 0.68
+		_pencil.position = _bench_page.draw_to(_subject, _sketch_elapsed) + Vector3(0, 0.008, 0.085)
 	# A finite visual progress cue, never a new inventory page or quest flag.
 	for index in range(_ink.get_child_count()):
 		(_ink.get_child(index) as Node3D).visible = _sketch_elapsed >= float(index + 1) * 5.0
