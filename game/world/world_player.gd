@@ -2,6 +2,8 @@ extends CharacterBody3D
 ## Camera-relative explorer. Source only; movement and camera need engine acceptance.
 
 const MODEL = preload("res://art/explorer_actor/explorer.glb")
+const DEFAULT_UPWARD_PITCH := 0.18
+const RIDGE_UPWARD_PITCH := PI * 65.0 / 180.0
 var controls_enabled := true
 var recovery_position := Vector3(0, 1, 8)
 var _pivot: Node3D
@@ -11,6 +13,7 @@ var _animation: AnimationPlayer
 var _jump := false
 var _looking := false
 var _clip := ""
+var _upward_pitch := DEFAULT_UPWARD_PITCH
 
 func _ready() -> void:
 	collision_layer = 2
@@ -64,7 +67,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_arm.spring_length = minf(9.0, _arm.spring_length + 0.5)
 	elif event is InputEventMouseMotion and _looking:
 		_pivot.rotation.y -= event.relative.x * 0.004
-		_arm.rotation.x = clampf(_arm.rotation.x - event.relative.y * 0.003, -1.1, 0.18)
+		_tilt_camera(-event.relative.y * 0.003)
 	elif event is InputEventKey and event.pressed and not event.echo:
 		if event.physical_keycode == KEY_SPACE:
 			_jump = true
@@ -83,17 +86,14 @@ func _physics_process(delta: float) -> void:
 		return
 	if _looking and not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		release_pointer()
-	var axis := Vector2.ZERO
-	var running := false
-	if enabled:
-		axis = Vector2(float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A)), float(Input.is_physical_key_pressed(KEY_S)) - float(Input.is_physical_key_pressed(KEY_W))).limit_length()
-		running = Input.is_physical_key_pressed(KEY_SHIFT)
-		_pivot.rotation.y += (float(Input.is_physical_key_pressed(KEY_LEFT)) - float(Input.is_physical_key_pressed(KEY_RIGHT))) * delta * 1.8
+	var axis := Vector2(float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A)), float(Input.is_physical_key_pressed(KEY_S)) - float(Input.is_physical_key_pressed(KEY_W))).limit_length()
+	var running := Input.is_physical_key_pressed(KEY_SHIFT)
+	_pivot.rotation.y += (float(Input.is_physical_key_pressed(KEY_LEFT)) - float(Input.is_physical_key_pressed(KEY_RIGHT))) * delta * 1.8
+	var pitch_input := float(Input.is_physical_key_pressed(KEY_UP)) - float(Input.is_physical_key_pressed(KEY_DOWN))
+	_tilt_camera(pitch_input * delta * 1.35)
+	# The camera can tilt towards the kite. Walking follows its horizontal heading.
 	# Adapted from Godot's MIT 3D platformer (4.1); see third_party/godot-platformer.
-	var cam_basis := _arm.global_transform.basis
-	var direction := cam_basis * Vector3(axis.x, 0, axis.y)
-	direction.y = 0
-	direction = direction.normalized()
+	var direction := _pivot.global_transform.basis * Vector3(axis.x, 0, axis.y)
 	var speed := 7.0 if running else 4.2
 	velocity.x = move_toward(velocity.x, direction.x * speed, 22.0 * delta)
 	velocity.z = move_toward(velocity.z, direction.z * speed, 22.0 * delta)
@@ -126,6 +126,13 @@ func facing() -> float:
 func set_heading(value: float) -> void:
 	_pivot.rotation.y = value
 	_visual.rotation.y = value + PI
+
+func set_ridge_sky_view(on_ridge: bool) -> void:
+	_upward_pitch = RIDGE_UPWARD_PITCH if on_ridge else DEFAULT_UPWARD_PITCH
+	_tilt_camera(0.0)
+
+func _tilt_camera(amount: float) -> void:
+	_arm.rotation.x = clampf(_arm.rotation.x + amount, -1.1, _upward_pitch)
 
 func release_pointer() -> void:
 	_looking = false

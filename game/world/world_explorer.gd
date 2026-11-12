@@ -2,6 +2,8 @@ extends Node3D
 ## Regional exploration slice; source only, no engine/runtime acceptance yet.
 
 const Delivery = preload("res://runtime/shore_delivery.gd")
+const RidgeKite = preload("res://world/ridge_kite_rig.gd")
+const KiteFrame = preload("res://world/ridge_kite_frame.gd")
 const Shore = preload("res://runtime/shore_water.gd")
 const State = preload("res://runtime/world_state.gd")
 const Store = preload("res://runtime/world_save_store.gd")
@@ -22,6 +24,7 @@ var _state := State.new()
 var _store := Store.new()
 var _schedule := Schedule.new()
 var _player: Player
+var _kite_rig: RidgeKite
 var _landscape: Landscape
 var _low := false
 var _story_button: Button
@@ -30,7 +33,7 @@ var _wait_button: Button
 var _wait_dialog: ConfirmationDialog
 var _quoted_day := 0
 var _quoted_minute := 0
-var _shore_message := ""
+var _footing_message := ""
 var _region: Node3D
 var _props: Node3D
 var _held: Node3D
@@ -126,7 +129,7 @@ func _ready() -> void:
 	if _slot_access == SlotAccess.PROTECTED:
 		_notice.text += " 可在现场查看；旧进度受保护，修复档案后按 F9 重读。"
 	_show_region()
-	_notice.text += _shore_message
+	_notice.text += _footing_message
 
 func _read_optional_json(path: String) -> Variant:
 	var file := FileAccess.open(path, FileAccess.READ)
@@ -152,7 +155,7 @@ func _build_ui() -> void:
 	_stop_follow_button = _button(box, "不再同行", _stop_follow)
 	_stop_follow_button.hide()
 	_notice = _label(box, "随处走走。路牌通往山脊与湖岸，木台上的箱子可以搬走。", 15)
-	_label(box, "WASD 行走 · Shift 跑步 · 空格跳跃\n右键拖动 / ← → 转镜头 · 滚轮缩放\nE 互动 · Q 转木箱 · M 地图", 14)
+	_label(box, "WASD 行走 · Shift 跑步 · 空格跳跃\n右键拖动 / ← → 转镜头 · ↑↓ 抬头／低头 · 滚轮缩放\nE 互动 · Q 转木箱 · M 地图", 14)
 	_button(box, "地图与发现 · M", _toggle_map)
 	_button(box, "歇一小时", _rest)
 	_wait_button = _button(box, "在岸上候水", _offer_wait)
@@ -219,6 +222,7 @@ func _show_region() -> void:
 	if _region != null:
 		remove_child(_region)
 		_region.queue_free()
+	_kite_rig = null
 	_projection = _state.view()
 	_region = Node3D.new()
 	add_child(_region)
@@ -230,10 +234,20 @@ func _show_region() -> void:
 	_player.velocity = Vector3.ZERO
 	_player.recovery_position = _vector(_projection["current_region"]["spawn"])
 	_player.set_heading(float(player_state["heading"]))
-	_shore_message = ""
+	_footing_message = ""
 	if _at_shore():
 		_secure_shore_feet(_low)
-	_landscape.build(_projection["current_region"]["id"],_low)
+	var region_id: String = _projection["current_region"]["id"]
+	_player.set_ridge_sky_view(region_id == "RIDGE")
+	_landscape.build(region_id, _low)
+	if region_id == "RIDGE":
+		_kite_rig = RidgeKite.new()
+		_region.add_child(_kite_rig)
+		if KiteFrame.blocks_feet(_player.position):
+			var safe := KiteFrame.SAFE_FEET
+			_player.position = safe
+			_state.set_player([safe.x,safe.y,safe.z],_player.heading())
+			_footing_message = " 原脚位与线架重叠，已移到手柄前，手中的物件一并带到。"
 	_props = null
 	_elapsed = 0.0
 	_refresh_props()
@@ -247,6 +261,8 @@ func _refresh_props() -> void:
 	_props = Node3D.new()
 	_region.add_child(_props)
 	_targets.clear()
+	if _kite_rig != null:
+		_sign("公共线架 · 空手试放\n木箱压座可系长线", Vector3(-13.52,1.62,-9.68), Color("f5e2ab"), 0.0048)
 	if _at_shore():
 		_target("inspect_tally", "shore_dock_tally", "看系船桩上的货签", Delivery.SIGN_FACE, 1.8,
 			"桩签上有两道斜纹。旁边刻着：送件人每日 17:10 从西岸出发，在这里对签，然后回去等船。")
@@ -262,6 +278,8 @@ func _refresh_props() -> void:
 		_target("route", route["id"], route["label"], at, 4.0)
 	for item in _projection["anchors"]:
 		var at := _vector(item["position"])
+		if _kite_rig != null and item["id"] == RidgeKite.PAD_ID:
+			_kite_rig.sync_pad(item["occupied_by"], int(_projection["state"]["clock"]["day"]))
 		_box(_props, at + Vector3(0, 0.025, 0), Vector3(1.7, 0.05, 1.7), Color("c5b17c"), false)
 		if item["occupied_by"] == "":
 			_target("place", item["id"], "放到" + item["label"], at, 3.0)
@@ -314,13 +332,13 @@ func _box(parent: Node3D, at: Vector3, size: Vector3, color: Color, solid: bool)
 		body.add_child(collision)
 		mesh.add_child(body)
 
-func _sign(text: String, at: Vector3, color: Color) -> void:
+func _sign(text: String, at: Vector3, color: Color, pixel_size: float = 0.008) -> void:
 	var label := Label3D.new()
 	label.text = text
 	label.position = at
 	label.modulate = color
 	label.font_size = 34
-	label.pixel_size = 0.008
+	label.pixel_size = pixel_size
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_props.add_child(label)
 
@@ -339,8 +357,8 @@ func _physics_process(delta: float) -> void:
 		if _elapsed >= 5.0:
 			var advanced: Dictionary = _advance_time(1)
 			_elapsed = _elapsed - 5.0 if advanced["ok"] else 0.0
-			if _shore_message != "":
-				_notice.text = _shore_message
+			if _footing_message != "":
+				_notice.text = _footing_message
 			_refresh_hud()
 	_update_residents(paused)
 	if paused:
@@ -349,6 +367,11 @@ func _physics_process(delta: float) -> void:
 	var nearest_distance := INF
 	var carrying: bool = _projection["state"]["carried"] != ""
 	var candidates: Array[Dictionary] = _targets.duplicate()
+	if _kite_rig != null:
+		_kite_rig.update_active(delta, int(_projection["state"]["clock"]["day"]), _player.position, carrying)
+		if not carrying:
+			candidates.append({"kind":"kite_handle", "id":"ridge_winch", "label":_kite_rig.handle_label(),
+				"position":KiteFrame.HANDLE, "radius":_kite_rig.handle_radius()})
 	for id in _resident_nodes:
 		var actor: Resident = _resident_nodes[id]
 		var resident: Dictionary = _resident_views[id]
@@ -406,8 +429,15 @@ func _interact() -> void:
 	var target: Dictionary = _nearest.duplicate()
 	if _player.position.distance_to(target["position"]) > float(target["radius"]):
 		return
+	var was_weighted := _kite_rig != null and _kite_rig.is_weighted()
 	var result: Dictionary
 	match target["kind"]:
+		"kite_handle":
+			if _kite_rig != null:
+				var message := _kite_rig.use_handle(_player.position, _projection["state"]["carried"] != "")
+				if not message.is_empty():
+					_notice.text = message
+			return
 		"inspect_tally":
 			_notice.text = target["detail"]
 			return
@@ -437,6 +467,8 @@ func _interact() -> void:
 	else:
 		_refresh_props()
 		_notice.text = target["detail"] if target["kind"] == "discover" else target["label"] + "。这次摆放可随世界保存。"
+		if _kite_rig != null and _kite_rig.is_weighted() != was_weighted:
+			_notice.text += " 木箱压下踏板，棘爪扣住，长线正在放出。" if _kite_rig.is_weighted() else " 箱子离开踏板，棘爪放开，卷筒开始收线。"
 		if target["id"] == "shore_tide_mark":
 			_notice.text += " 石上指片指在低水。桥下格栅露出，带箱也能沿石带穿湾。" if _low else " 石上指片指在平水。湖水浸到桥下格栅上沿，沿东侧木栈桥绕湾。"
 			_notice.text += " 石旁浅色石坪可以候到下一次换水。"
@@ -450,11 +482,11 @@ func _secure_shore_feet(low: bool) -> void:
 		_player.position = safe
 		_player.velocity = Vector3.ZERO
 		_state.set_player([safe.x,safe.y,safe.z],_player.heading())
-		_shore_message = " 湖岸脚位已移回可落脚处，随身物件一起带到了。"
+		_footing_message = " 湖岸脚位已移回可落脚处，随身物件一起带到了。"
 
 func _advance_time(minutes: int) -> Dictionary:
 	var result: Dictionary = _state.advance_minutes(minutes)
-	_shore_message = ""
+	_footing_message = ""
 	if not result["ok"]:
 		return result
 	_projection = _state.view()
@@ -522,7 +554,7 @@ func _rest() -> void:
 		_clear_residents()
 		_refresh_props()
 		_update_residents(_map.visible)
-		_notice.text = "歇了一小时。可以去别处看看熟人的去向。" + _shore_message
+		_notice.text = "歇了一小时。可以去别处看看熟人的去向。" + _footing_message
 	else:
 		_notice.text = "未能休息：" + result["code"]
 
@@ -557,7 +589,7 @@ func _load() -> void:
 		_show_region()
 	else:
 		_set_slot_access(SlotAccess.PROTECTED)
-	_notice.text = "已恢复地点、时段、发现和木箱摆放。" + _shore_message if result["ok"] else "旧档未应用：" + result["code"]
+	_notice.text = "已恢复地点、时段、发现和木箱摆放。" + _footing_message if result["ok"] else "旧档未应用：" + result["code"]
 
 	if result["ok"] and record.get("code") == "RECOVERED_OLDER_RECORD":
 		_notice.text += " 较新记录损坏，已回到有效的第 %d 份。" % int(record.generation)
@@ -725,7 +757,7 @@ func _wait_for_departure(id: String) -> void:
 	_clear_residents()
 	_refresh_props()
 	_update_residents(false)
-	_notice.text = "等到了出发的时候。可以陪走，也可以随时改道。" + _shore_message
+	_notice.text = "等到了出发的时候。可以陪走，也可以随时改道。" + _footing_message
 
 func _stop_follow() -> void:
 	_follow_id = ""

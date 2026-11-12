@@ -1,3 +1,7 @@
+## 026 — 2026-11-12
+
+A counterweighted ridge winch flies an original printed swallow. Players can hold the short line at the crank or use a crate to free their hands and watch from the lookout. The windsock and line follow the same daily wind through turns. Only the existing crate placement persists. Verification covers source, model data and offline geometry.
+
 ## 025 — 2026-11-12
 
 A shore courier checks a matching handheld and dock tally on the evening round. Low water opens the shorter route. Chat, optional following, waits and restores share the regional time projection.
