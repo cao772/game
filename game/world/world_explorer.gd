@@ -1,6 +1,7 @@
 extends Node3D
 ## Regional exploration slice; source only, no engine/runtime acceptance yet.
 
+const Delivery = preload("res://runtime/shore_delivery.gd")
 const Shore = preload("res://runtime/shore_water.gd")
 const State = preload("res://runtime/world_state.gd")
 const Store = preload("res://runtime/world_save_store.gd")
@@ -247,6 +248,8 @@ func _refresh_props() -> void:
 	_region.add_child(_props)
 	_targets.clear()
 	if _at_shore():
+		_target("inspect_tally", "shore_dock_tally", "看系船桩上的货签", Delivery.SIGN_FACE, 1.8,
+			"桩签上有两道斜纹。旁边刻着：送件人每日 17:10 从西岸出发，在这里对签，然后回去等船。")
 		if _low:
 			_target("inspect_eye", "shore_mooring_eye", "俯看旧缆眼", Vector3(12.85,-0.4,0.8), 1.65,
 				"孔底留着一弯泥。东侧的铁边磨得发亮，顺着绳槽望去，正对旧栈桥的系船桩。")
@@ -405,6 +408,9 @@ func _interact() -> void:
 		return
 	var result: Dictionary
 	match target["kind"]:
+		"inspect_tally":
+			_notice.text = target["detail"]
+			return
 		"inspect_eye":
 			if _at_shore() and _low:
 				_notice.text = target["detail"]
@@ -640,7 +646,8 @@ func _update_residents(paused: bool) -> void:
 			nameplate.modulate = Color("d5efdf")
 			created_actor.add_child(nameplate)
 		var actor: Resident = _resident_nodes[id]
-		actor.apply_projection(_vector(resident["position"]), float(resident["heading"]), bool(resident["moving"]) and not paused)
+		actor.apply_projection(_vector(resident["position"]), float(resident["heading"]),
+			bool(resident["moving"]) and not paused, resident["delivery_phase"], float(resident["progress"]))
 		var plate: Label3D = actor.get_node("Nameplate")
 		plate.text = resident["label"] + (" · 同行" if _follow_id == id else "")
 	for id in _resident_nodes.keys():

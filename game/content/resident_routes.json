@@ -388,7 +388,8 @@
         {
           "start": 1020,
           "end": 1366,
-          "station": 2
+          "station": 2,
+          "dock_round": true
         },
         {
           "start": 1366,

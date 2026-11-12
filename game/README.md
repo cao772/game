@@ -1,5 +1,7 @@
 # Game runtime foundation
 
+At 17:10 the regional courier leaves the west shore to check a two-stripe tally at the east mooring post. The daily water level selects a footpath. Low water brings the courier to the post at 17:18, normal water at 17:20. Inspect the post, ask for directions or follow on foot. The three-minute check and return use the existing clock.
+
 In the regional SHORE map, inspect the water-level stone with E. At low water the exposed crossing leads directly to the original jetty. At either level the east deck stays dry. On the marked high-bank pad, the wait button quotes the next change and its cost in world minutes. Confirm to advance the existing clock. The fixed shore calendar uses only the world day. Holding a crate, travelling or loading a save preserves its identity and orientation.
 
 The regional explorer also has a modern-street entry. It saves before departure and

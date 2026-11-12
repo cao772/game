@@ -3,6 +3,7 @@ extends Node3D
 ## The external controller owns routes, time, interpolation and persistent state.
 ## Heading is radians around +Y; zero faces +Z, matching the KayKit rig.
 
+const Tally = preload("res://world/dock_tally.gd")
 const MODEL_SCALE: float = 0.84
 const IDLE: StringName = &"Idle"
 const WALKING: StringName = &"Walking_A"
@@ -15,6 +16,8 @@ const GREETING: StringName = &"Cheer"
 var _body: AnimatableBody3D
 var _model: Node3D
 var _player: AnimationPlayer
+var _tally: Node3D
+var _checking := false
 var _conversing: bool = false
 var _requested_moving: bool = false
 var _has_projection: bool = false
@@ -55,7 +58,7 @@ func _ready() -> void:
 		_apply_transform()
 
 
-func apply_projection(world_position: Vector3, heading: float, moving: bool) -> void:
+func apply_projection(world_position: Vector3, heading: float, moving: bool, delivery_phase: String = "", progress: float = 0.0) -> void:
 	# Conversation holds the current pose. Its owner also holds the route clock;
 	# no stale destination is queued here for when the conversation ends.
 	if _conversing:
@@ -67,7 +70,15 @@ func apply_projection(world_position: Vector3, heading: float, moving: bool) -> 
 	if not is_inside_tree():
 		return
 	_apply_transform()
-	_play_locomotion()
+	if not delivery_phase.is_empty() and not is_instance_valid(_tally):
+		_attach_tally()
+	if is_instance_valid(_tally):
+		_tally.visible = not delivery_phase.is_empty()
+	_checking = delivery_phase == "check"
+	if _checking and is_instance_valid(_player) and _player.has_animation(INTERACT):
+		_pose_check(progress)
+	else:
+		_play_locomotion()
 
 
 func set_conversing(value: bool) -> void:
@@ -75,6 +86,8 @@ func set_conversing(value: bool) -> void:
 		return
 	_conversing = value
 	_requested_moving = false
+	if _checking:
+		return # Keep the two marks aligned while the conversation holds world time.
 	if _conversing:
 		_play_greeting()
 	else:
@@ -97,8 +110,45 @@ func _apply_transform() -> void:
 		_body.collision_layer = 4 if collider_enabled and is_instance_valid(_model) else 0
 
 
+func _attach_tally() -> void:
+	if not is_instance_valid(_model):
+		return
+	_tally = Tally.new()
+	var rigs := _model.find_children("*", "Skeleton3D", true, false)
+	for node in rigs:
+		var rig := node as Skeleton3D
+		for index in range(rig.get_bone_count()):
+			var name_key := String(rig.get_bone_name(index)).to_lower().replace(".", "").replace("_", "")
+			if name_key != "handslotr":
+				continue
+			var grip := BoneAttachment3D.new()
+			rig.add_child(grip)
+			grip.bone_idx = index
+			_tally.rotation.y = deg_to_rad(61.3)
+			grip.add_child(_tally)
+			return
+	# Alternate rigs without a hand socket carry their sign on the bag.
+	_tally.position = Vector3(-0.27, 0.86, 0.22)
+	_model.add_child(_tally)
+
+
+func _pose_check(progress: float) -> void:
+	# Sample the actual Interact clip from world time. During the middle of the
+	# stop the right hand holds the sign beside the mark fixed to the post.
+	var clip_length := _player.get_animation(INTERACT).length
+	var raised := 0.40 * clip_length
+	var frame_time := raised * smoothstep(0.0, 0.18, progress)
+	frame_time += (clip_length - raised) * smoothstep(0.82, 1.0, progress)
+	if _player.current_animation != INTERACT:
+		_player.play(INTERACT, 0.0)
+	_player.speed_scale = 0.0
+	_player.seek(frame_time, true)
+
+
 func _load_model() -> void:
 	_player = null
+	_tally = null
+	_checking = false
 	_body.collision_layer = 0
 	if is_instance_valid(_model):
 		_body.remove_child(_model)
@@ -142,6 +192,7 @@ func _play_locomotion() -> void:
 func _play_loop(clip: StringName) -> void:
 	if not is_instance_valid(_player):
 		return
+	_player.speed_scale = 1.0
 	var available := clip if _player.has_animation(clip) else IDLE
 	if not _player.has_animation(available):
 		return
@@ -155,6 +206,7 @@ func _play_loop(clip: StringName) -> void:
 func _play_greeting() -> void:
 	if not is_instance_valid(_player):
 		return
+	_player.speed_scale = 1.0
 	_player.clear_queue()
 	if _player.has_animation(GREETING):
 		_player.play(GREETING, 0.12)

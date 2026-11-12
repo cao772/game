@@ -1,3 +1,7 @@
+## 025 — 2026-11-12
+
+A shore courier checks a matching handheld and dock tally on the evening round. Low water opens the shorter route. Chat, optional following, waits and restores share the regional time projection.
+
 ## 024 — 2026-11-12
 
 The shore now has a recessed tidal crossing, a permanent dry deck and a marked high-bank wait. Water follows the existing world day. Changing levels or restoring a flooded position places the explorer on dry land with their original cargo. Offline source, calendar and geometry checks only.

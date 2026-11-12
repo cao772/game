@@ -64,6 +64,16 @@ func open_resident(resident: Dictionary) -> bool:
 		node.queue_free()
 	for topic in copy["topics"]:
 		_button(_topics, topic["prompt"], _show_reply.bind(str(topic["reply"])))
+	var dock_reply := ""
+	match resident.get("delivery_phase", ""):
+		"out":
+			dock_reply = "数着是两道，还得去桩边看看斜口朝哪边。光看条数，拿反了也看不出来。"
+		"check":
+			dock_reply = "你从侧面看。我把两块签举到一块儿，两道斜口都往同一边走。就是这根桩。"
+		"back":
+			dock_reply = "对上了。我回西岸等船；你要找这个收货点，就认那两道斜口。"
+	if not dock_reply.is_empty():
+		_button(_topics, "这块木签怎么认？", _show_reply.bind(dock_reply))
 	_departure_button.visible = not resident["moving"]
 	_departure_button.text = "等到出发，一起走（约 %d 分钟）" % int(ceil(float(resident.get("departure_in_minutes", 0))))
 	show()

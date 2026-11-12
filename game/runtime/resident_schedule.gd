@@ -5,6 +5,9 @@ extends RefCounted
 ## No elapsed-time state, file access, scene nodes or random values.
 ## Source/grammar review only; engine and gameplay acceptance NOT_RUN.
 
+const Delivery = preload("res://runtime/shore_delivery.gd")
+const Shore = preload("res://runtime/shore_water.gd")
+
 const MAX_DAY := 1000000
 const MAX_SEGMENTS := 32
 const MAX_POINTS := 32
@@ -51,9 +54,19 @@ func configure(atlas: Dictionary, route_data: Dictionary) -> Dictionary:
 		if typeof(segments) != TYPE_ARRAY or segments.size() < 2 or segments.size() > MAX_SEGMENTS:
 			return _failure("INVALID_SEGMENT_COUNT", id)
 		var expanded: Array = []
+		var dock_index := -1
 		var expected_start: int = 0
 		for segment in segments:
-			var parsed: Dictionary = _expand_segment(segment, npcs[id], regions, routes, expected_start)
+			var source_segment: Variant = segment
+			if segment is Dictionary and segment.has("dock_round"):
+				if dock_index >= 0 or id != "courier" or not _fields(segment, ["start", "end", "station", "dock_round"]):
+					return _failure("INVALID_DOCK_ROUND", id)
+				if typeof(segment.dock_round) != TYPE_BOOL or not segment.dock_round:
+					return _failure("INVALID_DOCK_ROUND", id)
+				source_segment = segment.duplicate()
+				source_segment.erase("dock_round")
+				dock_index = expanded.size()
+			var parsed: Dictionary = _expand_segment(source_segment, npcs[id], regions, routes, expected_start)
 			if not parsed["ok"]:
 				return _failure(parsed["code"], id + "/" + str(expanded.size()))
 			var item: Dictionary = parsed["segment"]
@@ -61,27 +74,22 @@ func configure(atlas: Dictionary, route_data: Dictionary) -> Dictionary:
 			expanded.append(item)
 		if expected_start != 1440:
 			return _failure("DAY_NOT_COVERED", id)
-		var edges: Dictionary = _validate_edges(expanded, routes)
-		if not edges["ok"]:
-			return _failure(edges["code"], id + "/" + edges.get("detail", ""))
-		# Preserve the original midnight, 08:00 and 17:00 activity anchors exactly.
-		for station in range(3):
-			var period: Dictionary = npcs[id]["schedule"][station]
-			var active: Dictionary = _at_minute(expanded, float(period["start"]))
-			if active["points"].size() != 1 or active["region"] != period["region"] or not _same(active["points"][0], period["position"]):
-				return _failure("ORIGINAL_STATION_NOT_COVERED", id + "/" + str(station))
-		# All raw XYZ edge checks are complete before lowering portal foot positions.
-		for index in range(expanded.size()):
-			var current: Dictionary = expanded[index]
-			if current["next_route"] != "":
-				current["points"][-1][1] = float(route_data["portal_ground_y"])
-				var following: Dictionary = expanded[(index + 1) % expanded.size()]
-				following["points"][0][1] = float(route_data["portal_ground_y"])
-		for item in expanded:
-			var built: Dictionary = _compile_path(item)
-			if not built["ok"]:
-				return _failure(built["code"], id)
-		staged.append({"id": id, "label": npcs[id]["label"], "segments": expanded})
+		var timelines := [expanded]
+		if dock_index >= 0:
+			var stay: Dictionary = expanded[dock_index]
+			if stay.region != "SHORE" or stay.start >= Delivery.DEPART or stay.end <= Delivery.LAST_RETURN:
+				return _failure("INVALID_DOCK_SHIFT", id)
+			timelines.clear()
+			for low in [false, true]:
+				var timeline := expanded.slice(0, dock_index, 1, true)
+				timeline.append_array(Delivery.timetable(stay, low))
+				timeline.append_array(expanded.slice(dock_index + 1, expanded.size(), 1, true))
+				timelines.append(timeline)
+		for timeline in timelines:
+			var checked := _prepare_day(timeline, routes, npcs[id], regions, float(route_data["portal_ground_y"]))
+			if not checked["ok"]:
+				return _failure(checked["code"], id + "/" + str(checked.get("detail", "")))
+		staged.append({"id": id, "label": npcs[id]["label"], "timelines": timelines})
 	var labels: Dictionary = {}
 	for id in regions:
 		labels[id] = regions[id]["label"]
@@ -89,6 +97,34 @@ func configure(atlas: Dictionary, route_data: Dictionary) -> Dictionary:
 	_region_labels = labels
 	_residents = staged
 	return {"ok": true, "code": "RESIDENT_SCHEDULE_CONFIGURED"}
+
+
+func _prepare_day(timeline: Array, routes: Dictionary, npc: Dictionary, regions: Dictionary, ground_y: float) -> Dictionary:
+	var edges: Dictionary = _validate_edges(timeline, routes)
+	if not edges["ok"]:
+		return edges
+	# Preserve the original midnight, 08:00 and 17:00 activity anchors exactly.
+	for station in range(3):
+		var period: Dictionary = npc["schedule"][station]
+		var active: Dictionary = _at_minute(timeline, float(period["start"]))
+		if active["points"].size() != 1 or active["region"] != period["region"] or not _same(active["points"][0], period["position"]):
+			return _failure("ORIGINAL_STATION_NOT_COVERED", str(station))
+	# All raw XYZ edge checks are complete before lowering portal foot positions.
+	for index in range(timeline.size()):
+		var current: Dictionary = timeline[index]
+		if current["next_route"] != "":
+			current["points"][-1][1] = ground_y
+			var following: Dictionary = timeline[(index + 1) % timeline.size()]
+			following["points"][0][1] = ground_y
+	for item in timeline:
+		if item.has("delivery_phase"):
+			for point in item.points:
+				if not _position_in(point, regions[item.region]):
+					return _failure("INVALID_PATH_POSITION")
+		var built: Dictionary = _compile_path(item)
+		if not built["ok"]:
+			return built
+	return {"ok": true}
 
 
 func project(day: int, minute: float) -> Dictionary:
@@ -103,7 +139,8 @@ func project(day: int, minute: float) -> Dictionary:
 		minute = 0.0
 	var projected: Array = []
 	for resident in _residents:
-		var segments: Array = resident["segments"]
+		var timelines: Array = resident["timelines"]
+		var segments: Array = timelines[1] if timelines.size() == 2 and Shore.is_low(day) else timelines[0]
 		var index: int = 0
 		while minute >= segments[index]["end"]:
 			index += 1
@@ -112,6 +149,7 @@ func project(day: int, minute: float) -> Dictionary:
 		var progress: float = (minute - float(active["start"])) / float(active["end"] - active["start"])
 		var pose: Dictionary = _pose(active, progress)
 		var destination: String = active["destination"]
+		var stop: String = active.get("stop_label", _region_labels[destination])
 		var next_route: String = active["next_route"]
 		var departure: float = 0.0
 		if not moving:
@@ -121,6 +159,7 @@ func project(day: int, minute: float) -> Dictionary:
 				var next_segment: Dictionary = segments[next_index]
 				if next_segment["points"].size() > 1:
 					destination = next_segment["destination"]
+					stop = next_segment.get("stop_label", _region_labels[destination])
 					next_route = next_segment["next_route"]
 					departure = float(next_segment["start"]) - minute
 					if next_index <= index:
@@ -130,7 +169,7 @@ func project(day: int, minute: float) -> Dictionary:
 			"id": resident["id"], "label": resident["label"], "region": active["region"],
 			"position": pose["position"], "heading": pose["heading"], "moving": moving,
 			"activity": active["activity"], "destination_region": destination,
-			"destination": _region_labels[destination], "next_route": next_route,
+			"destination": stop, "next_route": next_route, "delivery_phase": active.get("delivery_phase", ""),
 			"departure_in_minutes": departure, "segment_start": active["start"],
 			"segment_end": active["end"], "progress": progress
 		})
@@ -275,6 +314,7 @@ func _atlas_context(atlas: Dictionary) -> Dictionary:
 		var schedule: Variant = npc["schedule"]
 		if typeof(schedule) != TYPE_ARRAY or schedule.size() != 3:
 			return _failure("INVALID_ATLAS_STATIONS")
+		var dock_index := -1
 		var expected_start: int = 0
 		for period in schedule:
 			if not _fields(period, PERIOD_FIELDS):

@@ -2,6 +2,8 @@ extends Node3D
 ## Bounded, procedural scenery. The caller owns actors, interactions and lighting.
 ## Walking surfaces use layer 1; the caller's character uses layer 2 / mask 1.
 
+const Tally = preload("res://world/dock_tally.gd")
+const Delivery = preload("res://runtime/shore_delivery.gd")
 const Shore = preload("res://runtime/shore_water.gd")
 
 const RIPPLES = preload("res://art/shore/lake_ripples.gdshader")
@@ -127,8 +129,12 @@ func _build_shore() -> void:
 		_box(waterfront, Vector3(30.3, 0.65, z), Vector3(0.2, 1.3, 0.2), Color("777b69"), true)
 	_box(waterfront, Vector3(30.3, 1.02, 3.5), Vector3(0.15, 0.15, 47.5), Color("b6ae8c"), true)
 	# Mooring posts are beside the deck, away from the interaction point (12,11).
-	for point in [Vector2(18, 15), Vector2(26, 15), Vector2(26, 7)]:
+	for point in [Vector2(18, 15), Vector2(26, 15), Vector2(Delivery.POST.x, Delivery.POST.z)]:
 		_cylinder(waterfront, Vector3(point.x, 0.45, point.y), 0.27, 0.9, Color("7e6f56"), true)
+	# The last working post bears the same two slanted marks as the handheld tally.
+	var tally := Tally.new()
+	tally.position = Delivery.SIGN_FACE
+	waterfront.add_child(tally)
 	_build_old_wall()
 	_build_tide_stone(Vector3(4, 0, -13))
 	_road(Vector2(0, 8), Vector2(12, 11), 3.6, Color("cdd0b7"))
