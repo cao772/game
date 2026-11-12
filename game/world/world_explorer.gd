@@ -1,6 +1,7 @@
 extends Node3D
 ## Regional exploration slice; source only, no engine/runtime acceptance yet.
 
+const Shore = preload("res://runtime/shore_water.gd")
 const State = preload("res://runtime/world_state.gd")
 const Store = preload("res://runtime/world_save_store.gd")
 const Player = preload("res://world/world_player.gd")
@@ -20,6 +21,15 @@ var _state := State.new()
 var _store := Store.new()
 var _schedule := Schedule.new()
 var _player: Player
+var _landscape: Landscape
+var _low := false
+var _story_button: Button
+var _modern_button: Button
+var _wait_button: Button
+var _wait_dialog: ConfirmationDialog
+var _quoted_day := 0
+var _quoted_minute := 0
+var _shore_message := ""
 var _region: Node3D
 var _props: Node3D
 var _held: Node3D
@@ -36,6 +46,8 @@ var _nearest: Dictionary = {}
 var _projection: Dictionary = {}
 var _elapsed := 0.0
 var _ready_ok := false
+enum SlotAccess { PROTECTED, EMPTY, VALID }
+var _slot_access := SlotAccess.PROTECTED
 var _landmark_names: Dictionary = {}
 var _resident_nodes: Dictionary = {}
 var _resident_views: Dictionary = {}
@@ -101,10 +113,19 @@ func _ready() -> void:
 	var record: Dictionary = _store.read_latest("world_free")
 	if record.get("ok", false) and record.get("payload") is Dictionary:
 		var restored: Dictionary = _state.restore(record["payload"])
+		_set_slot_access(SlotAccess.VALID if restored["ok"] else SlotAccess.PROTECTED)
 		_notice.text = "已恢复街外的上次保存。" if restored["ok"] else "存档未应用：" + restored["code"]
-	elif record.get("code") != "NO_SAVES":
-		_notice.text = "未能恢复旧档，当前为新起点：" + str(record.get("code"))
+		if restored["ok"] and record.get("code") == "RECOVERED_OLDER_RECORD":
+			_notice.text += " 较新记录损坏，已回到有效的第 %d 份。" % int(record.generation)
+	elif record.get("code") == "NO_SAVES":
+		_set_slot_access(SlotAccess.EMPTY)
+	else:
+		_set_slot_access(SlotAccess.PROTECTED)
+		_notice.text = "未能恢复旧档：" + str(record.get("code"))
+	if _slot_access == SlotAccess.PROTECTED:
+		_notice.text += " 可在现场查看；旧进度受保护，修复档案后按 F9 重读。"
 	_show_region()
+	_notice.text += _shore_message
 
 func _read_optional_json(path: String) -> Variant:
 	var file := FileAccess.open(path, FileAccess.READ)
@@ -133,11 +154,13 @@ func _build_ui() -> void:
 	_label(box, "WASD 行走 · Shift 跑步 · 空格跳跃\n右键拖动 / ← → 转镜头 · 滚轮缩放\nE 互动 · Q 转木箱 · M 地图", 14)
 	_button(box, "地图与发现 · M", _toggle_map)
 	_button(box, "歇一小时", _rest)
+	_wait_button = _button(box, "在岸上候水", _offer_wait)
+	_wait_button.hide()
 	_button(box, "保存 · F5", _save)
 	_button(box, "恢复最新保存 · F9", _request_load)
 	_button(box, "整理较早存档（保留最近32份）", _archive)
-	_button(box, "去登记区（先保存街外进度）", _open_story)
-	_button(box, "去现代街区（先保存街外进度）", _open_modern)
+	_story_button = _button(box, "去登记区", _open_story)
+	_modern_button = _button(box, "去现代街区", _open_modern)
 	_map = PanelContainer.new()
 	_map.position = Vector2(335, 28)
 	_map.custom_minimum_size = Vector2(650, 0)
@@ -153,6 +176,12 @@ func _build_ui() -> void:
 	_confirm.dialog_text = "用最近保存替换当前地点、时段和物件摆放？尚未保存的变化会丢失。\n读档会回到保存时的整分钟，并结束当前交谈和同行提示。"
 	_confirm.confirmed.connect(_load)
 	canvas.add_child(_confirm)
+	_wait_dialog = ConfirmationDialog.new()
+	_wait_dialog.title = "在干岸候水"
+	_wait_dialog.get_ok_button().text = "留在岸上等候"
+	_wait_dialog.get_cancel_button().text = "现在就走"
+	_wait_dialog.confirmed.connect(_accept_wait)
+	canvas.add_child(_wait_dialog)
 	_chat = ResidentPanel.new()
 	canvas.add_child(_chat)
 	_chat.closed.connect(_close_chat)
@@ -177,6 +206,12 @@ func _button(parent: Node, caption: String, action: Callable) -> Button:
 	parent.add_child(button)
 	return button
 
+func _set_slot_access(access: SlotAccess) -> void:
+	_slot_access = access
+	var exit_note := "（不保存街外进度）" if access == SlotAccess.PROTECTED else "（先保存街外进度）"
+	_story_button.text = "去登记区" + exit_note
+	_modern_button.text = "去现代街区" + exit_note
+
 func _show_region() -> void:
 	_close_chat()
 	_clear_residents()
@@ -186,14 +221,18 @@ func _show_region() -> void:
 	_projection = _state.view()
 	_region = Node3D.new()
 	add_child(_region)
-	var landscape := Landscape.new()
-	_region.add_child(landscape)
-	landscape.build(_projection["current_region"]["id"])
+	_landscape = Landscape.new()
+	_region.add_child(_landscape)
+	_low = Shore.is_low(int(_projection["state"]["clock"]["day"]))
 	var player_state: Dictionary = _projection["state"]["player"]
 	_player.position = _vector(player_state["position"])
 	_player.velocity = Vector3.ZERO
 	_player.recovery_position = _vector(_projection["current_region"]["spawn"])
 	_player.set_heading(float(player_state["heading"]))
+	_shore_message = ""
+	if _at_shore():
+		_secure_shore_feet(_low)
+	_landscape.build(_projection["current_region"]["id"],_low)
 	_props = null
 	_elapsed = 0.0
 	_refresh_props()
@@ -207,6 +246,13 @@ func _refresh_props() -> void:
 	_props = Node3D.new()
 	_region.add_child(_props)
 	_targets.clear()
+	if _at_shore():
+		if _low:
+			_target("inspect_eye", "shore_mooring_eye", "俯看旧缆眼", Vector3(12.85,-0.4,0.8), 1.65,
+				"孔底留着一弯泥。东侧的铁边磨得发亮，顺着绳槽望去，正对旧栈桥的系船桩。")
+		for z in [Shore.NORTH-0.7,Shore.SOUTH+0.7]:
+			_sign(("低水 · 可带箱穿湾" if _low else "平水 · 湾口已淹") + "\n干路沿东侧栈桥", Vector3(13.7,1.55,z), Color("e5e3bb"))
+		_sign("候水石坪",Shore.WAIT_AT+Vector3.UP*0.95,Color("deceab"))
 	for route in _projection["routes"]:
 		var at := _vector(route["exit"])
 		_sign(route["label"], at + Vector3(0, 1.9, 0), Color("ffe5a1"))
@@ -282,14 +328,16 @@ func _physics_process(delta: float) -> void:
 	if not _ready_ok:
 		return
 	_sync_held()
-	_player.controls_enabled = not _map.visible and not _confirm.visible and not _chat.visible
+	_player.controls_enabled = not _map.visible and not _confirm.visible and not _wait_dialog.visible and not _chat.visible
+	_update_wait_button()
 	var paused := not get_window().has_focus() or not _player.controls_enabled
 	if not paused:
 		_elapsed = minf(_elapsed + delta, 5.1)
 		if _elapsed >= 5.0:
-			var advanced: Dictionary = _state.advance_minutes(1)
+			var advanced: Dictionary = _advance_time(1)
 			_elapsed = _elapsed - 5.0 if advanced["ok"] else 0.0
-			_projection = _state.view()
+			if _shore_message != "":
+				_notice.text = _shore_message
 			_refresh_hud()
 	_update_residents(paused)
 	if paused:
@@ -320,7 +368,7 @@ func _sync_held() -> void:
 	_held.rotation.y = int(_projection["state"]["objects"][_projection["state"]["carried"]]["quarter_turns"]) * PI / 2.0
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if not _ready_ok or not event is InputEventKey or not event.pressed or event.echo or _confirm.visible:
+	if not _ready_ok or not event is InputEventKey or not event.pressed or event.echo or _confirm.visible or _wait_dialog.visible:
 		return
 	match event.physical_keycode:
 		KEY_M:
@@ -357,6 +405,10 @@ func _interact() -> void:
 		return
 	var result: Dictionary
 	match target["kind"]:
+		"inspect_eye":
+			if _at_shore() and _low:
+				_notice.text = target["detail"]
+			return
 		"route":
 			result = _state.travel(target["id"])
 		"take":
@@ -379,6 +431,78 @@ func _interact() -> void:
 	else:
 		_refresh_props()
 		_notice.text = target["detail"] if target["kind"] == "discover" else target["label"] + "。这次摆放可随世界保存。"
+		if target["id"] == "shore_tide_mark":
+			_notice.text += " 石上指片指在低水。桥下格栅露出，带箱也能沿石带穿湾。" if _low else " 石上指片指在平水。湖水浸到桥下格栅上沿，沿东侧木栈桥绕湾。"
+			_notice.text += " 石旁浅色石坪可以候到下一次换水。"
+
+func _at_shore() -> bool:
+	return _projection["current_region"]["id"] == "SHORE"
+
+func _secure_shore_feet(low: bool) -> void:
+	var safe := Shore.safe_feet(_player.position,low)
+	if safe != _player.position:
+		_player.position = safe
+		_player.velocity = Vector3.ZERO
+		_state.set_player([safe.x,safe.y,safe.z],_player.heading())
+		_shore_message = " 湖岸脚位已移回可落脚处，随身物件一起带到了。"
+
+func _advance_time(minutes: int) -> Dictionary:
+	var result: Dictionary = _state.advance_minutes(minutes)
+	_shore_message = ""
+	if not result["ok"]:
+		return result
+	_projection = _state.view()
+	if _at_shore():
+		var low := Shore.is_low(int(_projection["state"]["clock"]["day"]))
+		if low != _low:
+			_secure_shore_feet(low)
+			_low = low
+			_landscape.set_shore_level(low)
+			_refresh_props()
+	return result
+
+func _can_wait() -> bool:
+	return _at_shore() and _player.is_on_floor() and _player.position.distance_to(Shore.WAIT_AT) <= Shore.WAIT_RADIUS and not _chat.visible and not _map.visible and not _confirm.visible
+
+func _update_wait_button() -> void:
+	_wait_button.visible = _can_wait() and not _wait_dialog.visible
+	if not _wait_button.visible:
+		return
+	var clock: Dictionary = _projection["state"]["clock"]
+	var cost := Shore.next_change(int(clock.day),int(clock.minute),State.MAX_DAY)
+	_wait_button.disabled = cost == 0
+	_wait_button.text = "候到%s · 经过 %d 分钟" % [Shore.water_name(not _low),cost] if cost > 0 else "日历已到尽头 · 可走干岸"
+
+func _offer_wait() -> void:
+	if not _can_wait() or _wait_dialog.visible:
+		return
+	var clock: Dictionary = _projection["state"]["clock"]
+	var cost := Shore.next_change(int(clock.day),int(clock.minute),State.MAX_DAY)
+	if cost == 0:
+		return
+	_quoted_day = int(clock.day)
+	_quoted_minute = int(clock.minute)
+	var next_day := _quoted_day + floori(float(_quoted_minute + cost) / 1440.0)
+	_wait_dialog.dialog_text = "留在高岸等 %d 个世界分钟？第 %d 天 00:00 转为%s，居民也会按这段时间前往新的位置。" % [cost,next_day,Shore.water_name(not _low)]
+	_player.controls_enabled = false
+	_player.release_pointer()
+	_wait_dialog.popup_centered()
+
+func _accept_wait() -> void:
+	var clock: Dictionary = _projection["state"]["clock"]
+	if not _can_wait() or _quoted_day != int(clock.day) or _quoted_minute != int(clock.minute):
+		return
+	var cost := Shore.next_change(_quoted_day,_quoted_minute,State.MAX_DAY)
+	_quoted_day = 0
+	if cost <= 0:
+		return
+	var result := _advance_time(cost)
+	if result.ok:
+		_elapsed = 0.0
+		_clear_residents()
+		_update_residents(false)
+		_refresh_hud()
+		_notice.text = "岸边过了 %d 分钟，如今是%s。" % [cost,Shore.water_name(_low)]
 
 func _rest() -> void:
 	if not _ready_ok:
@@ -386,20 +510,25 @@ func _rest() -> void:
 	if _chat.visible:
 		_notice.text = "先道别，再找地方休息。"
 		return
-	var result: Dictionary = _state.advance_minutes(60)
+	var result: Dictionary = _advance_time(60)
 	if result["ok"]:
 		_elapsed = 0.0
 		_clear_residents()
 		_refresh_props()
 		_update_residents(_map.visible)
-		_notice.text = "歇了一小时。可以去别处看看熟人的去向。"
+		_notice.text = "歇了一小时。可以去别处看看熟人的去向。" + _shore_message
 	else:
 		_notice.text = "未能休息：" + result["code"]
 
 func _save() -> bool:
+	if _slot_access == SlotAccess.PROTECTED:
+		_notice.text = "旧世界尚未成功恢复，当前不会保存街外进度。可去其他区域，或修复档案后按 F9 重读。"
+		return false
 	if not _ready_ok or not _capture_player():
 		return false
 	var result: Dictionary = _store.write_record("world_free", _state.snapshot())
+	if result["ok"]:
+		_set_slot_access(SlotAccess.VALID)
 	_notice.text = "世界已保存，代号 %s。" % result.get("generation", "") if result["ok"] else "保存失败：" + result["code"]
 	return result["ok"]
 
@@ -411,22 +540,33 @@ func _request_load() -> void:
 func _load() -> void:
 	var record: Dictionary = _store.read_latest("world_free")
 	if not record["ok"] or not record.get("payload") is Dictionary:
+		if record.get("code") != "NO_SAVES" or _slot_access != SlotAccess.EMPTY:
+			_set_slot_access(SlotAccess.PROTECTED)
 		_notice.text = "未能读档：" + str(record.get("code"))
 		return
 	var result: Dictionary = _state.restore(record["payload"])
 	if result["ok"]:
+		_set_slot_access(SlotAccess.VALID)
 		_stop_follow()
 		_show_region()
-	_notice.text = "已恢复地点、时段、发现和木箱摆放。" if result["ok"] else "旧档未应用：" + result["code"]
+	else:
+		_set_slot_access(SlotAccess.PROTECTED)
+	_notice.text = "已恢复地点、时段、发现和木箱摆放。" + _shore_message if result["ok"] else "旧档未应用：" + result["code"]
+
+	if result["ok"] and record.get("code") == "RECOVERED_OLDER_RECORD":
+		_notice.text += " 较新记录损坏，已回到有效的第 %d 份。" % int(record.generation)
 
 func _archive() -> void:
+	if _slot_access == SlotAccess.PROTECTED:
+		_notice.text = "请先恢复旧世界，再整理存档。"
+		return
 	if not _ready_ok:
 		return
 	var result: Dictionary = _store.archive_older("world_free", 32)
 	_notice.text = "已归档 %d 份；较早文件仍保留。%s" % [result.get("moved", []).size(), result["code"]]
 
 func _open_story() -> void:
-	if not _save():
+	if not _ready_ok or (_slot_access != SlotAccess.PROTECTED and not _save()):
 		return
 	_close_chat()
 	_player.release_pointer()
@@ -443,7 +583,7 @@ func _toggle_map() -> void:
 	_refresh_hud()
 
 func _open_modern() -> void:
-	if not _save():
+	if not _ready_ok or (_slot_access != SlotAccess.PROTECTED and not _save()):
 		return
 	_close_chat()
 	_player.release_pointer()
@@ -568,7 +708,7 @@ func _wait_for_departure(id: String) -> void:
 	if resident["moving"]:
 		return
 	var minutes: int = int(ceil(float(resident["departure_in_minutes"])))
-	var advanced: Dictionary = _state.advance_minutes(minutes)
+	var advanced: Dictionary = _advance_time(minutes)
 	if not advanced["ok"]:
 		_notice.text = "暂时不能等待：" + str(advanced["code"])
 		return
@@ -578,7 +718,7 @@ func _wait_for_departure(id: String) -> void:
 	_clear_residents()
 	_refresh_props()
 	_update_residents(false)
-	_notice.text = "等到了出发的时候。可以陪走，也可以随时改道。"
+	_notice.text = "等到了出发的时候。可以陪走，也可以随时改道。" + _shore_message
 
 func _stop_follow() -> void:
 	_follow_id = ""

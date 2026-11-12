@@ -1,3 +1,7 @@
+## 024 — 2026-11-12
+
+The shore now has a recessed tidal crossing, a permanent dry deck and a marked high-bank wait. Water follows the existing world day. Changing levels or restoring a flooded position places the explorer on dry land with their original cargo. Offline source, calendar and geometry checks only.
+
 ## 023 — 2026-11-11
 
 A salvage rack east of the street entrance registers two different batches. Fit an adapter at the workshop to choose either the reading tray rest or the basin drain rack. Installation consumes the batch. Each completed fitting accepts the original movable object, and the salvage record persists across visits. Source-only delivery with offline checks.

@@ -2,19 +2,25 @@ extends Node3D
 ## Bounded, procedural scenery. The caller owns actors, interactions and lighting.
 ## Walking surfaces use layer 1; the caller's character uses layer 2 / mask 1.
 
+const Shore = preload("res://runtime/shore_water.gd")
+
+const RIPPLES = preload("res://art/shore/lake_ripples.gdshader")
 const ROAD_WIDTH: float = 4.2
 const LOOKOUT_HEIGHT: float = 2.4
 const RAMP_RUN: float = 8.0
 const RAMP_WIDTH: float = 4.0
 
 var _generated: Node3D
+var _water_material: ShaderMaterial
+var _tide: Node3D
 var _rotor: Node3D
 var _materials: Dictionary = {}
 
 
-func build(region_id: String) -> void:
+func build(region_id: String, low: bool = true) -> void:
 	# Detach first so rebuilding does not leave old collision bodies in the world.
 	_rotor = null
+	_tide = null
 	if is_instance_valid(_generated):
 		remove_child(_generated)
 		_generated.queue_free()
@@ -27,9 +33,10 @@ func build(region_id: String) -> void:
 			_triangle_paths(Vector2(0, 28), Vector2(28, -5), Color("c7b58c"))
 			_build_ridge()
 		"SHORE":
-			_ground(Color("a2b0a4"), Color("778a89"))
+			_ground(Color("a2b0a4"), Color("778a89"), true)
 			_triangle_paths(Vector2(-28, 6), Vector2(0, -28), Color("cdd0b7"))
 			_build_shore()
+			set_shore_level(low)
 		_:
 			_ground(Color("aaad8c"), Color("c0b79b"))
 			_triangle_paths(Vector2(0, -28), Vector2(28, 6), Color("e0caa1"))
@@ -41,10 +48,16 @@ func _process(delta: float) -> void:
 		_rotor.rotate_z(delta * 0.32)
 
 
-func _ground(ground_color: Color, wall_color: Color) -> void:
+func _ground(ground_color: Color, wall_color: Color, shore: bool = false) -> void:
 	var ground := _group("GroundAndBoundary")
-	# The floor's top is exactly y=0, including the full [-32,32] square.
-	_box(ground, Vector3(0, -0.25, 0), Vector3(64, 0.5, 64), ground_color, true)
+	if shore:
+		# Keep the original dry bank and deck. Leave a real recess between them.
+		_floor_patch(ground, -32, Shore.WEST, -32, 32, ground_color)
+		_floor_patch(ground, Shore.EAST, 32, -32, 32, ground_color)
+		_floor_patch(ground, Shore.WEST, Shore.EAST, -32, Shore.NORTH, ground_color)
+		_floor_patch(ground, Shore.WEST, Shore.EAST, Shore.SOUTH, 32, ground_color)
+	else:
+		_box(ground, Vector3(0, -0.25, 0), Vector3(64, 0.5, 64), ground_color, true)
 	# Inner faces are at +/-31.5. All exit triggers are at +/-28, inside the walls.
 	_box(ground, Vector3(-31.75, 0.525, 0), Vector3(0.5, 1.05, 64), wall_color, true)
 	_box(ground, Vector3(31.75, 0.525, 0), Vector3(0.5, 1.05, 64), wall_color, true)
@@ -103,10 +116,7 @@ func _build_ridge() -> void:
 
 func _build_shore() -> void:
 	var waterfront := _group("Waterfront")
-	# The water starts at x=32.3, entirely beyond the x=31.5 inner barrier.
-	_box(waterfront, Vector3(64.3, -0.28, 0), Vector3(64, 0.12, 112), Color("528e9b"))
-	for index in range(7):
-		_box(waterfront, Vector3(36.0 + index * 7.0, -0.211, -15.0 + index * 4.0), Vector3(3.7, 0.012, 0.1), Color("80b2b8"))
+	_build_bay(waterfront)
 	# Flush boards share the underlying floor collision; there are no raised steps.
 	_box(waterfront, Vector3(23, 0.009, 4), Vector3(14, 0.018, 53), Color("a69270"))
 	_box(waterfront, Vector3(12, 0.01, 11), Vector3(12, 0.02, 5), Color("b59e75"))
@@ -130,6 +140,105 @@ func _build_shore() -> void:
 	_box(shelter, Vector3(23, 2.9, -15), Vector3(7, 0.2, 6), Color("718e91"))
 	for offset in [Vector2(-3.2, -2.5), Vector2(3.2, -2.5), Vector2(-3.2, 2.5), Vector2(3.2, 2.5)]:
 		_box(shelter, Vector3(23 + offset.x, 1.4, -15 + offset.y), Vector3(0.18, 2.8, 0.18), Color("686e61"), true)
+
+
+func _floor_patch(parent: Node3D, left: float, right: float, north: float, south: float, color: Color) -> void:
+	_box(parent, Vector3((right + left) * 0.5, -0.55, (north + south) * 0.5), Vector3(right-left, 1.1, south-north), color, true)
+
+
+func _build_bay(parent: Node3D) -> void:
+	var width := Shore.EAST - Shore.WEST
+	var center := (Shore.EAST + Shore.WEST) * 0.5
+	var middle := (Shore.NORTH + Shore.SOUTH) * 0.5
+	var bottom_length := Shore.SOUTH - Shore.NORTH - Shore.RUN * 2
+	var mud := Color("92866f")
+	_box(parent, Vector3((Shore.WEST+Shore.GUTTER)*0.5, -Shore.DEPTH-0.14, middle), Vector3(Shore.GUTTER-Shore.WEST, 0.28, bottom_length), mud, true)
+	var gutter_width := Shore.EAST-Shore.GUTTER
+	var tilt := -atan(Shore.GUTTER_DROP/gutter_width)
+	var gutter_top := Vector3((Shore.EAST+Shore.GUTTER)*0.5, -Shore.DEPTH-Shore.GUTTER_DROP*0.5, middle)
+	var gutter_normal := Vector3(-sin(tilt),cos(tilt),0)
+	_box(parent,gutter_top-gutter_normal*0.14,Vector3(Vector2(gutter_width,Shore.GUTTER_DROP).length(),0.28,bottom_length),Color("797762"),true,Vector3(0,0,tilt))
+	# Grated inlet set into the east abutment, directly below the dry deck.
+	_box(parent,Vector3(Shore.EAST-0.02,-0.57,middle),Vector3(0.055,0.88,2.4),Color("394c48"))
+	for bar in range(7):
+		_box(parent,Vector3(Shore.EAST-0.065,-0.55,middle-1.05+bar*0.35),Vector3(0.08,0.90,0.075),Color("737c6c"))
+	_box(parent,Vector3(Shore.EAST-0.085,-0.12,middle),Vector3(0.15,0.12,2.6),Color("aaa48c"))
+	for side in [-1.0, 1.0]:
+		var z: float = middle + side * (bottom_length + Shore.RUN) * 0.5
+		var angle: float = -side * atan(Shore.DEPTH / Shore.RUN)
+		var normal := Vector3(0, cos(angle), sin(angle))
+		_box(parent, Vector3(center,-Shore.DEPTH*0.5,z)-normal*0.14, Vector3(width,0.28,Vector2(Shore.RUN,Shore.DEPTH).length()), mud, true, Vector3(angle,0,0))
+	for index in range(8):
+		var z := Shore.NORTH + Shore.RUN + index * 1.05
+		_box(parent, Vector3(10.0 + sin(index * 2.1)*0.20, -Shore.DEPTH+0.012, z), Vector3(3.5,0.024,0.46), Color("b8b09a"), false, Vector3(0,0.035*sin(index),0))
+	# Two worn mooring eyes stand beside the crossing. Only a crown shows at full water.
+	for idx in range(2):
+		var ring := MeshInstance3D.new()
+		var iron := TorusMesh.new()
+		iron.inner_radius = 0.12
+		iron.outer_radius = 0.23
+		ring.mesh = iron
+		ring.material_override = _material(Color("62594a"))
+		ring.position = Vector3(12.6+0.5*idx,-0.40+0.13*idx,0.8)
+		ring.rotation.x = PI * 0.5
+		parent.add_child(ring)
+		_box(parent, Vector3(ring.position.x,-0.52,0.8),Vector3(0.35,0.26,0.38),Color("897e68"))
+	# Two grooves lead the eye from the rings towards the working pier.
+	for idx in range(2):
+		_box(parent,Vector3(13.52,-Shore.DEPTH+0.008,1.02+0.15*idx),Vector3(0.82,0.016,0.055),Color("685f50"),false,Vector3(0,-0.35,0))
+	for z in [Shore.NORTH-0.08, Shore.SOUTH+0.08]:
+		for x in [7.55,12.45]:
+			_box(parent,Vector3(x,0.29,z),Vector3(0.16,0.58,0.20),Color("8a7c66"))
+			_box(parent,Vector3(x,0.32,z),Vector3(0.17,0.14,0.21),Color("b4bca2"))
+	_road(Vector2(4.8,-12), Vector2(10,Shore.NORTH),2.5,Color("cdd0b7"))
+	_road(Vector2(10,Shore.SOUTH),Vector2(12,10),2.5,Color("cdd0b7"))
+	# The old east deck is also the high-water bypass between the same two mouths.
+	for z in [Shore.NORTH-1,Shore.SOUTH+1]:
+		_road(Vector2(10,z),Vector2(17,z),1.8,Color("c6bca1"))
+	_box(parent, Shore.WAIT_AT+Vector3(0,0.016,0),Vector3(1.5,0.032,1.0), Color("c6bca1"))
+
+
+func set_shore_level(low: bool) -> void:
+	if is_instance_valid(_tide):
+		_generated.remove_child(_tide)
+		_tide.queue_free()
+	_tide = _group("DailyWaterline")
+	var surface := -0.78 if low else -0.09
+	_water_surface(Vector3(64, surface, 0), Vector2(64,112))
+	if low:
+		# Damp ribbon along the pier reflects what remains of the inlet.
+		_water_surface(Vector3((Shore.GUTTER+Shore.EAST)*0.5,surface,-2),Vector2(Shore.EAST-Shore.GUTTER,8))
+	else:
+		_water_surface(Vector3((Shore.WEST+Shore.EAST)*0.5,surface,(Shore.NORTH+Shore.SOUTH)*0.5),Vector2(Shore.EAST-Shore.WEST,Shore.SOUTH-Shore.NORTH))
+		# The water boundary catches side entry and jumps. Layer 8 affects feet only.
+		var barrier := StaticBody3D.new()
+		barrier.collision_layer = 8
+		barrier.collision_mask = 2
+		var collider := CollisionShape3D.new()
+		var bounds := BoxShape3D.new()
+		bounds.size = Vector3(Shore.EAST-Shore.WEST,16,Shore.SOUTH-Shore.NORTH)
+		barrier.position = Vector3((Shore.WEST+Shore.EAST)*0.5,6,(Shore.NORTH+Shore.SOUTH)*0.5)
+		collider.shape = bounds
+		barrier.add_child(collider)
+		_tide.add_child(barrier)
+		for z in [Shore.NORTH,Shore.SOUTH]:
+			_box(_tide,Vector3(10,0.32,z),Vector3(5.0,0.075,0.075),Color("c1ad88"))
+	# This gauge stands on dry land. A metal index points at the daily mark.
+	var mark := 0.30 if low else 1.14
+	_box(_tide,Vector3(3.80,0.89,-12.70),Vector3(0.06,1.45,0.045),Color("625e4c"))
+	_box(_tide,Vector3(3.88,mark,-12.66),Vector3(0.24,0.07,0.05),Color("cd9f5d"))
+	_box(_tide,Vector3(4.01,mark,-12.66),Vector3(0.09,0.09,0.05),Color("e2be7d"),false,Vector3(0,0,PI/4.0))
+
+
+func _water_surface(top: Vector3, size: Vector2) -> void:
+	if _water_material == null:
+		_water_material = ShaderMaterial.new()
+		_water_material.shader = RIPPLES
+	var slab := _box(_tide, top - Vector3.UP*0.025, Vector3(size.x,0.05,size.y),Color("639198"), true) as StaticBody3D
+	slab.collision_layer = 16
+	slab.collision_mask = 0
+	var mesh := slab.get_child(0) as MeshInstance3D
+	mesh.material_override = _water_material
 
 
 func _build_lookout() -> void:

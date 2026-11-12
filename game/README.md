@@ -1,5 +1,7 @@
 # Game runtime foundation
 
+In the regional SHORE map, inspect the water-level stone with E. At low water the exposed crossing leads directly to the original jetty. At either level the east deck stays dry. On the marked high-bank pad, the wait button quotes the next change and its cost in world minutes. Confirm to advance the existing clock. The fixed shore calendar uses only the world day. Holding a crate, travelling or loading a save preserves its identity and orientation.
+
 The regional explorer also has a modern-street entry. It saves before departure and
 returns to the saved world. `scenes/modern_street.tscn` provides a separate first-person
 walking area; V switches to a close shoulder camera, hold RMB to look, release it to

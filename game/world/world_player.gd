@@ -14,7 +14,7 @@ var _clip := ""
 
 func _ready() -> void:
 	collision_layer = 2
-	collision_mask = 5 # World layer 1 and moving residents on layer 4.
+	collision_mask = 13 # Ground (1), residents (4) and flooded shore (8).
 	floor_snap_length = 0.35
 	var collider := CollisionShape3D.new()
 	var shape := CapsuleShape3D.new()
@@ -39,7 +39,7 @@ func _ready() -> void:
 	_arm.spring_length = 6.0
 	_arm.margin = 0.25
 	_arm.rotation.x = -0.25
-	_arm.collision_mask = 1
+	_arm.collision_mask = 17 # Solid land and the actual surface of the lake.
 	var camera_shape := SphereShape3D.new()
 	camera_shape.radius = 0.2
 	_arm.shape = camera_shape
