@@ -1,0 +1,82 @@
+{
+  "id": "WORKBENCH_SAMPLE",
+  "version": 1,
+  "start": "OFFER",
+  "facts": [],
+  "nodes": {
+    "OFFER": {
+      "text_key": "OFFER",
+      "terminal": false,
+      "actions": [
+        {
+          "id": "REPLACE",
+          "text_key": "REPLACE",
+          "target": "REPLACED",
+          "requires_all": [],
+          "requires_any": [],
+          "grants": []
+        },
+        {
+          "id": "TRACE",
+          "text_key": "TRACE",
+          "target": "FIND_TAG",
+          "requires_all": [],
+          "requires_any": [],
+          "grants": []
+        }
+      ]
+    },
+    "FIND_TAG": {
+      "text_key": "FIND_TAG",
+      "terminal": false,
+      "actions": [
+        {
+          "id": "READ_TAG",
+          "text_key": "READ_TAG",
+          "target": "GET_TOOL",
+          "requires_all": [],
+          "requires_any": [],
+          "grants": []
+        }
+      ]
+    },
+    "GET_TOOL": {
+      "text_key": "GET_TOOL",
+      "terminal": false,
+      "actions": [
+        {
+          "id": "PICK_UP",
+          "text_key": "PICK_UP",
+          "target": "RETURN_TOOL",
+          "requires_all": [],
+          "requires_any": [],
+          "grants": []
+        }
+      ]
+    },
+    "RETURN_TOOL": {
+      "text_key": "RETURN_TOOL",
+      "terminal": false,
+      "actions": [
+        {
+          "id": "GIVE_BACK",
+          "text_key": "GIVE_BACK",
+          "target": "RETURNED",
+          "requires_all": [],
+          "requires_any": [],
+          "grants": []
+        }
+      ]
+    },
+    "REPLACED": {
+      "text_key": "REPLACED",
+      "terminal": true,
+      "actions": []
+    },
+    "RETURNED": {
+      "text_key": "RETURNED",
+      "terminal": true,
+      "actions": []
+    }
+  }
+}

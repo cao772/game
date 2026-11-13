@@ -1,0 +1,61 @@
+[gd_scene load_steps=5 format=3]
+
+[sub_resource type="StandardMaterial3D" id="Paper"]
+albedo_color = Color(0.99, 0.93, 0.76, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Rule"]
+albedo_color = Color(0.42, 0.37, 0.27, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Vermilion"]
+albedo_color = Color(0.77, 0.17, 0.075, 1)
+roughness = 0.94
+
+[sub_resource type="BoxMesh" id="Block"]
+size = Vector3(1, 1, 1)
+
+[node name="PendingSlip" type="Node3D"]
+
+[node name="Paper" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.009, 0.018)
+scale = Vector3(0.86, 0.018, 0.45)
+mesh = SubResource("Block")
+material_override = SubResource("Paper")
+
+[node name="FirstBlankLine" type="MeshInstance3D" parent="."]
+position = Vector3(-0.055, 0.0195, 0.022)
+scale = Vector3(0.60, 0.003, 0.014)
+mesh = SubResource("Block")
+material_override = SubResource("Rule")
+
+[node name="SecondBlankLine" type="MeshInstance3D" parent="."]
+position = Vector3(-0.125, 0.0195, 0.142)
+scale = Vector3(0.46, 0.003, 0.014)
+mesh = SubResource("Block")
+material_override = SubResource("Rule")
+
+[node name="TabBase" type="MeshInstance3D" parent="."]
+position = Vector3(0.252, 0.023, -0.10)
+scale = Vector3(0.26, 0.010, 0.12)
+mesh = SubResource("Block")
+material_override = SubResource("Vermilion")
+
+[node name="TabHinge" type="Node3D" parent="."]
+position = Vector3(0.252, 0.028, -0.16)
+rotation = Vector3(1.13, 0, 0)
+
+[node name="RaisedTab" type="MeshInstance3D" parent="TabHinge"]
+position = Vector3(0, -0.005, -0.105)
+scale = Vector3(0.26, 0.010, 0.21)
+mesh = SubResource("Block")
+material_override = SubResource("Vermilion")
+
+[node name="TabMark" type="Label3D" parent="TabHinge"]
+position = Vector3(0, 0.003, -0.105)
+rotation = Vector3(-1.5707963, 0, 0)
+text = "待核"
+font_size = 60
+pixel_size = 0.00158
+outline_size = 0
+modulate = Color(1, 0.97, 0.88, 1)

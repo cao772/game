@@ -1,0 +1,58 @@
+{
+  "intro_key": "sample.intro",
+  "observations": {
+    "LOOK_AT_ROUTE_A": "PATH_A_SEEN",
+    "LOOK_AT_ROUTE_B": "PATH_B_SEEN",
+    "SPEAK_TO_HELPER": "HELP_AVAILABLE"
+  },
+  "dialogue": {
+    "sample.intro": {
+      "speaker": "配送员",
+      "text": "有一份物品需要送到场地另一端。先领取，再查看路线或寻求协助。"
+    },
+    "sample.prepare": {
+      "speaker": "配送员",
+      "text": "物品已经准备好。"
+    },
+    "sample.collect": {
+      "speaker": "",
+      "text": "领取物品。"
+    },
+    "sample.plan": {
+      "speaker": "",
+      "text": "探索蓝色交互点后，回这里决定路线；也可以先休息。"
+    },
+    "sample.route": {
+      "speaker": "",
+      "text": "选择已经查看的路线，前往收件处。"
+    },
+    "sample.help": {
+      "speaker": "",
+      "text": "请协助者带路，前往收件处。"
+    },
+    "sample.wait": {
+      "speaker": "",
+      "text": "先休息，稍后重新考虑。"
+    },
+    "sample.rest": {
+      "speaker": "",
+      "text": "不必着急。你仍然可以探索其他路线。"
+    },
+    "sample.retry": {
+      "speaker": "",
+      "text": "重新选择路线。"
+    },
+    "sample.arrive": {
+      "speaker": "签收员",
+      "text": "放在灯旁边。等我核一眼封口，你就不用再抱着它了。"
+    },
+    "sample.hand_over": {
+      "speaker": "",
+      "text": "把包裹放在账册旁边。"
+    },
+    "sample.complete": {
+      "speaker": "签收员",
+      "text": "还惦记这件？看，封口朝外的那份就是。签名已经留底，不用再跑一趟。"
+    }
+  }
+}

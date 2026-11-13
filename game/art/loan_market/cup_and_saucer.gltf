@@ -1,0 +1,232 @@
+{
+  "asset": {
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "HandlelessCup",
+      "mesh": 0,
+      "translation": [
+        -0.146,
+        0.004,
+        -0.098
+      ]
+    },
+    {
+      "name": "BlueEdgedSaucer",
+      "mesh": 1,
+      "translation": [
+        0.105,
+        0,
+        0.075
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "OatGlaze",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.92,
+          0.83,
+          0.64,
+          1
+        ],
+        "roughnessFactor": 0.35,
+        "metallicFactor": 0.07
+      }
+    },
+    {
+      "name": "CobaltEnamel",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.035,
+          0.13,
+          0.42,
+          1
+        ],
+        "roughnessFactor": 0.29,
+        "metallicFactor": 0.12
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Cup",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1
+          },
+          "indices": 2,
+          "material": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1
+          },
+          "indices": 3,
+          "material": 1
+        }
+      ]
+    },
+    {
+      "name": "Saucer",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5
+          },
+          "indices": 6,
+          "material": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5
+          },
+          "indices": 7,
+          "material": 1
+        }
+      ]
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 28224,
+      "uri": "cup_and_saucer.bin"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 5760,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 5760,
+      "byteLength": 5760,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 11520,
+      "byteLength": 2304,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 13824,
+      "byteLength": 288,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 14112,
+      "byteLength": 5760,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 19872,
+      "byteLength": 5760,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 25632,
+      "byteLength": 1728,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 27360,
+      "byteLength": 864,
+      "target": 34963
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 480,
+      "type": "VEC3",
+      "min": [
+        -0.099,
+        0,
+        -0.099
+      ],
+      "max": [
+        0.099,
+        0.219,
+        0.099
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 480,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5123,
+      "count": 1152,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 144,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 480,
+      "type": "VEC3",
+      "min": [
+        -0.17,
+        0,
+        -0.17
+      ],
+      "max": [
+        0.17,
+        0.049,
+        0.17
+      ]
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 480,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5123,
+      "count": 864,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5123,
+      "count": 432,
+      "type": "SCALAR"
+    }
+  ]
+}

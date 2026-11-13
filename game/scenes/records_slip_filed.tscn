@@ -1,0 +1,92 @@
+[gd_scene load_steps=6 format=3]
+
+[sub_resource type="StandardMaterial3D" id="Paper"]
+albedo_color = Color(0.96, 0.88, 0.72, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Ink"]
+albedo_color = Color(0.035, 0.25, 0.20, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Underside"]
+albedo_color = Color(0.69, 0.68, 0.52, 1)
+roughness = 1.0
+
+[sub_resource type="BoxMesh" id="Block"]
+size = Vector3(1, 1, 1)
+
+[sub_resource type="PrismMesh" id="Fold"]
+left_to_right = 0.0
+size = Vector3(0.14, 0.14, 0.018)
+material = SubResource("Underside")
+
+[node name="FiledSlip" type="Node3D"]
+
+[node name="Body" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.009, -0.07)
+scale = Vector3(0.90, 0.018, 0.35)
+mesh = SubResource("Block")
+material_override = SubResource("Paper")
+
+[node name="Footer" type="MeshInstance3D" parent="."]
+position = Vector3(-0.07, 0.009, 0.175)
+scale = Vector3(0.76, 0.018, 0.14)
+mesh = SubResource("Block")
+material_override = SubResource("Paper")
+
+[node name="DogEar" type="MeshInstance3D" parent="."]
+position = Vector3(0.38, 0.009, 0.175)
+rotation = Vector3(1.5707963, 0, 0)
+mesh = SubResource("Fold")
+
+[node name="GreenEdge" type="MeshInstance3D" parent="."]
+position = Vector3(-0.412, 0.0195, 0)
+scale = Vector3(0.05, 0.003, 0.48)
+mesh = SubResource("Block")
+material_override = SubResource("Ink")
+
+[node name="OldEntry" type="Label3D" parent="."]
+position = Vector3(-0.16, 0.022, -0.105)
+rotation = Vector3(-1.5707963, 0, 0)
+text = "原记"
+font_size = 60
+pixel_size = 0.00155
+outline_size = 0
+modulate = Color(0.23, 0.23, 0.20, 1)
+
+[node name="Strike" type="MeshInstance3D" parent="."]
+position = Vector3(-0.16, 0.025, -0.105)
+rotation = Vector3(0, 0.14, 0)
+scale = Vector3(0.255, 0.002, 0.014)
+mesh = SubResource("Block")
+material_override = SubResource("Ink")
+
+[node name="Amendment" type="Label3D" parent="."]
+position = Vector3(-0.15, 0.022, 0.11)
+rotation = Vector3(-1.5707963, 0, 0)
+text = "更正"
+font_size = 56
+pixel_size = 0.00125
+outline_size = 0
+modulate = Color(0.035, 0.25, 0.20, 1)
+
+[node name="SignatureDownstroke" type="MeshInstance3D" parent="."]
+position = Vector3(0.045, 0.0195, 0.129)
+rotation = Vector3(0, -0.64, 0)
+scale = Vector3(0.083, 0.003, 0.018)
+mesh = SubResource("Block")
+material_override = SubResource("Ink")
+
+[node name="SignatureUpstroke" type="MeshInstance3D" parent="."]
+position = Vector3(0.130, 0.0200, 0.110)
+rotation = Vector3(0, 0.63, 0)
+scale = Vector3(0.142, 0.004, 0.018)
+mesh = SubResource("Block")
+material_override = SubResource("Ink")
+
+[node name="SignatureTail" type="MeshInstance3D" parent="."]
+position = Vector3(0.203, 0.0195, 0.078)
+rotation = Vector3(0, -0.32, 0)
+scale = Vector3(0.041, 0.003, 0.015)
+mesh = SubResource("Block")
+material_override = SubResource("Ink")

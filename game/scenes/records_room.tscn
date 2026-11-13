@@ -1,0 +1,360 @@
+[gd_scene load_steps=24 format=3]
+
+[ext_resource type="Script" path="res://world/records_room.gd" id="1_room"]
+[ext_resource type="PackedScene" path="res://art/dispatch_counter/table_medium.gltf" id="2_table"]
+[ext_resource type="PackedScene" path="res://art/dispatch_counter/book_single.gltf" id="3_book"]
+[ext_resource type="PackedScene" path="res://art/dispatch_counter/lamp_table.gltf" id="4_lamp"]
+[ext_resource type="PackedScene" path="res://art/records_room/cabinet_medium_decorated.gltf" id="5_cabinet"]
+[ext_resource type="PackedScene" path="res://scenes/records_slip_filed.tscn" id="6_filed_slip"]
+[ext_resource type="PackedScene" path="res://scenes/records_slip_pending.tscn" id="7_pending_slip"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_Floor"]
+albedo_color = Color(0.2, 0.26, 0.27, 1)
+roughness = 0.88
+
+[sub_resource type="StandardMaterial3D" id="Mat_Wall"]
+albedo_color = Color(0.38, 0.52, 0.5, 1)
+roughness = 0.88
+
+[sub_resource type="StandardMaterial3D" id="Mat_Rail"]
+albedo_color = Color(0.22, 0.33, 0.32, 1)
+roughness = 0.88
+
+[sub_resource type="StandardMaterial3D" id="Mat_Runner"]
+albedo_color = Color(0.32, 0.24, 0.17, 1)
+roughness = 0.88
+
+[sub_resource type="StandardMaterial3D" id="Mat_Brass"]
+albedo_color = Color(0.82, 0.58, 0.27, 1)
+roughness = 0.88
+
+[sub_resource type="StandardMaterial3D" id="Mat_Filed"]
+albedo_color = Color(0.17, 0.54, 0.52, 1)
+roughness = 0.88
+
+[sub_resource type="StandardMaterial3D" id="Mat_Pending"]
+albedo_color = Color(0.77, 0.37, 0.15, 1)
+roughness = 0.88
+
+[sub_resource type="BoxMesh" id="UnitBox"]
+size = Vector3(1, 1, 1)
+
+[sub_resource type="BoxShape3D" id="Shape_Floor"]
+size = Vector3(12, 0.24, 10)
+
+[sub_resource type="BoxShape3D" id="Shape_Back"]
+size = Vector3(12, 2.6, 0.2)
+
+[sub_resource type="BoxShape3D" id="Shape_Side"]
+size = Vector3(0.2, 1.2, 10)
+
+[sub_resource type="BoxShape3D" id="Shape_Front"]
+size = Vector3(12, 1.8, 0.18)
+
+[sub_resource type="BoxShape3D" id="Shape_Desk"]
+size = Vector3(2.2, 0.94, 1.08)
+
+[sub_resource type="BoxShape3D" id="Shape_SideDesk"]
+size = Vector3(1.84, 0.94, 1.08)
+
+[sub_resource type="BoxShape3D" id="Shape_Cabinet"]
+size = Vector3(2.05, 1.84, 1.02)
+
+[sub_resource type="CapsuleShape3D" id="Shape_clerk"]
+radius = 0.33
+height = 1.72
+
+[node name="RecordsRoom" type="Node3D"]
+script = ExtResource("1_room")
+
+[node name="Interior" type="Node3D" parent="."]
+
+[node name="Floor" type="MeshInstance3D" parent="Interior"]
+position = Vector3(0, -0.12, 0)
+scale = Vector3(12, 0.24, 10)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Floor")
+
+[node name="RearWall" type="MeshInstance3D" parent="Interior"]
+position = Vector3(0, 1.3, -4.9)
+scale = Vector3(12, 2.6, 0.2)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Wall")
+
+[node name="RearRail" type="MeshInstance3D" parent="Interior"]
+position = Vector3(0, 0.85, -4.78)
+scale = Vector3(11.8, 0.09, 0.05)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Rail")
+
+[node name="LeftWall" type="MeshInstance3D" parent="Interior"]
+position = Vector3(-5.9, 0.6, 0)
+scale = Vector3(0.2, 1.2, 10)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Wall")
+
+[node name="LeftCap" type="MeshInstance3D" parent="Interior"]
+position = Vector3(-5.9, 1.18, 0)
+scale = Vector3(0.22, 0.06, 10)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Rail")
+
+[node name="RightWall" type="MeshInstance3D" parent="Interior"]
+position = Vector3(5.9, 0.6, 0)
+scale = Vector3(0.2, 1.2, 10)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Wall")
+
+[node name="RightCap" type="MeshInstance3D" parent="Interior"]
+position = Vector3(5.9, 1.18, 0)
+scale = Vector3(0.22, 0.06, 10)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Rail")
+
+[node name="LeftFrontSill" type="MeshInstance3D" parent="Interior"]
+position = Vector3(-3.6, 0.12, 4.91)
+scale = Vector3(4.8, 0.24, 0.18)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Wall")
+
+[node name="RightFrontSill" type="MeshInstance3D" parent="Interior"]
+position = Vector3(3.6, 0.12, 4.91)
+scale = Vector3(4.8, 0.24, 0.18)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Wall")
+
+[node name="Threshold" type="MeshInstance3D" parent="Interior"]
+position = Vector3(0, 0.016, 4.78)
+scale = Vector3(2.4, 0.032, 0.28)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Brass")
+
+[node name="AisleRunner" type="MeshInstance3D" parent="Interior"]
+position = Vector3(0, 0.004, 1.95)
+scale = Vector3(2, 0.008, 4.76)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Runner")
+
+[node name="LeftRunnerStripe" type="MeshInstance3D" parent="Interior"]
+position = Vector3(-0.91, 0.009, 1.95)
+scale = Vector3(0.035, 0.003, 4.7)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Brass")
+
+[node name="RightRunnerStripe" type="MeshInstance3D" parent="Interior"]
+position = Vector3(0.91, 0.009, 1.95)
+scale = Vector3(0.035, 0.003, 4.7)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Brass")
+
+[node name="Collisions" type="StaticBody3D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Floor" type="CollisionShape3D" parent="Collisions"]
+position = Vector3(0, -0.12, 0)
+shape = SubResource("Shape_Floor")
+
+[node name="Back" type="CollisionShape3D" parent="Collisions"]
+position = Vector3(0, 1.3, -4.9)
+shape = SubResource("Shape_Back")
+
+[node name="Left" type="CollisionShape3D" parent="Collisions"]
+position = Vector3(-5.9, 0.6, 0)
+shape = SubResource("Shape_Side")
+
+[node name="Right" type="CollisionShape3D" parent="Collisions"]
+position = Vector3(5.9, 0.6, 0)
+shape = SubResource("Shape_Side")
+
+[node name="Front" type="CollisionShape3D" parent="Collisions"]
+position = Vector3(0, 0.9, 4.91)
+shape = SubResource("Shape_Front")
+
+[node name="ServiceDesk" type="CollisionShape3D" parent="Collisions"]
+position = Vector3(0, 0.47, -1.45)
+shape = SubResource("Shape_Desk")
+
+[node name="FiledDesk" type="CollisionShape3D" parent="Collisions"]
+position = Vector3(-3.65, 0.47, -1.45)
+shape = SubResource("Shape_SideDesk")
+
+[node name="PendingDesk" type="CollisionShape3D" parent="Collisions"]
+position = Vector3(3.65, 0.47, -1.45)
+shape = SubResource("Shape_SideDesk")
+
+[node name="LeftCabinet" type="CollisionShape3D" parent="Collisions"]
+position = Vector3(-3.63, 0.92, -4.22)
+shape = SubResource("Shape_Cabinet")
+
+[node name="RightCabinet" type="CollisionShape3D" parent="Collisions"]
+position = Vector3(3.67, 0.92, -4.22)
+shape = SubResource("Shape_Cabinet")
+
+[node name="Furnishings" type="Node3D" parent="."]
+
+[node name="LeftCabinet" parent="Furnishings" instance=ExtResource("5_cabinet")]
+position = Vector3(-3.65, 0, -4.22)
+scale = Vector3(1, 1, 1)
+
+[node name="RightCabinet" parent="Furnishings" instance=ExtResource("5_cabinet")]
+position = Vector3(3.65, 0, -4.22)
+scale = Vector3(1, 1, 1)
+
+[node name="ServiceDesk" parent="Furnishings" instance=ExtResource("2_table")]
+position = Vector3(0, 0, -1.45)
+scale = Vector3(1.1, 0.94, 0.54)
+
+[node name="ArchiveStand" parent="Furnishings" instance=ExtResource("2_table")]
+position = Vector3(-3.65, 0, -1.45)
+scale = Vector3(0.92, 0.94, 0.54)
+
+[node name="IntakeStand" parent="Furnishings" instance=ExtResource("2_table")]
+position = Vector3(3.65, 0, -1.45)
+scale = Vector3(0.92, 0.94, 0.54)
+
+[node name="Ledger" parent="Furnishings" instance=ExtResource("3_book")]
+position = Vector3(0.35, 1.044, -1.4)
+scale = Vector3(0.8, 0.8, 0.8)
+rotation = Vector3(0, -0.18, 1.5708)
+
+[node name="CounterLamp" parent="Furnishings" instance=ExtResource("4_lamp")]
+position = Vector3(-0.68, 0.941, -1.57)
+scale = Vector3(0.62, 0.62, 0.62)
+
+[node name="ReadingLight" type="OmniLight3D" parent="Furnishings"]
+position = Vector3(-0.68, 1.41, -1.57)
+light_color = Color(1, 0.78, 0.55, 1)
+light_energy = 0.9
+omni_range = 3.4
+
+[node name="RoomLight" type="OmniLight3D" parent="Furnishings"]
+position = Vector3(0, 4, 1)
+light_color = Color(1, 0.93, 0.81, 1)
+light_energy = 0.7
+omni_range = 10
+omni_attenuation = 0.7
+
+[node name="FiledTray" type="Marker3D" parent="."]
+position = Vector3(-3.65, 0.94, -1.45)
+
+[node name="Tray" type="MeshInstance3D" parent="FiledTray"]
+position = Vector3(0, 0.035, 0)
+scale = Vector3(1.25, 0.07, 0.79)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Filed")
+
+[node name="Back" type="MeshInstance3D" parent="FiledTray"]
+position = Vector3(0, 0.15, -0.36)
+scale = Vector3(1.25, 0.23, 0.07)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Filed")
+
+[node name="LeftLip" type="MeshInstance3D" parent="FiledTray"]
+position = Vector3(-0.59, 0.1, 0)
+scale = Vector3(0.07, 0.14, 0.79)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Filed")
+
+[node name="RightLip" type="MeshInstance3D" parent="FiledTray"]
+position = Vector3(0.59, 0.1, 0)
+scale = Vector3(0.07, 0.14, 0.79)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Filed")
+
+[node name="IndexTab1" type="MeshInstance3D" parent="FiledTray"]
+position = Vector3(0.39, 0.3, -0.37)
+scale = Vector3(0.12, 0.14, 0.05)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Brass")
+
+[node name="IndexTab2" type="MeshInstance3D" parent="FiledTray"]
+position = Vector3(0.24, 0.3, -0.37)
+scale = Vector3(0.12, 0.14, 0.05)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Brass")
+
+[node name="Record" parent="FiledTray" instance=ExtResource("6_filed_slip")]
+position = Vector3(0, 0.07, 0)
+rotation = Vector3(0, 0.04, 0)
+visible = false
+
+[node name="TrayLabel" type="Label3D" parent="FiledTray"]
+position = Vector3(0, -0.14, 0.55)
+text = "归档"
+font_size = 36
+pixel_size = 0.007
+outline_size = 5
+billboard = 1
+
+[node name="PendingTray" type="Marker3D" parent="."]
+position = Vector3(3.65, 0.94, -1.45)
+
+[node name="Tray" type="MeshInstance3D" parent="PendingTray"]
+position = Vector3(0, 0.035, 0)
+scale = Vector3(1.25, 0.07, 0.79)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Pending")
+
+[node name="Back" type="MeshInstance3D" parent="PendingTray"]
+position = Vector3(0, 0.15, -0.36)
+scale = Vector3(1.25, 0.23, 0.07)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Pending")
+
+[node name="LeftLip" type="MeshInstance3D" parent="PendingTray"]
+position = Vector3(-0.59, 0.1, 0)
+scale = Vector3(0.07, 0.14, 0.79)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Pending")
+
+[node name="RightLip" type="MeshInstance3D" parent="PendingTray"]
+position = Vector3(0.59, 0.1, 0)
+scale = Vector3(0.07, 0.14, 0.79)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Pending")
+
+[node name="IndexTab1" type="MeshInstance3D" parent="PendingTray"]
+position = Vector3(0.39, 0.3, -0.37)
+scale = Vector3(0.12, 0.14, 0.05)
+mesh = SubResource("UnitBox")
+material_override = SubResource("Mat_Brass")
+
+[node name="Record" parent="PendingTray" instance=ExtResource("7_pending_slip")]
+position = Vector3(0, 0.07, 0)
+rotation = Vector3(0, -0.065, 0)
+visible = false
+
+[node name="TrayLabel" type="Label3D" parent="PendingTray"]
+position = Vector3(0, -0.14, 0.55)
+text = "待核"
+font_size = 36
+pixel_size = 0.007
+outline_size = 5
+billboard = 1
+
+[node name="ArchivistAnchor" type="Marker3D" parent="."]
+position = Vector3(0, 0, -2.72)
+
+[node name="PersonalSpace" type="StaticBody3D" parent="ArchivistAnchor"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Body" type="CollisionShape3D" parent="ArchivistAnchor/PersonalSpace"]
+position = Vector3(0, 0.86, 0)
+shape = SubResource("Shape_clerk")
+
+[node name="ArchivistApproach" type="Marker3D" parent="."]
+position = Vector3(0, 0, -0.12)
+
+[node name="FiledApproach" type="Marker3D" parent="."]
+position = Vector3(-3.65, 0, -0.12)
+
+[node name="PendingApproach" type="Marker3D" parent="."]
+position = Vector3(3.65, 0, -0.12)
+
+[node name="ExitApproach" type="Marker3D" parent="."]
+position = Vector3(0, 0, 4.1)
+
+[node name="Spawn" type="Marker3D" parent="."]
+position = Vector3(0, 1, 3)

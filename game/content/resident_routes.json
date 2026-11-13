@@ -1,0 +1,477 @@
+{
+  "schema_version": 1,
+  "portal_ground_y": 0,
+  "residents": [
+    {
+      "id": "merchant",
+      "segments": [
+        {
+          "start": 0,
+          "end": 468,
+          "station": 0
+        },
+        {
+          "start": 468,
+          "end": 474,
+          "region": "RIDGE",
+          "points": [
+            [
+              -6,
+              0,
+              3
+            ],
+            [
+              -3,
+              0,
+              5
+            ],
+            [
+              0,
+              0,
+              8
+            ],
+            [
+              0,
+              0,
+              24
+            ],
+            [
+              0,
+              1,
+              28
+            ]
+          ],
+          "activity": "收好货袋，沿南坡赶往街区",
+          "destination": "YARD",
+          "next_route": "ridge_to_yard"
+        },
+        {
+          "start": 474,
+          "end": 480,
+          "region": "YARD",
+          "points": [
+            [
+              0,
+              1,
+              -25
+            ],
+            [
+              0,
+              0,
+              -18
+            ],
+            [
+              0,
+              0,
+              -3
+            ],
+            [
+              8,
+              0,
+              -3
+            ]
+          ],
+          "activity": "从北口步行到旧货摊",
+          "destination": "YARD",
+          "next_route": ""
+        },
+        {
+          "start": 480,
+          "end": 1010,
+          "station": 1
+        },
+        {
+          "start": 1010,
+          "end": 1016,
+          "region": "YARD",
+          "points": [
+            [
+              8,
+              0,
+              -3
+            ],
+            [
+              13,
+              0,
+              -3
+            ],
+            [
+              14,
+              0,
+              7
+            ],
+            [
+              24,
+              0,
+              6
+            ],
+            [
+              28,
+              1,
+              6
+            ]
+          ],
+          "activity": "绕过摊棚，去湖岸接晚到的货",
+          "destination": "SHORE",
+          "next_route": "yard_to_shore"
+        },
+        {
+          "start": 1016,
+          "end": 1020,
+          "region": "SHORE",
+          "points": [
+            [
+              -25,
+              1,
+              6
+            ],
+            [
+              -20,
+              0,
+              6
+            ],
+            [
+              -12,
+              0,
+              7.15
+            ],
+            [
+              -7,
+              0,
+              8
+            ]
+          ],
+          "activity": "沿西侧岸路走向收货处",
+          "destination": "SHORE",
+          "next_route": ""
+        },
+        {
+          "start": 1020,
+          "end": 1365,
+          "station": 2
+        },
+        {
+          "start": 1365,
+          "end": 1373,
+          "region": "SHORE",
+          "points": [
+            [
+              -7,
+              0,
+              8
+            ],
+            [
+              0,
+              0,
+              8
+            ],
+            [
+              0,
+              0,
+              -22
+            ],
+            [
+              0,
+              1,
+              -28
+            ]
+          ],
+          "activity": "清点完货件，沿石阶回风脊",
+          "destination": "RIDGE",
+          "next_route": "shore_to_ridge"
+        },
+        {
+          "start": 1373,
+          "end": 1380,
+          "region": "RIDGE",
+          "points": [
+            [
+              25,
+              1,
+              -5
+            ],
+            [
+              24,
+              0,
+              -3.142857
+            ],
+            [
+              14,
+              0,
+              1.5
+            ],
+            [
+              0,
+              0,
+              8
+            ],
+            [
+              -3,
+              0,
+              5
+            ],
+            [
+              -6,
+              0,
+              3
+            ]
+          ],
+          "activity": "过木桥回到夜间歇脚处",
+          "destination": "RIDGE",
+          "next_route": ""
+        },
+        {
+          "start": 1380,
+          "end": 1440,
+          "station": 0
+        }
+      ]
+    },
+    {
+      "id": "courier",
+      "segments": [
+        {
+          "start": 0,
+          "end": 468,
+          "station": 0
+        },
+        {
+          "start": 468,
+          "end": 474,
+          "region": "YARD",
+          "points": [
+            [
+              -8,
+              0,
+              -4
+            ],
+            [
+              -4,
+              0,
+              -4
+            ],
+            [
+              0,
+              0,
+              -4
+            ],
+            [
+              0,
+              0,
+              -24
+            ],
+            [
+              0,
+              1,
+              -28
+            ]
+          ],
+          "activity": "带上配送袋，沿北坡去核对路标",
+          "destination": "RIDGE",
+          "next_route": "yard_to_ridge"
+        },
+        {
+          "start": 474,
+          "end": 480,
+          "region": "RIDGE",
+          "points": [
+            [
+              0,
+              1,
+              25
+            ],
+            [
+              0,
+              0,
+              20
+            ],
+            [
+              0,
+              0,
+              8
+            ],
+            [
+              -3,
+              0,
+              3
+            ],
+            [
+              -4,
+              0,
+              -6
+            ]
+          ],
+          "activity": "沿主路走向风脊路标",
+          "destination": "RIDGE",
+          "next_route": ""
+        },
+        {
+          "start": 480,
+          "end": 1006,
+          "station": 1
+        },
+        {
+          "start": 1006,
+          "end": 1015,
+          "region": "RIDGE",
+          "points": [
+            [
+              -4,
+              0,
+              -6
+            ],
+            [
+              -3,
+              0,
+              3
+            ],
+            [
+              0,
+              0,
+              8
+            ],
+            [
+              14,
+              0,
+              1.5
+            ],
+            [
+              24,
+              0,
+              -3.142857
+            ],
+            [
+              28,
+              1,
+              -5
+            ]
+          ],
+          "activity": "过木桥下坡，去岸边候渡",
+          "destination": "SHORE",
+          "next_route": "ridge_to_shore"
+        },
+        {
+          "start": 1015,
+          "end": 1020,
+          "region": "SHORE",
+          "points": [
+            [
+              0,
+              1,
+              -25
+            ],
+            [
+              -2.470588,
+              0,
+              -25
+            ],
+            [
+              -8.235294,
+              0,
+              -18
+            ],
+            [
+              -14.823529,
+              0,
+              -10
+            ],
+            [
+              -12,
+              0,
+              -6
+            ]
+          ],
+          "activity": "穿过旧墙豁口，步行到候渡处",
+          "destination": "SHORE",
+          "next_route": ""
+        },
+        {
+          "start": 1020,
+          "end": 1366,
+          "station": 2,
+          "dock_round": true
+        },
+        {
+          "start": 1366,
+          "end": 1371,
+          "region": "SHORE",
+          "points": [
+            [
+              -12,
+              0,
+              -6
+            ],
+            [
+              -14.823529,
+              0,
+              -10
+            ],
+            [
+              -28,
+              1,
+              6
+            ]
+          ],
+          "activity": "收起空袋，沿西侧岸路回街区",
+          "destination": "YARD",
+          "next_route": "shore_to_yard"
+        },
+        {
+          "start": 1371,
+          "end": 1380,
+          "region": "YARD",
+          "points": [
+            [
+              25,
+              1,
+              6
+            ],
+            [
+              20,
+              0,
+              6.571429
+            ],
+            [
+              10,
+              0,
+              8.5
+            ],
+            [
+              6,
+              0,
+              9.2
+            ],
+            [
+              2,
+              0,
+              8.5
+            ],
+            [
+              0,
+              0,
+              8
+            ],
+            [
+              0,
+              0,
+              -4
+            ],
+            [
+              -8,
+              0,
+              -4
+            ]
+          ],
+          "activity": "沿东巷回街区，绕过木台整理配送袋",
+          "destination": "YARD",
+          "next_route": ""
+        },
+        {
+          "start": 1380,
+          "end": 1440,
+          "station": 0
+        }
+      ]
+    }
+  ]
+}

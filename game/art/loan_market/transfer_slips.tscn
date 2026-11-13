@@ -1,0 +1,179 @@
+[gd_scene load_steps=10 format=3]
+
+[sub_resource type="StandardMaterial3D" id="Wood"]
+albedo_color = Color(0.3, 0.21, 0.16, 1)
+roughness = 0.72
+
+[sub_resource type="StandardMaterial3D" id="Ivory"]
+albedo_color = Color(0.94, 0.86, 0.65, 1)
+roughness = 0.72
+
+[sub_resource type="StandardMaterial3D" id="Straw"]
+albedo_color = Color(0.88, 0.73, 0.46, 1)
+roughness = 0.72
+
+[sub_resource type="StandardMaterial3D" id="PaleGreen"]
+albedo_color = Color(0.7, 0.83, 0.7, 1)
+roughness = 0.72
+
+[sub_resource type="StandardMaterial3D" id="Ink"]
+albedo_color = Color(0.15, 0.28, 0.27, 1)
+roughness = 0.72
+
+[sub_resource type="StandardMaterial3D" id="Stamp"]
+albedo_color = Color(0.74, 0.32, 0.2, 1)
+roughness = 0.72
+
+[sub_resource type="StandardMaterial3D" id="Glass"]
+albedo_color = Color(0.67, 0.88, 0.92, 0.13)
+roughness = 0.72
+transparency = 1
+
+[sub_resource type="StandardMaterial3D" id="Brass"]
+albedo_color = Color(0.63, 0.51, 0.33, 1)
+roughness = 0.72
+
+[sub_resource type="BoxMesh" id="Unit"]
+size = Vector3(1, 1, 1)
+
+[node name="TransferSlips" type="Node3D"]
+
+[node name="Backboard" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.014, 0)
+scale = Vector3(0.91, 0.028, 0.71)
+mesh = SubResource("Unit")
+material_override = SubResource("Wood")
+
+[node name="First" type="Node3D" parent="."]
+position = Vector3(-0.075, 0.032, -0.161)
+
+[node name="Ticket" type="MeshInstance3D" parent="First"]
+position = Vector3(0, 0, 0)
+scale = Vector3(0.65, 0.007, 0.311)
+mesh = SubResource("Unit")
+material_override = SubResource("Ivory")
+
+[node name="InkLine" type="MeshInstance3D" parent="First"]
+position = Vector3(-0.015, 0.0045, -0.082)
+scale = Vector3(0.32, 0.001, 0.013)
+mesh = SubResource("Unit")
+material_override = SubResource("Ink")
+
+[node name="Seal" type="MeshInstance3D" parent="First"]
+position = Vector3(0.22, 0.0045, -0.082)
+scale = Vector3(0.052, 0.001, 0.045)
+mesh = SubResource("Unit")
+material_override = SubResource("Stamp")
+
+[node name="Mark" type="Label3D" parent="First"]
+position = Vector3(-0.247, 0.006, -0.079)
+text = "一"
+font_size = 32
+pixel_size = 0.0038
+outline_size = 0
+modulate = Color(0.15, 0.19, 0.19, 1)
+rotation = Vector3(-1.5708, 0, 0)
+
+[node name="Second" type="Node3D" parent="."]
+position = Vector3(-0.005, 0.04, 0)
+
+[node name="Ticket" type="MeshInstance3D" parent="Second"]
+position = Vector3(0, 0, 0)
+scale = Vector3(0.65, 0.007, 0.311)
+mesh = SubResource("Unit")
+material_override = SubResource("Straw")
+
+[node name="InkLine" type="MeshInstance3D" parent="Second"]
+position = Vector3(-0.015, 0.0045, -0.082)
+scale = Vector3(0.32, 0.001, 0.013)
+mesh = SubResource("Unit")
+material_override = SubResource("Ink")
+
+[node name="Seal" type="MeshInstance3D" parent="Second"]
+position = Vector3(0.22, 0.0045, -0.082)
+scale = Vector3(0.052, 0.001, 0.045)
+mesh = SubResource("Unit")
+material_override = SubResource("Stamp")
+
+[node name="Mark" type="Label3D" parent="Second"]
+position = Vector3(-0.247, 0.006, -0.079)
+text = "二"
+font_size = 32
+pixel_size = 0.0038
+outline_size = 0
+modulate = Color(0.15, 0.19, 0.19, 1)
+rotation = Vector3(-1.5708, 0, 0)
+
+[node name="Third" type="Node3D" parent="."]
+position = Vector3(0.065, 0.048, 0.156)
+
+[node name="Ticket" type="MeshInstance3D" parent="Third"]
+position = Vector3(0, 0, 0)
+scale = Vector3(0.65, 0.007, 0.311)
+mesh = SubResource("Unit")
+material_override = SubResource("PaleGreen")
+
+[node name="InkLine" type="MeshInstance3D" parent="Third"]
+position = Vector3(-0.015, 0.0045, -0.082)
+scale = Vector3(0.32, 0.001, 0.013)
+mesh = SubResource("Unit")
+material_override = SubResource("Ink")
+
+[node name="Seal" type="MeshInstance3D" parent="Third"]
+position = Vector3(0.22, 0.0045, -0.082)
+scale = Vector3(0.052, 0.001, 0.045)
+mesh = SubResource("Unit")
+material_override = SubResource("Stamp")
+
+[node name="Mark" type="Label3D" parent="Third"]
+position = Vector3(-0.247, 0.006, -0.079)
+text = "架"
+font_size = 32
+pixel_size = 0.0038
+outline_size = 0
+modulate = Color(0.15, 0.19, 0.19, 1)
+rotation = Vector3(-1.5708, 0, 0)
+
+[node name="ToolSketch" type="MeshInstance3D" parent="."]
+position = Vector3(0.024, 0.053, 0.213)
+scale = Vector3(0.22, 0.002, 0.017)
+mesh = SubResource("Unit")
+material_override = SubResource("Ink")
+
+[node name="JawUpper" type="MeshInstance3D" parent="."]
+position = Vector3(0.148, 0.053, 0.216)
+scale = Vector3(0.065, 0.002, 0.013)
+mesh = SubResource("Unit")
+material_override = SubResource("Ink")
+rotation = Vector3(0, -0.4, 0)
+
+[node name="JawLower" type="MeshInstance3D" parent="."]
+position = Vector3(0.15, 0.053, 0.192)
+scale = Vector3(0.065, 0.002, 0.013)
+mesh = SubResource("Unit")
+material_override = SubResource("Ink")
+rotation = Vector3(0, 0.4, 0)
+
+[node name="ClothMark" type="MeshInstance3D" parent="."]
+position = Vector3(0.001, 0.055, 0.213)
+scale = Vector3(0.025, 0.002, 0.031)
+mesh = SubResource("Unit")
+material_override = SubResource("Stamp")
+
+[node name="Cover" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.068, 0)
+scale = Vector3(0.9, 0.013, 0.7)
+mesh = SubResource("Unit")
+material_override = SubResource("Glass")
+
+[node name="LeftClip" type="MeshInstance3D" parent="."]
+position = Vector3(-0.427, 0.07, 0)
+scale = Vector3(0.031, 0.023, 0.122)
+mesh = SubResource("Unit")
+material_override = SubResource("Brass")
+
+[node name="RightClip" type="MeshInstance3D" parent="."]
+position = Vector3(0.427, 0.07, 0)
+scale = Vector3(0.031, 0.023, 0.122)
+mesh = SubResource("Unit")
+material_override = SubResource("Brass")
