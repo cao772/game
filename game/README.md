@@ -1,5 +1,7 @@
 # Game runtime foundation
 
+In regional exploration, M opens a paused field atlas. Browse the three sheets, inspect a route, a crate or a discovered place, then mark one destination. The HUD shows a compass bearing and horizontal distance. For other regions, it guides to the local exit and lists crossing time. Held crates remain in the index. A successful restore clears the temporary mark.
+
 At the regional RIDGE lookout, watch the windsock and press E at the empty-handed crank to try a short kite flight. Press E again or walk away to reel it in. Place either existing crate on the lookout pad to latch the long line. The second crate remains available. Walk up the ramp and use Up/Down or drag with the right mouse button to look at the swallow. Removing the weight releases the ratchet. Each four-day wind bag contains all four directions and is determined by the existing world day. Restores rebuild the long line from the crate placement.
 
 At 17:10 the regional courier leaves the west shore to check a two-stripe tally at the east mooring post. The daily water level selects a footpath. Low water brings the courier to the post at 17:18, normal water at 17:20. Inspect the post, ask for directions or follow on foot. The three-minute check and return use the existing clock.

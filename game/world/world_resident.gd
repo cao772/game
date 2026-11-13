@@ -81,6 +81,12 @@ func apply_projection(world_position: Vector3, heading: float, moving: bool, del
 		_play_locomotion()
 
 
+# Stop animation processing in place, including a manually posed dock tally.
+# Disabling the resident subtree would also remove its collider from physics.
+func set_map_frozen(frozen: bool) -> void:
+	if is_instance_valid(_player):
+		_player.process_mode = Node.PROCESS_MODE_DISABLED if frozen else Node.PROCESS_MODE_INHERIT
+
 func set_conversing(value: bool) -> void:
 	if _conversing == value:
 		return

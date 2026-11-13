@@ -134,6 +134,15 @@ func set_ridge_sky_view(on_ridge: bool) -> void:
 func _tilt_camera(amount: float) -> void:
 	_arm.rotation.x = clampf(_arm.rotation.x + amount, -1.1, _upward_pitch)
 
+func set_map_frozen(frozen: bool) -> void:
+	controls_enabled = not frozen
+	set_physics_process(not frozen)
+	if is_instance_valid(_animation):
+		_animation.process_mode = Node.PROCESS_MODE_DISABLED if frozen else Node.PROCESS_MODE_INHERIT
+	if frozen:
+		_jump = false
+		release_pointer()
+
 func release_pointer() -> void:
 	_looking = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
